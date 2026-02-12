@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.util.UpdateEffect
 import java.awt.Component
 import java.awt.Dimension
 import javax.swing.*
+import javax.swing.text.JTextComponent
 
 /**
  * Base composable node for Swing components.
@@ -16,11 +17,11 @@ internal fun <T : Component> SwingComponent(
     update: T.() -> Unit = {}
 ) {
     val component = remember { factory() }
-    
+
     UpdateEffect {
         component.update()
     }
-    
+
     ComposeNode<Component, Applier<Any>>(
         factory = { component },
         update = {}
@@ -45,7 +46,7 @@ fun Button(
         update = {
             this.text = text
             this.isEnabled = enabled
-            
+
             // Remove all existing action listeners and add the new one
             actionListeners.forEach { removeActionListener(it) }
             addActionListener { onClick() }
@@ -74,6 +75,49 @@ fun Label(
 }
 
 /**
+ * Private helper for managing text synchronization and document listener for JTextComponent.
+ * Handles the common logic shared by TextField and TextArea.
+ *
+ * @param textComponent the JTextComponent instance (JTextField or JTextArea)
+ * @param value the current text value
+ * @param onValueChange callback invoked when the text changes
+ */
+@Composable
+private fun TextComponentEffects(
+    textComponent: JTextComponent,
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    UpdateEffect {
+        // Update text only if it differs from current text
+        if (textComponent.text != value) {
+            textComponent.text = value
+        }
+    }
+
+    DisposableEffect(onValueChange) {
+        val listener = object : javax.swing.event.DocumentListener {
+            override fun insertUpdate(e: javax.swing.event.DocumentEvent?) {
+                onValueChange(textComponent.text)
+            }
+
+            override fun removeUpdate(e: javax.swing.event.DocumentEvent?) {
+                onValueChange(textComponent.text)
+            }
+
+            override fun changedUpdate(e: javax.swing.event.DocumentEvent?) {
+                onValueChange(textComponent.text)
+            }
+        }
+        textComponent.document.addDocumentListener(listener)
+
+        onDispose {
+            textComponent.document.removeDocumentListener(listener)
+        }
+    }
+}
+
+/**
  * A composable wrapper for JTextField.
  *
  * @param value the current text value
@@ -88,33 +132,16 @@ fun TextField(
     enabled: Boolean = true,
     columns: Int = 20
 ) {
-    var listener by remember { mutableStateOf<javax.swing.event.DocumentListener?>(null) }
-    
-    SwingComponent(
-        factory = { JTextField(columns) },
+    val textField = remember { JTextField(columns) }
+
+    ComposeNode<Component, Applier<Any>>(
+        factory = { textField },
         update = {
-            if (this.text != value) {
-                this.text = value
-            }
-            this.isEnabled = enabled
-            
-            // Remove previous listener and add new one
-            listener?.let { document.removeDocumentListener(it) }
-            val newListener = object : javax.swing.event.DocumentListener {
-                override fun insertUpdate(e: javax.swing.event.DocumentEvent?) {
-                    onValueChange(text)
-                }
-                override fun removeUpdate(e: javax.swing.event.DocumentEvent?) {
-                    onValueChange(text)
-                }
-                override fun changedUpdate(e: javax.swing.event.DocumentEvent?) {
-                    onValueChange(text)
-                }
-            }
-            document.addDocumentListener(newListener)
-            listener = newListener
+            set(enabled) { textField.isEnabled = it }
         }
     )
+
+    TextComponentEffects(textField, value, onValueChange)
 }
 
 /**
@@ -134,33 +161,16 @@ fun TextArea(
     rows: Int = 5,
     columns: Int = 20
 ) {
-    var listener by remember { mutableStateOf<javax.swing.event.DocumentListener?>(null) }
-    
-    SwingComponent(
-        factory = { JTextArea(rows, columns) },
+    val textArea = remember { JTextArea(rows, columns) }
+
+    ComposeNode<Component, Applier<Any>>(
+        factory = { textArea },
         update = {
-            if (this.text != value) {
-                this.text = value
-            }
-            this.isEnabled = enabled
-            
-            // Remove previous listener and add new one
-            listener?.let { document.removeDocumentListener(it) }
-            val newListener = object : javax.swing.event.DocumentListener {
-                override fun insertUpdate(e: javax.swing.event.DocumentEvent?) {
-                    onValueChange(text)
-                }
-                override fun removeUpdate(e: javax.swing.event.DocumentEvent?) {
-                    onValueChange(text)
-                }
-                override fun changedUpdate(e: javax.swing.event.DocumentEvent?) {
-                    onValueChange(text)
-                }
-            }
-            document.addDocumentListener(newListener)
-            listener = newListener
+            set(enabled) { textArea.isEnabled = it }
         }
     )
+
+    TextComponentEffects(textArea, value, onValueChange)
 }
 
 /**
@@ -184,7 +194,7 @@ fun CheckBox(
             this.text = text
             this.isSelected = checked
             this.isEnabled = enabled
-            
+
             // Remove all existing action listeners and add the new one
             actionListeners.forEach { removeActionListener(it) }
             addActionListener { onCheckedChange(isSelected) }
@@ -213,7 +223,7 @@ fun RadioButton(
             this.text = text
             this.isSelected = selected
             this.isEnabled = enabled
-            
+
             // Remove all existing action listeners and add the new one
             actionListeners.forEach { removeActionListener(it) }
             addActionListener { if (isSelected) onSelect() }
@@ -245,10 +255,10 @@ fun <T> ComboBox(
                 this.selectedIndex = selectedIndex
             }
             this.isEnabled = enabled
-            
+
             // Remove all existing action listeners and add the new one
             actionListeners.forEach { removeActionListener(it) }
-            addActionListener { 
+            addActionListener {
                 onSelectionChange(this.selectedIndex)
             }
         }
@@ -279,7 +289,7 @@ fun Slider(
             this.maximum = max
             this.value = value
             this.isEnabled = enabled
-            
+
             // Remove all existing change listeners and add the new one
             changeListeners.forEach { removeChangeListener(it) }
             addChangeListener { onValueChange(this.value) }
@@ -339,7 +349,7 @@ fun ScrollPane(
     content: @Composable () -> Unit
 ) {
     SwingComponent(
-        factory = { 
+        factory = {
             val panel = JPanel()
             JScrollPane(panel).apply {
                 preferredSize?.let { this.preferredSize = it }
