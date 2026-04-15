@@ -1,32 +1,13 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.*
-import org.jetbrains.compose.swing.util.UpdateEffect
+import org.jetbrains.compose.swing.SwingNode
 import java.awt.Component
 import java.awt.Dimension
 import javax.swing.*
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import javax.swing.text.JTextComponent
-
-/**
- * Base composable node for Swing components.
- * Manages the lifecycle and updates of a Swing component in the Compose tree.
- */
-@Composable
-internal fun <T : Component> SwingComponent(
-    factory: () -> T,
-    update: T.() -> Unit = {}
-) {
-    val component = remember { factory() }
-
-    UpdateEffect {
-        component.update()
-    }
-
-    ComposeNode<Component, Applier<Any>>(
-        factory = { component },
-        update = {}
-    )
-}
 
 /**
  * A composable wrapper for JButton.
@@ -41,15 +22,15 @@ fun Button(
     enabled: Boolean = true,
     onClick: () -> Unit = {}
 ) {
-    SwingComponent(
+    SwingNode(
         factory = { JButton() },
         update = {
-            this.text = text
-            this.isEnabled = enabled
-
-            // Remove all existing action listeners and add the new one
-            actionListeners.forEach { removeActionListener(it) }
-            addActionListener { onClick() }
+            set(text) { this.text = it }
+            set(enabled) { this.isEnabled = it }
+            set(onClick) {
+                this.actionListeners.forEach { this.removeActionListener(it) }
+                this.addActionListener { onClick() }
+            }
         }
     )
 }
@@ -65,11 +46,11 @@ fun Label(
     text: String,
     horizontalAlignment: Int = SwingConstants.LEFT
 ) {
-    SwingComponent(
+    SwingNode(
         factory = { JLabel() },
         update = {
-            this.text = text
-            this.horizontalAlignment = horizontalAlignment
+            set(text) { this.text = it }
+            set(horizontalAlignment) { this.horizontalAlignment = it }
         }
     )
 }
@@ -79,33 +60,24 @@ fun Label(
  * Handles the common logic shared by TextField and TextArea.
  *
  * @param textComponent the JTextComponent instance (JTextField or JTextArea)
- * @param value the current text value
  * @param onValueChange callback invoked when the text changes
  */
 @Composable
-private fun TextComponentEffects(
+private fun TextComponentListener(
     textComponent: JTextComponent,
-    value: String,
     onValueChange: (String) -> Unit
 ) {
-    UpdateEffect {
-        // Update text only if it differs from current text
-        if (textComponent.text != value) {
-            textComponent.text = value
-        }
-    }
-
     DisposableEffect(onValueChange) {
-        val listener = object : javax.swing.event.DocumentListener {
-            override fun insertUpdate(e: javax.swing.event.DocumentEvent?) {
+        val listener = object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent?) {
                 onValueChange(textComponent.text)
             }
 
-            override fun removeUpdate(e: javax.swing.event.DocumentEvent?) {
+            override fun removeUpdate(e: DocumentEvent?) {
                 onValueChange(textComponent.text)
             }
 
-            override fun changedUpdate(e: javax.swing.event.DocumentEvent?) {
+            override fun changedUpdate(e: DocumentEvent?) {
                 onValueChange(textComponent.text)
             }
         }
@@ -134,14 +106,15 @@ fun TextField(
 ) {
     val textField = remember { JTextField(columns) }
 
-    ComposeNode<Component, Applier<Any>>(
+    SwingNode(
         factory = { textField },
         update = {
-            set(enabled) { textField.isEnabled = it }
+            set(enabled) { this.isEnabled = it }
+            set(value) { if (this.text != it) this.text = it }
         }
     )
 
-    TextComponentEffects(textField, value, onValueChange)
+    TextComponentListener(textField, onValueChange)
 }
 
 /**
@@ -163,14 +136,15 @@ fun TextArea(
 ) {
     val textArea = remember { JTextArea(rows, columns) }
 
-    ComposeNode<Component, Applier<Any>>(
+    SwingNode(
         factory = { textArea },
         update = {
             set(enabled) { textArea.isEnabled = it }
+            set(value) { if (textArea.text != it) textArea.text = it }
         }
     )
 
-    TextComponentEffects(textArea, value, onValueChange)
+    TextComponentListener(textArea, onValueChange)
 }
 
 /**
@@ -188,16 +162,16 @@ fun CheckBox(
     onCheckedChange: (Boolean) -> Unit = {},
     enabled: Boolean = true
 ) {
-    SwingComponent(
+    SwingNode(
         factory = { JCheckBox() },
         update = {
-            this.text = text
-            this.isSelected = checked
-            this.isEnabled = enabled
-
-            // Remove all existing action listeners and add the new one
-            actionListeners.forEach { removeActionListener(it) }
-            addActionListener { onCheckedChange(isSelected) }
+            set(text) { this.text = it }
+            set(checked) { this.isSelected = it }
+            set(enabled) { this.isEnabled = it }
+            set(onCheckedChange) {
+                this.actionListeners.forEach { this.removeActionListener(it) }
+                this.addActionListener { onCheckedChange(this.isSelected) }
+            }
         }
     )
 }
@@ -217,16 +191,16 @@ fun RadioButton(
     onSelect: () -> Unit = {},
     enabled: Boolean = true
 ) {
-    SwingComponent(
+    SwingNode(
         factory = { JRadioButton() },
         update = {
-            this.text = text
-            this.isSelected = selected
-            this.isEnabled = enabled
-
-            // Remove all existing action listeners and add the new one
-            actionListeners.forEach { removeActionListener(it) }
-            addActionListener { if (isSelected) onSelect() }
+            set(text) { this.text = it }
+            set(selected) { this.isSelected = it }
+            set(enabled) { this.isEnabled = it }
+            set(onSelect) {
+                this.actionListeners.forEach { this.removeActionListener(it) }
+                this.addActionListener { if (this.isSelected) onSelect() }
+            }
         }
     )
 }
@@ -246,20 +220,22 @@ fun <T> ComboBox(
     onSelectionChange: (Int) -> Unit = {},
     enabled: Boolean = true
 ) {
-    SwingComponent(
+    SwingNode(
         factory = { JComboBox<T>() },
         update = {
-            removeAllItems()
-            items.forEach { addItem(it) }
-            if (selectedIndex >= 0 && selectedIndex < items.size) {
-                this.selectedIndex = selectedIndex
+            set(items) {
+                this.removeAllItems()
+                it.forEach { item -> this.addItem(item) }
             }
-            this.isEnabled = enabled
-
-            // Remove all existing action listeners and add the new one
-            actionListeners.forEach { removeActionListener(it) }
-            addActionListener {
-                onSelectionChange(this.selectedIndex)
+            set(selectedIndex) {
+                if (it >= 0 && it < this.itemCount) {
+                    this.selectedIndex = it
+                }
+            }
+            set(enabled) { this.isEnabled = it }
+            set(onSelectionChange) {
+                this.actionListeners.forEach { this.removeActionListener(it) }
+                this.addActionListener { onSelectionChange(this.selectedIndex) }
             }
         }
     )
@@ -282,17 +258,17 @@ fun Slider(
     max: Int = 100,
     enabled: Boolean = true
 ) {
-    SwingComponent(
+    SwingNode(
         factory = { JSlider(min, max, value) },
         update = {
-            this.minimum = min
-            this.maximum = max
-            this.value = value
-            this.isEnabled = enabled
-
-            // Remove all existing change listeners and add the new one
-            changeListeners.forEach { removeChangeListener(it) }
-            addChangeListener { onValueChange(this.value) }
+            set(min) { this.minimum = it }
+            set(max) { this.maximum = it }
+            set(value) { this.value = it }
+            set(enabled) { this.isEnabled = it }
+            set(onValueChange) {
+                this.changeListeners.forEach { this.removeChangeListener(it) }
+                this.addChangeListener { onValueChange(this.value) }
+            }
         }
     )
 }
@@ -312,13 +288,13 @@ fun ProgressBar(
     max: Int = 100,
     indeterminate: Boolean = false
 ) {
-    SwingComponent(
+    SwingNode(
         factory = { JProgressBar(min, max) },
         update = {
-            this.minimum = min
-            this.maximum = max
-            this.value = value
-            this.isIndeterminate = indeterminate
+            set(min) { this.minimum = it }
+            set(max) { this.maximum = it }
+            set(value) { this.value = it }
+            set(indeterminate) { this.isIndeterminate = it }
         }
     )
 }
@@ -332,8 +308,11 @@ fun ProgressBar(
 fun Separator(
     orientation: Int = SwingConstants.HORIZONTAL
 ) {
-    SwingComponent(
-        factory = { JSeparator(orientation) }
+    SwingNode(
+        factory = { JSeparator(orientation) },
+        update = {
+            set(orientation) { this.orientation = it }
+        }
     )
 }
 
@@ -348,7 +327,7 @@ fun ScrollPane(
     preferredSize: Dimension? = null,
     content: @Composable () -> Unit
 ) {
-    SwingComponent(
+    SwingNode(
         factory = {
             val panel = JPanel()
             JScrollPane(panel).apply {
@@ -356,8 +335,9 @@ fun ScrollPane(
             }
         },
         update = {
-            preferredSize?.let { this.preferredSize = it }
+            set(preferredSize) { it?.let { this.preferredSize = it } }
         }
-    )
-    content()
+    ) {
+        content()
+    }
 }

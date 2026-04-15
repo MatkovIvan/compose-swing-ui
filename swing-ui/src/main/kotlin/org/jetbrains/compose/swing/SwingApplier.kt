@@ -9,7 +9,7 @@ import java.awt.Container
  * Applier for Swing component tree.
  * Manages the hierarchy of Swing components in a Compose-like way.
  */
-internal class SwingApplier(root: Container) : AbstractApplier<Component>(root) {
+public class SwingApplier(root: Container) : AbstractApplier<Component>(root) {
     
     override fun insertTopDown(index: Int, instance: Component) {
         // Swing components are inserted bottom-up
