@@ -1,10 +1,13 @@
 package org.jetbrains.compose.swing.app
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.components.Canvas
 import org.jetbrains.compose.swing.components.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.ComboBox
@@ -24,9 +27,11 @@ import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.GridPanel
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.dialogs.showMessageDialog
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.preferredSize
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.window.LocalWindow
 import java.awt.Color
 import java.awt.Dimension
 import javax.swing.JFrame
@@ -36,7 +41,7 @@ import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
 
 private const val WINDOW_WIDTH = 820
-private const val WINDOW_HEIGHT = 620
+private const val WINDOW_HEIGHT = 640
 
 private val FRUITS = listOf("Apple", "Banana", "Cherry", "Date")
 
@@ -47,21 +52,25 @@ fun main() {
         frame.size = Dimension(WINDOW_WIDTH, WINDOW_HEIGHT)
 
         val menuBar = JMenuBar()
-        menuBar.setContent { ShowcaseMenuBar() }
         frame.jMenuBar = menuBar
+        menuBar.setContent { ShowcaseMenuBar(onExit = { frame.dispose() }) }
 
-        frame.setContent { ShowcaseShell() }
+        frame.setContent {
+            CompositionLocalProvider(LocalWindow provides frame) {
+                ShowcaseShell()
+            }
+        }
         frame.isVisible = true
     }
 }
 
 @Composable
-private fun ShowcaseMenuBar() {
+private fun ShowcaseMenuBar(onExit: () -> Unit) {
     Menu("File") {
         MenuItem("New") { println("New") }
         MenuItem("Open") { println("Open") }
         MenuSeparator()
-        MenuItem("Exit") { System.exit(0) }
+        MenuItem("Exit") { onExit() }
     }
     Menu("View") {
         var toolbar by remember { mutableStateOf(true) }
@@ -102,11 +111,18 @@ private fun ShowcaseShell() {
 
 @Composable
 private fun CounterRow() {
+    val scope = rememberCoroutineScope()
+    val window = LocalWindow.current
     var counter by remember { mutableStateOf(0) }
     FlowPanel {
         Label("Counter: $counter")
         Button("Increment") { counter++ }
         Button("Reset") { counter = 0 }
+        Button("About") {
+            scope.launch {
+                showMessageDialog("Compose-over-Swing showcase.", parent = window, title = "About")
+            }
+        }
     }
 }
 
