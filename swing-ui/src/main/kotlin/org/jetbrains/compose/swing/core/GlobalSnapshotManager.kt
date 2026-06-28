@@ -1,11 +1,13 @@
-package org.jetbrains.compose.swing
+package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.swing.GlobalSnapshotManager.ensureStarted
+import kotlinx.coroutines.swing.Swing
+import org.jetbrains.compose.swing.core.GlobalSnapshotManager.ensureStarted
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -15,8 +17,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * framework target.
  *
  * Composition bootstrapping mechanisms for a particular platform/framework should call
- * [ensureStarted] during setup to initialize periodic global snapshot notifications. For Android,
- * these notifications are always sent on [SwingDispatcher].
+ * [ensureStarted] during setup to initialize periodic global snapshot notifications. These
+ * notifications are always sent on the Swing event dispatch thread via [Dispatchers.Swing].
  */
 internal object GlobalSnapshotManager {
     private val started = AtomicBoolean(false)
@@ -25,7 +27,7 @@ internal object GlobalSnapshotManager {
     fun ensureStarted() {
         if (started.compareAndSet(false, true)) {
             val channel = Channel<Unit>(1)
-            CoroutineScope(SwingDispatcher).launch {
+            CoroutineScope(Dispatchers.Swing).launch {
                 channel.consumeEach {
                     sent.set(false)
                     Snapshot.sendApplyNotifications()

@@ -1,24 +1,158 @@
 package org.jetbrains.compose.swing
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ComposeNode
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisallowComposableCalls
-import androidx.compose.runtime.Updater
+import androidx.compose.runtime.ReusableComposeNode
+import androidx.compose.runtime.rememberCompositionContext
+import org.jetbrains.compose.swing.annotations.SwingComposable
+import org.jetbrains.compose.swing.core.LocalSlotAttachment
+import org.jetbrains.compose.swing.core.LocalSwingConstraint
+import org.jetbrains.compose.swing.core.SlotAttachment
+import org.jetbrains.compose.swing.core.SwingApplier
+import org.jetbrains.compose.swing.core.SwingNodeHolder
 import java.awt.Component
 
+/**
+ * Declares a leaf or container Swing node in the composition.
+ *
+ * This is the primary entry point for defining a **custom component**: wrap any Swing [Component] by
+ * passing a [factory] that creates it and an [update] block that maps composition state onto it.
+ * Every built-in wrapper (`Button`, `TextField`, `Slider`, …) is built on top of this function — see
+ * `docs/CUSTOM-COMPONENTS.md`.
+ *
+ * A slot-based parent can dictate this node's placement (e.g. a `BorderLayout` region via
+ * [LocalSwingConstraint]) or how it is installed into a host with dedicated setters (e.g. a
+ * `JScrollPane` region via [SlotNode]), without the child knowing its container.
+ *
+ * The node is recyclable: when it is conditionally shown/hidden across recompositions (e.g. a
+ * [androidx.compose.runtime.ReusableContentHost] parked and reactivated, or structurally-identical
+ * content replacing it in the same slot) the runtime reuses the existing backing [Component] for the
+ * new content from a clean baseline rather than allocating a fresh one.
+ *
+ * When [hostsSubcompositions] is `true`, a `setContent` call on a descendant Swing component joins
+ * this composition, sharing its scope and [androidx.compose.runtime.CompositionLocal]s. The component
+ * must be a [javax.swing.JComponent] or this throws [IllegalStateException]. Defaults to `false`.
+ *
+ * @param factory builds the backing Swing component.
+ * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
+ *   mechanism — see [org.jetbrains.compose.swing.modifier.listener].
+ * @param onRelease optional teardown run when the node leaves the composition for good.
+ * @param hostsSubcompositions when `true`, a descendant component's `setContent` joins this
+ *   composition. Defaults to `false`.
+ */
 @Composable
-public inline fun <T : Component> SwingNode(
+@SwingComposable
+public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
-    update: @DisallowComposableCalls Updater<T>.() -> Unit,
+    crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
+    noinline onRelease: (T.() -> Unit)? = null,
+    hostsSubcompositions: Boolean = false,
 ) {
-    ComposeNode<T, SwingApplier>(factory, update)
+    val constraint = LocalSwingConstraint.current
+    val slotAttachment = LocalSlotAttachment.current
+    val parentContext = if (hostsSubcompositions) rememberCompositionContext() else null
+    ReusableComposeNode<SwingNodeHolder<T>, SwingApplier>(
+        // The slot attachment is read in the factory, not the update block, because the applier needs
+        // it at insert time (insertBottomUp installs the component through it) — before the node's
+        // update changes run.
+        factory = { SwingNodeHolder(factory()).also { it.slotAttachment = slotAttachment } },
+        update = {
+            set(constraint) { this.constraint = it }
+            set(parentContext) { context -> context?.let { hostSubcompositions(it) } }
+            SwingNodeUpdater(this).update()
+            set(onRelease) { release ->
+                releaseBlock =
+                    if (release != null) {
+                        { component.release() }
+                    } else {
+                        null
+                    }
+            }
+        },
+    )
 }
 
+/**
+ * Container variant of [SwingNode] that hosts composable [content] as children.
+ *
+ * Use this overload when your custom Swing component is a [java.awt.Container] that should host
+ * further composables. See `docs/CUSTOM-COMPONENTS.md`.
+ *
+ * [hostsSubcompositions] behaves as in the leaf overload. Defaults to `false`.
+ */
 @Composable
-public inline fun <T : Component> SwingNode(
+@SwingComposable
+public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
-    update: @DisallowComposableCalls Updater<T>.() -> Unit,
-    content: @Composable @SwingComposable () -> Unit,
+    crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
+    noinline onRelease: (T.() -> Unit)? = null,
+    hostsSubcompositions: Boolean = false,
+    crossinline content:
+        @Composable @SwingComposable
+        () -> Unit,
 ) {
-    ComposeNode<T, SwingApplier>(factory, update, content)
+    val constraint = LocalSwingConstraint.current
+    val slotAttachment = LocalSlotAttachment.current
+    val parentContext = if (hostsSubcompositions) rememberCompositionContext() else null
+    ReusableComposeNode<SwingNodeHolder<T>, SwingApplier>(
+        // The slot attachment is read in the factory, not the update block, because the applier needs
+        // it at insert time (insertBottomUp installs the component through it) — before the node's
+        // update changes run.
+        factory = { SwingNodeHolder(factory()).also { it.slotAttachment = slotAttachment } },
+        update = {
+            set(constraint) { this.constraint = it }
+            set(parentContext) { context -> context?.let { hostSubcompositions(it) } }
+            SwingNodeUpdater(this).update()
+            set(onRelease) { release ->
+                releaseBlock =
+                    if (release != null) {
+                        { component.release() }
+                    } else {
+                        null
+                    }
+            }
+        },
+        // This node has consumed any incoming layout constraint and slot attachment for its OWN
+        // placement; its children must not re-consume them (they belong inside this component, placed
+        // by its own layout manager and attached the ordinary way). Reset both locals to their default
+        // for the subtree, so a child gets the default (null) constraint unless this container itself
+        // re-provides one per region (as BorderPanel does under this null baseline). Without resetting
+        // the constraint, a constrained-layout child (e.g. a GridBagLayout panel placed in a
+        // BorderPanel region) would inherit the parent region's BorderLayout constraint string and the
+        // applier would reject it (GridBagLayout.addLayoutComponent demands a GridBagConstraints).
+        content = {
+            CompositionLocalProvider(
+                LocalSwingConstraint provides null,
+                LocalSlotAttachment provides null,
+            ) {
+                content()
+            }
+        },
+    )
+}
+
+/**
+ * Hosts a single-node region in a Swing component that owns its own attachment slot — a host whose
+ * children go through a dedicated setter rather than the generic `Container.add`. The canonical case
+ * is `JScrollPane`, whose viewport / header / corner regions are each reached via `setViewportView` /
+ * `setRowHeaderView` / `setColumnHeaderView` / `setCorner`.
+ *
+ * Provides [attachment] through [LocalSlotAttachment] and composes [content]; the single [SwingNode]
+ * that [content] emits is installed into the host through the attachment and uninstalled on removal.
+ * [content] must emit exactly one node — each such slot hosts a single view.
+ *
+ * @param attachment installs the region's node into the host and returns its uninstall action.
+ * @param content emits the single node whose component fills the slot.
+ */
+@Composable
+internal inline fun SlotNode(
+    attachment: SlotAttachment,
+    crossinline content:
+        @Composable @SwingComposable
+        () -> Unit,
+) {
+    CompositionLocalProvider(LocalSlotAttachment provides attachment) {
+        content()
+    }
 }

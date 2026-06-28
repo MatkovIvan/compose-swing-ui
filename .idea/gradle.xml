@@ -21,6 +21,7 @@
             <option value="$PROJECT_DIR$/buildSrc" />
             <option value="$PROJECT_DIR$/sample-app" />
             <option value="$PROJECT_DIR$/swing-ui" />
+            <option value="$PROJECT_DIR$/swing-ui-test" />
           </set>
         </option>
       </GradleProjectSettings>
