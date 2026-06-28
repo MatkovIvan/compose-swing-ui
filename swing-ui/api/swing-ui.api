@@ -30,6 +30,48 @@ public abstract interface annotation class org/jetbrains/compose/swing/annotatio
 public abstract interface annotation class org/jetbrains/compose/swing/annotations/SwingMenuComposable : java/lang/annotation/Annotation {
 }
 
+public final class org/jetbrains/compose/swing/components/ComponentsKt {
+	public static final fun ComboBox (Ljava/util/List;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILandroidx/compose/runtime/Composer;II)V
+	public static final fun ComboBox (Ljava/util/List;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Label (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILandroidx/compose/runtime/Composer;II)V
+	public static final fun ProgressBar (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIIZLandroidx/compose/runtime/Composer;II)V
+	public static final fun Separator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILandroidx/compose/runtime/Composer;II)V
+	public static final fun Slider (ILjavax/swing/event/ChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IILandroidx/compose/runtime/Composer;II)V
+	public static final fun Slider (ILorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;IILandroidx/compose/runtime/Composer;II)V
+	public static final fun Spinner (DLjavax/swing/event/ChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;DDDLandroidx/compose/runtime/Composer;II)V
+	public static final fun Spinner (DLorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;DDDLandroidx/compose/runtime/Composer;II)V
+	public static final fun Spinner (ILjavax/swing/event/ChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIILandroidx/compose/runtime/Composer;II)V
+	public static final fun Spinner (ILorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;IIILandroidx/compose/runtime/Composer;II)V
+	public static final fun Spinner (Ljava/util/List;Ljavax/swing/event/ChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILandroidx/compose/runtime/Composer;II)V
+	public static final fun Spinner (Ljava/util/List;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+}
+
+public final class org/jetbrains/compose/swing/components/button/ButtonComponentsKt {
+	public static final fun Button (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Button (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+	public static final fun CheckBox (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLandroidx/compose/runtime/Composer;II)V
+	public static final fun CheckBox (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun RadioButton (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLandroidx/compose/runtime/Composer;II)V
+	public static final fun RadioButton (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+	public static final fun ToggleButton (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjavax/swing/Icon;Landroidx/compose/runtime/Composer;II)V
+	public static final fun ToggleButton (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLkotlin/jvm/functions/Function1;Ljavax/swing/Icon;Landroidx/compose/runtime/Composer;II)V
+}
+
+public final class org/jetbrains/compose/swing/components/text/TextComponentsKt {
+	public static final fun EditorPane (Ljava/lang/String;Ljavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;ZLandroidx/compose/runtime/Composer;II)V
+	public static final fun EditorPane (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ZLandroidx/compose/runtime/Composer;II)V
+	public static final fun FormattedTextField (Ljava/lang/Object;Ljava/beans/PropertyChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/JFormattedTextField$AbstractFormatterFactory;IILandroidx/compose/runtime/Composer;II)V
+	public static final fun FormattedTextField (Ljava/lang/Object;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/JFormattedTextField$AbstractFormatterFactory;Lkotlin/jvm/functions/Function1;IILandroidx/compose/runtime/Composer;II)V
+	public static final fun PasswordField ([CLjavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;CILandroidx/compose/runtime/Composer;II)V
+	public static final fun PasswordField ([CLorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;CILandroidx/compose/runtime/Composer;II)V
+	public static final fun TextArea (Ljava/lang/String;Ljavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IILandroidx/compose/runtime/Composer;II)V
+	public static final fun TextArea (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;IILandroidx/compose/runtime/Composer;II)V
+	public static final fun TextField (Ljava/lang/String;Ljavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILandroidx/compose/runtime/Composer;II)V
+	public static final fun TextField (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;ILandroidx/compose/runtime/Composer;II)V
+	public static final fun TextPane (Ljava/lang/String;Ljavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLandroidx/compose/runtime/Composer;II)V
+	public static final fun TextPane (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;ZLandroidx/compose/runtime/Composer;II)V
+}
+
 public abstract interface annotation class org/jetbrains/compose/swing/constants/BoxAxis : java/lang/annotation/Annotation {
 }
 
