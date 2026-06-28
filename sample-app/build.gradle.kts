@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation(project(":swing-ui"))
+    implementation(project(":swing-ui-animation"))
 }
 
 application {

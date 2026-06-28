@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.animation.core.ExperimentalSwingAnimationApi
+import org.jetbrains.compose.swing.animation.core.animateIntAsState
 import org.jetbrains.compose.swing.components.Canvas
 import org.jetbrains.compose.swing.components.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.ComboBox
@@ -174,9 +176,11 @@ private fun RadioRow() {
     }
 }
 
+@OptIn(ExperimentalSwingAnimationApi::class)
 @Composable
 private fun SelectionRow(fillPercent: Int) {
     var fruit by remember { mutableStateOf(listOf(0)) }
+    val fill by animateIntAsState(targetValue = fillPercent, label = "canvasFill")
     GridPanel(rows = 1, cols = 2, hgap = 8, vgap = 8) {
         ListBox(
             items = FRUITS,
@@ -187,7 +191,7 @@ private fun SelectionRow(fillPercent: Int) {
         )
         Canvas(modifier = SwingModifier.preferredSize(160, 120)) { g, width, height ->
             g.color = Color(0x33, 0x66, 0xCC)
-            g.fillRect(0, 0, width * fillPercent / 100, height)
+            g.fillRect(0, 0, width * fill / 100, height)
         }
     }
 }

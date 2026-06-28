@@ -21,6 +21,20 @@ ktlint_function_naming_ignore_when_annotated_with = Composable
 # than the layout one. These types are pervasive in this Compose-based library.
 ktlint_standard_function-type-modifier-spacing = disabled
 
+# swing-ui-animation is a faithful, vendored copy of androidx animation-core. Its source follows
+# AOSP/Compose conventions that conflict with a handful of ktlint rules, and those conventions are
+# load-bearing: the PascalCase public vals and val-converter getters (FastOutSlowInEasing,
+# Float.VectorConverter, ...) and the `AnimationVectorNd()` factory functions ARE the public API and
+# must match Compose verbatim. Disabling these rules for the vendored tree keeps re-syncs mechanical
+# instead of forcing renames that would fork the API. New, original code lives in other modules where
+# the full rule set still applies.
+[swing-ui-animation/src/**.{kt,kts}]
+ktlint_standard_property-naming = disabled
+ktlint_standard_backing-property-naming = disabled
+ktlint_standard_function-naming = disabled
+ktlint_standard_no-consecutive-comments = disabled
+ktlint_standard_kdoc = disabled
+
 # Tests host their body in a trailing-lambda call (e.g. `fun x() = runSwingUiTest {`). Keep that
 # single-expression body on the signature line instead of wrapping it after `=`, so the test reads as
 # its name followed directly by the scenario. Only the wrapping of an expression body that already
