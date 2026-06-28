@@ -5,52 +5,173 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.SwingNode
+import org.jetbrains.compose.swing.components.Canvas
+import org.jetbrains.compose.swing.components.CheckBoxMenuItem
+import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.Menu
+import org.jetbrains.compose.swing.components.MenuItem
+import org.jetbrains.compose.swing.components.MenuSeparator
+import org.jetbrains.compose.swing.components.ProgressBar
+import org.jetbrains.compose.swing.components.Separator
+import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.button.CheckBox
+import org.jetbrains.compose.swing.components.button.RadioButton
+import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.GridPanel
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.text.TextField
-import org.jetbrains.compose.swing.constants.SelectionMode
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.preferredSize
 import org.jetbrains.compose.swing.setContent
+import java.awt.Color
 import java.awt.Dimension
-import java.awt.GridLayout
 import javax.swing.JFrame
-import javax.swing.JPanel
+import javax.swing.JMenuBar
 import javax.swing.ListSelectionModel
+import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
 
-private const val WINDOW_WIDTH = 480
-private const val WINDOW_HEIGHT = 320
+private const val WINDOW_WIDTH = 820
+private const val WINDOW_HEIGHT = 620
 
-private val FRUITS = listOf("Apple", "Banana", "Cherry", "Date", "Elderberry")
+private val FRUITS = listOf("Apple", "Banana", "Cherry", "Date")
 
 fun main() {
     SwingUtilities.invokeLater {
-        val frame = JFrame("Compose Swing UI — Sample")
+        val frame = JFrame("Compose Swing UI — Component Showcase")
         frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
         frame.size = Dimension(WINDOW_WIDTH, WINDOW_HEIGHT)
-        frame.setContent { GreetingForm() }
+
+        val menuBar = JMenuBar()
+        menuBar.setContent { ShowcaseMenuBar() }
+        frame.jMenuBar = menuBar
+
+        frame.setContent { ShowcaseShell() }
         frame.isVisible = true
     }
 }
 
 @Composable
-private fun GreetingForm() {
-    var name by remember { mutableStateOf("") }
-    var greeting by remember { mutableStateOf("Type your name and press Greet.") }
-    var selected by remember { mutableStateOf(listOf(0)) }
+private fun ShowcaseMenuBar() {
+    Menu("File") {
+        MenuItem("New") { println("New") }
+        MenuItem("Open") { println("Open") }
+        MenuSeparator()
+        MenuItem("Exit") { System.exit(0) }
+    }
+    Menu("View") {
+        var toolbar by remember { mutableStateOf(true) }
+        CheckBoxMenuItem("Show Toolbar", checked = toolbar, onCheckedChange = { toolbar = it })
+    }
+}
 
-    SwingNode(factory = { JPanel(GridLayout(0, 1, 8, 8)) }) {
-        Label("Name:")
-        TextField(value = name, onValueChange = { name = it }, columns = 24)
-        Button("Greet") { greeting = if (name.isBlank()) "Hello, stranger!" else "Hello, $name!" }
-        Label(greeting)
-        Label("Favorite fruit: " + (selected.firstOrNull()?.let { FRUITS[it] } ?: "none"))
+@Composable
+private fun ShowcaseShell() {
+    var enabled by remember { mutableStateOf(false) }
+    var slider by remember { mutableStateOf(50) }
+
+    BorderPanel {
+        north {
+            Label("Compose Swing UI — Component Showcase", horizontalAlignment = SwingConstants.CENTER)
+        }
+        center {
+            BoxPanel {
+                CounterRow()
+                Separator()
+                TextRow()
+                ToggleRow(
+                    enabled = enabled,
+                    onEnabledChange = { enabled = it },
+                    slider = slider,
+                    onSliderChange = { slider = it },
+                )
+                ChoiceRow(progress = slider)
+                RadioRow()
+                SelectionRow(fillPercent = slider)
+            }
+        }
+        south {
+            Label("Status: ready | features=${if (enabled) "on" else "off"}")
+        }
+    }
+}
+
+@Composable
+private fun CounterRow() {
+    var counter by remember { mutableStateOf(0) }
+    FlowPanel {
+        Label("Counter: $counter")
+        Button("Increment") { counter++ }
+        Button("Reset") { counter = 0 }
+    }
+}
+
+@Composable
+private fun TextRow() {
+    var text by remember { mutableStateOf("Hello, Compose Swing!") }
+    FlowPanel {
+        Label("Text:")
+        TextField(value = text, onValueChange = { text = it }, columns = 24)
+    }
+}
+
+@Composable
+private fun ToggleRow(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    slider: Int,
+    onSliderChange: (Int) -> Unit,
+) {
+    FlowPanel {
+        CheckBox("Enable features", checked = enabled, onCheckedChange = onEnabledChange)
+        Label("Slider: $slider")
+        Slider(value = slider, onValueChange = onSliderChange)
+    }
+}
+
+@Composable
+private fun ChoiceRow(progress: Int) {
+    var choice by remember { mutableStateOf(0) }
+    FlowPanel {
+        Label("Option:")
+        ComboBox(
+            items = listOf("One", "Two", "Three"),
+            selectedIndex = choice,
+            onSelectionChange = { choice = it },
+        )
+        ProgressBar(value = progress)
+    }
+}
+
+@Composable
+private fun RadioRow() {
+    var radio by remember { mutableStateOf(0) }
+    FlowPanel {
+        Label("Pick one:")
+        RadioButton("A", selected = radio == 0, onSelect = { radio = 0 })
+        RadioButton("B", selected = radio == 1, onSelect = { radio = 1 })
+        RadioButton("C", selected = radio == 2, onSelect = { radio = 2 })
+    }
+}
+
+@Composable
+private fun SelectionRow(fillPercent: Int) {
+    var fruit by remember { mutableStateOf(listOf(0)) }
+    GridPanel(rows = 1, cols = 2, hgap = 8, vgap = 8) {
         ListBox(
             items = FRUITS,
-            selectedIndices = selected,
-            onSelectionChange = { selected = it },
+            selectedIndices = fruit,
+            onSelectionChange = { fruit = it },
             selectionMode = ListSelectionModel.SINGLE_SELECTION,
+            visibleRowCount = 4,
         )
+        Canvas(modifier = SwingModifier.preferredSize(160, 120)) { g, width, height ->
+            g.color = Color(0x33, 0x66, 0xCC)
+            g.fillRect(0, 0, width * fillPercent / 100, height)
+        }
     }
 }

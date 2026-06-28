@@ -1,0 +1,182 @@
+package org.jetbrains.compose.swing.components.layout
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.onNodeOfType
+import org.jetbrains.compose.swing.test.runSwingUiTest
+import javax.swing.JSplitPane
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertSame
+
+/**
+ * Behavioral tests for [SplitPane]. They assert what an observer of the live [JSplitPane] sees: each
+ * declared side becomes the matching left/right (top/bottom) component, dropping a side clears it,
+ * orientation and resize weight map through, and the divider position is controlled while a user drag
+ * fires the callback.
+ */
+class SplitPaneBehaviorTest {
+    private fun SwingUiTest.splitPane(): JSplitPane = onNodeOfType<JSplitPane>().fetch()
+
+    @Test
+    fun declaredSidesBecomeTheLeftAndRightComponents() = runSwingUiTest {
+        setContent {
+            SplitPane(orientation = JSplitPane.HORIZONTAL_SPLIT) {
+                first { Label(text = "Leading") }
+                second { Label(text = "Trailing") }
+            }
+        }
+
+        val pane = splitPane()
+        onNodeWithText("Leading").assertExists()
+        onNodeWithText("Trailing").assertExists()
+        // The first side is hosted as the left component, the second as the right component.
+        assertSame(onNodeWithText("Leading").fetch(), pane.leftComponent, "the first side should be the left component")
+        assertSame(
+            onNodeWithText("Trailing").fetch(),
+            pane.rightComponent,
+            "the second side should be the right component",
+        )
+    }
+
+    @Test
+    fun droppingASideClearsThatSplitPaneComponent() = runSwingUiTest {
+        var showSecond by mutableStateOf(true)
+        setContent {
+            SplitPane {
+                first { Label(text = "Leading") }
+                if (showSecond) {
+                    second { Label(text = "Trailing") }
+                }
+            }
+        }
+
+        val pane = splitPane()
+        onNodeWithText("Trailing").assertExists()
+
+        showSecond = false
+        awaitIdle()
+
+        onNodeWithText("Trailing").assertDoesNotExist()
+        assertNull(pane.rightComponent, "right component leaked after the second side was dropped")
+        // The remaining side is untouched.
+        assertSame(
+            onNodeWithText("Leading").fetch(),
+            pane.leftComponent,
+            "the surviving side should keep its component",
+        )
+    }
+
+    @Test
+    fun swappingASideUpdatesThatComponentInPlace() = runSwingUiTest {
+        var flag by mutableStateOf(true)
+        setContent {
+            SplitPane {
+                first { if (flag) Label(text = "First") else Label(text = "Second") }
+                second { Label(text = "Fixed") }
+            }
+        }
+
+        val pane = splitPane()
+        onNodeWithText("First").assertExists()
+
+        flag = false
+        awaitIdle()
+
+        onNodeWithText("Second").assertExists()
+        onNodeWithText("First").assertDoesNotExist()
+        assertSame(
+            onNodeWithText("Second").fetch(),
+            pane.leftComponent,
+            "swapping should update the left component in place",
+        )
+        // The unchanged side keeps its component.
+        assertSame(onNodeWithText("Fixed").fetch(), pane.rightComponent, "the unchanged side should keep its component")
+    }
+
+    @Test
+    fun orientationMapsThrough() = runSwingUiTest {
+        var orientation by mutableStateOf(JSplitPane.HORIZONTAL_SPLIT)
+        setContent {
+            SplitPane(orientation = orientation) {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        val pane = splitPane()
+        assertEquals(
+            JSplitPane.HORIZONTAL_SPLIT,
+            pane.orientation,
+            "the pane should start with the horizontal orientation",
+        )
+
+        orientation = JSplitPane.VERTICAL_SPLIT
+        awaitIdle()
+        assertEquals(JSplitPane.VERTICAL_SPLIT, pane.orientation, "the orientation should map through to vertical")
+    }
+
+    @Test
+    fun resizeWeightMapsThrough() = runSwingUiTest {
+        setContent {
+            SplitPane(resizeWeight = 0.25) {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        assertEquals(0.25, splitPane().resizeWeight)
+    }
+
+    @Test
+    fun dividerLocationIsControlled() = runSwingUiTest {
+        var location by mutableIntStateOf(120)
+        setContent {
+            SplitPane(dividerLocation = location) {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        val pane = splitPane()
+        assertEquals(120, pane.dividerLocation, "the divider should start at the controlled location")
+
+        location = 200
+        awaitIdle()
+        assertEquals(200, pane.dividerLocation, "the divider should follow the controlled location")
+    }
+
+    @Test
+    fun userDraggingTheDividerFiresOnDividerLocationChange() = runSwingUiTest {
+        val reported = mutableListOf<Int>()
+        var location by mutableIntStateOf(100)
+        setContent {
+            SplitPane(
+                dividerLocation = location,
+                onDividerLocationChange = {
+                    reported += it
+                    location = it
+                },
+            ) {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        val pane = splitPane()
+        reported.clear()
+
+        // A user drag of the divider is observable as a dividerLocation property change.
+        pane.dividerLocation = 175
+        awaitIdle()
+
+        assertEquals(175, reported.last(), "dragging the divider should report the new location")
+        assertEquals(175, pane.dividerLocation, "the divider should land at the dragged location")
+    }
+}

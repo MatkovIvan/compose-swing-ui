@@ -1,0 +1,255 @@
+package org.jetbrains.compose.swing.components
+
+import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.button.CheckBox
+import org.jetbrains.compose.swing.components.button.RadioButton
+import org.jetbrains.compose.swing.components.button.ToggleButton
+import org.jetbrains.compose.swing.components.text.PasswordField
+import org.jetbrains.compose.swing.components.text.TextArea
+import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
+import org.jetbrains.compose.swing.test.onNodeOfType
+import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
+import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import java.awt.Component
+import java.awt.Dimension
+import java.awt.image.BufferedImage
+import javax.swing.JButton
+import javax.swing.JCheckBox
+import javax.swing.JComboBox
+import javax.swing.JLabel
+import javax.swing.JPasswordField
+import javax.swing.JProgressBar
+import javax.swing.JRadioButton
+import javax.swing.JSeparator
+import javax.swing.JSlider
+import javax.swing.JTextArea
+import javax.swing.JTextField
+import javax.swing.JToggleButton
+import javax.swing.SwingConstants
+import javax.swing.UIManager
+import javax.swing.plaf.metal.MetalLookAndFeel
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+
+/**
+ * Proves that every component wrapper is a faithful, side-effect-free view over its Swing widget: the
+ * pixels it paints are identical to those of a hand-written raw widget configured with the same public
+ * values.
+ *
+ * For each wrapper the test renders the library composable under the harness, reads the laid-out
+ * bounds the composition assigned it, and captures it off-screen. It then builds the equivalent raw
+ * Swing component **by hand**, gives it the exact same bounds, captures it through the same off-screen
+ * pipeline, and asserts the two images are pixel-identical. Any rendering side effect the wrapper might
+ * inject that the raw widget does not — a stray border, an altered font or color, an extra margin, a
+ * shifted alignment, a changed opacity — would shift pixels and fail the comparison.
+ *
+ * The cross-platform Metal Look-and-Feel is pinned so the comparison is deterministic and the same on
+ * every machine; both the composed and the raw widget resolve their visuals from that single LaF.
+ */
+class WrapperRenderingSideEffectTest {
+    @BeforeTest
+    fun pinLookAndFeel() {
+        // Pin a single, always-available, cross-platform LaF so composed and raw widgets resolve the
+        // same fonts, colors, borders and insets regardless of the host OS.
+        UIManager.setLookAndFeel(MetalLookAndFeel())
+    }
+
+    @Test
+    fun labelAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { Label(text = LABEL_TEXT) },
+        find = { onNodeOfType<JLabel>() },
+        buildRaw = {
+            JLabel().apply {
+                text = LABEL_TEXT
+                horizontalAlignment = SwingConstants.LEADING
+            }
+        },
+    )
+
+    @Test
+    fun buttonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { Button(text = BUTTON_TEXT) },
+        find = { onNodeOfType<JButton>() },
+        buildRaw = { JButton().apply { text = BUTTON_TEXT } },
+    )
+
+    @Test
+    fun uncheckedCheckBoxAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { CheckBox(text = CHECK_TEXT, checked = false) },
+        find = { onNodeOfType<JCheckBox>() },
+        buildRaw = {
+            JCheckBox().apply {
+                text = CHECK_TEXT
+                isSelected = false
+            }
+        },
+    )
+
+    @Test
+    fun checkedCheckBoxAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { CheckBox(text = CHECK_TEXT, checked = true) },
+        find = { onNodeOfType<JCheckBox>() },
+        buildRaw = {
+            JCheckBox().apply {
+                text = CHECK_TEXT
+                isSelected = true
+            }
+        },
+    )
+
+    @Test
+    fun unselectedRadioButtonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { RadioButton(text = RADIO_TEXT, selected = false) },
+        find = { onNodeOfType<JRadioButton>() },
+        buildRaw = {
+            JRadioButton().apply {
+                text = RADIO_TEXT
+                isSelected = false
+            }
+        },
+    )
+
+    @Test
+    fun selectedRadioButtonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { RadioButton(text = RADIO_TEXT, selected = true) },
+        find = { onNodeOfType<JRadioButton>() },
+        buildRaw = {
+            JRadioButton().apply {
+                text = RADIO_TEXT
+                isSelected = true
+            }
+        },
+    )
+
+    @Test
+    fun pressedToggleButtonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { ToggleButton(text = TOGGLE_TEXT, pressed = true) },
+        find = { onNodeOfType<JToggleButton>() },
+        buildRaw = {
+            JToggleButton().apply {
+                text = TOGGLE_TEXT
+                isSelected = true
+            }
+        },
+    )
+
+    @Test
+    fun sliderAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { Slider(value = SLIDER_VALUE, min = 0, max = 100) },
+        find = { onNodeOfType<JSlider>() },
+        buildRaw = { JSlider(0, 100, SLIDER_VALUE) },
+    )
+
+    @Test
+    fun progressBarAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { ProgressBar(value = PROGRESS_VALUE, min = 0, max = 100) },
+        find = { onNodeOfType<JProgressBar>() },
+        buildRaw = { JProgressBar(0, 100).apply { value = PROGRESS_VALUE } },
+    )
+
+    @Test
+    fun horizontalSeparatorAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        // A horizontal separator has zero preferred height; give it an explicit size on both sides
+        // so it lays out to identical, non-zero bounds and can be captured.
+        content = {
+            Separator(
+                modifier = SwingModifier.preferredSize(Dimension(SEPARATOR_WIDTH, SEPARATOR_HEIGHT)),
+                orientation = SwingConstants.HORIZONTAL,
+            )
+        },
+        find = { onNodeOfType<JSeparator>() },
+        buildRaw = {
+            JSeparator(SwingConstants.HORIZONTAL).apply {
+                preferredSize = Dimension(SEPARATOR_WIDTH, SEPARATOR_HEIGHT)
+            }
+        },
+    )
+
+    @Test
+    fun textFieldAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { TextField(value = FIELD_TEXT) },
+        find = { onNodeOfType<JTextField>() },
+        buildRaw = { JTextField(0).apply { text = FIELD_TEXT } },
+    )
+
+    @Test
+    fun textAreaAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { TextArea(value = AREA_TEXT) },
+        find = { onNodeOfType<JTextArea>() },
+        buildRaw = { JTextArea(0, 0).apply { text = AREA_TEXT } },
+    )
+
+    @Test
+    fun passwordFieldAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { PasswordField(value = PASSWORD.toCharArray()) },
+        find = { onNodeOfType<JPasswordField>() },
+        buildRaw = {
+            // Mirror the wrapper's declared default echo character, the one visible difference the
+            // wrapper sets versus a bare JPasswordField.
+            JPasswordField(0).apply {
+                echoChar = PASSWORD_ECHO_CHAR
+                text = PASSWORD
+            }
+        },
+    )
+
+    @Test
+    fun comboBoxAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { ComboBox(items = COMBO_ITEMS, selectedIndex = 0) },
+        find = { onNodeOfType<JComboBox<*>>() },
+        buildRaw = {
+            JComboBox<String>().apply {
+                COMBO_ITEMS.forEach { addItem(it) }
+                selectedIndex = 0
+            }
+        },
+    )
+
+    /**
+     * Renders [content] under the harness, finds the composed widget via [find], captures it at its
+     * laid-out bounds, builds the raw equivalent via [buildRaw] at the same bounds, and asserts the two
+     * captures are pixel-identical.
+     */
+    private fun assertWrapperMatchesRaw(
+        content: @androidx.compose.runtime.Composable () -> Unit,
+        find: SwingUiTest.() -> SwingNodeInteraction,
+        buildRaw: () -> Component,
+    ) = runSwingUiTest {
+        setContent { content() }
+
+        val node = find()
+        val composed: BufferedImage = node.captureToImage()
+        val raw: BufferedImage = buildRaw().captureToImage(composed.width, composed.height)
+
+        // EXACT comparison: a single shifted pixel fails. Both images were rasterized through the same
+        // off-screen pipeline with identical rendering hints, at identical bounds, under one pinned LaF.
+        assertImagesPixelPerfect(
+            expected = raw,
+            image = composed,
+            maxDifferentPixels = 0,
+        )
+    }
+
+    private companion object {
+        const val LABEL_TEXT = "Label text"
+        const val BUTTON_TEXT = "Click me"
+        const val CHECK_TEXT = "Enable feature"
+        const val RADIO_TEXT = "Option A"
+        const val TOGGLE_TEXT = "Bold"
+        const val FIELD_TEXT = "field content"
+        const val AREA_TEXT = "area content"
+        const val PASSWORD = "secret"
+        const val PASSWORD_ECHO_CHAR = '•'
+        const val SLIDER_VALUE = 42
+        const val PROGRESS_VALUE = 70
+        const val SEPARATOR_WIDTH = 120
+        const val SEPARATOR_HEIGHT = 8
+        val COMBO_ITEMS = listOf("Alpha", "Beta", "Gamma")
+    }
+}
