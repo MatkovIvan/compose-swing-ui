@@ -15,6 +15,7 @@ dependencyResolutionManagement {
 }
 
 include(":samples:todo-app")
+include(":samples:widgets-gallery")
 include(":swing-ui")
 include(":swing-ui-animation")
 include(":swing-ui-test")

@@ -1,0 +1,195 @@
+package org.jetbrains.compose.swing.samples.widgets
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.Spinner
+import org.jetbrains.compose.swing.components.button.ToggleButton
+import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.text.FormattedTextField
+import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.documentFilter
+import org.jetbrains.compose.swing.modifier.preferredSize
+import java.awt.Dimension
+import java.text.NumberFormat
+import javax.swing.JFormattedTextField
+import javax.swing.text.AttributeSet
+import javax.swing.text.DefaultFormatterFactory
+import javax.swing.text.DocumentFilter
+import javax.swing.text.MaskFormatter
+import javax.swing.text.NumberFormatter
+
+/**
+ * Demonstrates the form-input controls — [Spinner], [ToggleButton], and [FormattedTextField] — plus the
+ * [SwingModifier.documentFilter] seam. Every card binds its control to live state echoed by an adjacent
+ * [Label].
+ */
+@Composable
+internal fun FormInputsSection() {
+    SectionColumn {
+        SectionHeading("Form inputs")
+        IntSpinnerCard()
+        DoubleSpinnerCard()
+        ListSpinnerCard()
+        ToggleButtonCard()
+        NumberFieldCard()
+        MaskFieldCard()
+        DigitsOnlyCard()
+    }
+}
+
+/** The Int Spinner steps a controlled count between bounds; the echo follows. */
+@Composable
+private fun IntSpinnerCard() {
+    ExampleCard("Spinner (Int)") {
+        var count by remember { mutableIntStateOf(3) }
+        FlowPanel {
+            Label("Count:")
+            Spinner(value = count, onValueChange = { count = it }, min = 0, max = 10, step = 1)
+        }
+        Label("Count is $count")
+    }
+}
+
+/** The Double Spinner steps by a fractional amount, echoing the committed value. */
+@Composable
+private fun DoubleSpinnerCard() {
+    ExampleCard("Spinner (Double)") {
+        var rate by remember { mutableDoubleStateOf(1.5) }
+        FlowPanel {
+            Label("Rate:")
+            Spinner(
+                value = rate,
+                onValueChange = { rate = it },
+                min = 0.0,
+                max = 5.0,
+                step = 0.5,
+                // The default editor is sized for short integers and clips a fractional value to "1.";
+                // a wider preferred width lets the whole "1.5" show.
+                modifier = SwingModifier.preferredSize(Dimension(80, 28)),
+            )
+        }
+        Label("Rate is $rate")
+    }
+}
+
+/** The list Spinner cycles a fixed set of items by index. */
+@Composable
+private fun ListSpinnerCard() {
+    ExampleCard("Spinner (list)") {
+        val sizes = listOf("S", "M", "L", "XL")
+        var selected by remember { mutableIntStateOf(1) }
+        FlowPanel {
+            Label("Size:")
+            Spinner(items = sizes, selectedIndex = selected, onSelectionChange = { selected = it })
+        }
+        Label("Size is ${sizes[selected]} (index $selected)")
+    }
+}
+
+/** ToggleButton holds a controlled pressed state echoed below. */
+@Composable
+private fun ToggleButtonCard() {
+    ExampleCard("ToggleButton") {
+        var bold by remember { mutableStateOf(false) }
+        ToggleButton(text = "Bold", pressed = bold, onPressedChange = { bold = it })
+        Label("Bold is ${if (bold) "on" else "off"}")
+    }
+}
+
+/** A FormattedTextField backed by a NumberFormatter parses validated integer input. */
+@Composable
+private fun NumberFieldCard() {
+    ExampleCard("FormattedTextField (NumberFormatter)") {
+        val initialQuantity: Any = 42
+        var quantity by remember { mutableStateOf<Any?>(initialQuantity) }
+        val factory =
+            remember {
+                val formatter = NumberFormatter(NumberFormat.getIntegerInstance())
+                formatter.valueClass = Int::class.javaObjectType
+                DefaultFormatterFactory(formatter)
+            }
+        FlowPanel {
+            Label("Quantity:")
+            FormattedTextField(
+                value = quantity,
+                formatterFactory = factory,
+                onValueChange = { quantity = it },
+                focusLostBehavior = JFormattedTextField.COMMIT_OR_REVERT,
+                columns = 8,
+            )
+        }
+        Label("Quantity is $quantity")
+    }
+}
+
+/** A FormattedTextField backed by a MaskFormatter constrains input to a phone-number mask. */
+@Composable
+private fun MaskFieldCard() {
+    ExampleCard("FormattedTextField (MaskFormatter)") {
+        var phone by remember { mutableStateOf<Any?>("123-4567") }
+        val factory =
+            remember {
+                val mask = MaskFormatter("###-####")
+                mask.placeholderCharacter = '_'
+                DefaultFormatterFactory(mask)
+            }
+        FlowPanel {
+            Label("Phone:")
+            FormattedTextField(
+                value = phone,
+                formatterFactory = factory,
+                onValueChange = { phone = it },
+                focusLostBehavior = JFormattedTextField.COMMIT,
+                columns = 10,
+            )
+        }
+        Label("Phone is $phone")
+    }
+}
+
+/** A plain TextField gated to digits-only through the documentFilter seam. */
+@Composable
+private fun DigitsOnlyCard() {
+    ExampleCard("TextField + documentFilter (digits only)") {
+        var pin by remember { mutableStateOf("0000") }
+        FlowPanel {
+            Label("PIN:")
+            TextField(
+                value = pin,
+                onValueChange = { pin = it },
+                modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
+                columns = 12,
+            )
+        }
+        Label("PIN is $pin")
+    }
+}
+
+/** Rejects any inserted or replaced text that contains a non-digit character. */
+private object DigitsOnlyFilter : DocumentFilter() {
+    override fun insertString(
+        fb: FilterBypass,
+        offset: Int,
+        text: String?,
+        attrs: AttributeSet?,
+    ) {
+        if (text == null || text.all(Char::isDigit)) super.insertString(fb, offset, text, attrs)
+    }
+
+    override fun replace(
+        fb: FilterBypass,
+        offset: Int,
+        length: Int,
+        text: String?,
+        attrs: AttributeSet?,
+    ) {
+        if (text == null || text.all(Char::isDigit)) super.replace(fb, offset, length, text, attrs)
+    }
+}
