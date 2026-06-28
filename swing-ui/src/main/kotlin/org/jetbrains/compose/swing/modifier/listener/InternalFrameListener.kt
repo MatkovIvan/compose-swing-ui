@@ -1,0 +1,19 @@
+@file:JvmMultifileClass
+@file:JvmName("ListenerModifiersKt")
+
+package org.jetbrains.compose.swing.modifier.listener
+
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import javax.swing.JInternalFrame
+import javax.swing.event.InternalFrameListener
+
+/**
+ * Attaches an [InternalFrameListener]
+ * (`addInternalFrameListener`/`removeInternalFrameListener`). Requires a [JInternalFrame] target.
+ */
+public fun SwingModifier.internalFrameListener(listener: InternalFrameListener): SwingModifier =
+    listener<JInternalFrame, InternalFrameListener>(
+        listener,
+        { c, l -> c.addInternalFrameListener(l) },
+        { c, l -> c.removeInternalFrameListener(l) },
+    )
