@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Android Lint configuration for the Compose lint checks (slackhq/compose-lints).
+
+  This is a JVM library with no Android sources. The Compose conventions this library follows
+  (PascalCase @Composable naming, modifier-first / required-before-optional parameter ordering, and
+  the composition-structure correctness checks) are already enforced at compose-lints' own default
+  ERROR severity; only the entries below — which turn checks off — change behavior.
+-->
+<lint>
+    <!--
+      Stock dependency-freshness checks: this project pins versions deliberately through the version
+      catalog. With warningsAsErrors they would otherwise break the build when a newer release appears
+      upstream. These are the only stock Android Lint checks that act on a JVM module's catalog.
+    -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+
+    <!--
+      CompositionLocals are part of this framework's public design (layout constraints and shared
+      Swing context thread to children through them), so the app-oriented allowlist check is off.
+    -->
+    <issue id="ComposeCompositionLocalUsage" severity="ignore" />
+
+    <!--
+      The androidx Modifier-keyed checks key off a type this Swing runtime does not use; they cannot
+      recognize this library's own modifier type, so they are switched off rather than left to misfire.
+    -->
+    <issue id="ComposeModifierMissing" severity="ignore" />
+    <issue id="ComposeModifierWithoutDefault" severity="ignore" />
+    <issue id="ComposeModifierReused" severity="ignore" />
+
+    <!-- @Preview is an Android/desktop-tooling concept with no presence in this library. -->
+    <issue id="ComposePreviewPublic" severity="ignore" />
+</lint>

@@ -1,0 +1,36 @@
+name: Upload Test Report
+description: Publish JUnit test report and optionally upload test artifacts.
+
+inputs:
+  artifact-name:
+    description: Artifact name used when uploading failure diagnostics.
+    required: true
+  upload-artifact:
+    description: Whether to upload diagnostic artifacts for this run.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Publish JUnit Report
+      uses: mikepenz/action-junit-report@v6
+      with:
+        report_paths: "**/build/**/*-results/**/*.xml"
+        detailed_summary: true
+        fail_on_failure: false
+
+    - name: Upload Test Results
+      if: ${{ inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          **/build/reports/tests/**
+          **/build/reports/problems/**
+          **/build/generated/**
+          **/build/fixture-matrix/**
+          **/build/matrix/**
+          **/hs_err_pid*.log
+          **/replay_pid*.log
+          **/java_pid*.hprof

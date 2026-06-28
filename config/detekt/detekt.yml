@@ -1,0 +1,19 @@
+config:
+  warningsAsErrors: true
+
+complexity:
+  LongParameterList:
+    # Many-parameter @Composable component wrappers are the idiomatic Compose pattern (CMP's own
+    # components carry many params); collapsing them would harm the public, Compose-shaped API. Same
+    # precedented exemption as MagicNumber below.
+    ignoreAnnotated: ["Composable"]
+
+naming:
+  FunctionNaming:
+    # @Composable functions use PascalCase by Compose convention (e.g. Button, BorderPanel).
+    ignoreAnnotated: ["Composable"]
+
+style:
+  MagicNumber:
+    # Default UI dimensions / parameters inside @Composable functions read fine inline.
+    ignoreAnnotated: ["Composable"]

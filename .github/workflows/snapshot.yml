@@ -1,0 +1,46 @@
+name: Snapshot
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: snapshot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validation:
+    name: Validation
+    uses: ./.github/workflows/validation.yml
+    permissions:
+      contents: read
+      checks: write
+    secrets: inherit
+
+  publish-snapshot:
+    name: Publish Snapshot
+    needs: [validation]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v6
+        name: Checkout Repository
+
+      - uses: ./.github/actions/setup-prerequisites
+        name: Setup Prerequisites
+        with:
+          java-version: 21
+
+      - shell: bash
+        name: Publish Snapshot
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./gradlew --no-daemon --stacktrace publish

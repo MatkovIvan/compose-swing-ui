@@ -1,0 +1,29 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,toml}]
+indent_size = 2
+
+[*.{kt,kts}]
+max_line_length = 120
+# PascalCase @Composable functions are idiomatic Compose; do not flag them as bad function names.
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# Annotated function types (e.g. `@Composable @SwingComposable () -> Unit`) hit a ktlint conflict:
+# the `annotation` rule reformats them onto multiple lines, which `function-type-modifier-spacing`
+# then rejects, so neither check nor format can ever converge. We disable the spacing rule rather
+# than the layout one. These types are pervasive in this Compose-based library.
+ktlint_standard_function-type-modifier-spacing = disabled
+
+# Tests host their body in a trailing-lambda call (e.g. `fun x() = runSwingUiTest {`). Keep that
+# single-expression body on the signature line instead of wrapping it after `=`, so the test reads as
+# its name followed directly by the scenario. Only the wrapping of an expression body that already
+# fits the signature line is relaxed; the line-length limit and every other rule still apply.
+[{swing-ui,swing-ui-test}/src/test/**.{kt,kts}]
+ktlint_function_signature_body_expression_wrapping = default
