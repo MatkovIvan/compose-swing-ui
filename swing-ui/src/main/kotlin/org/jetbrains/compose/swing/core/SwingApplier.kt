@@ -59,7 +59,13 @@ public class SwingApplier internal constructor(
         index: Int,
         instance: SwingNodeHolder<*>,
     ) {
-        // Swing components are inserted bottom-up.
+        // Stamp the owner's shared snapshot observer onto the node here, on the top-down pass. This MUST
+        // happen on the down pass: a node's own update changes — which copy this observer onto a
+        // snapshot-observing component such as Canvas — run between the top-down and bottom-up passes, so
+        // a stamp deferred to insertBottomUp would not yet be visible when the node reads it, leaving that
+        // component permanently unobserved (and a Canvas blank). The actual Swing attachment is still done
+        // bottom-up (see insertBottomUp).
+        instance.ownerObserver = ownerObserver
     }
 
     override fun insertBottomUp(
@@ -67,10 +73,8 @@ public class SwingApplier internal constructor(
         instance: SwingNodeHolder<*>,
     ) {
         val container = currentContainer("add child ${instance.component}")
-        // Stamp the owner's shared snapshot observer onto the node so a snapshot-observing component
-        // (e.g. Canvas) reaches it from its holder rather than a CompositionLocal, mirroring how a CMP
-        // owner attaches itself to each node on insert.
-        instance.ownerObserver = ownerObserver
+        // The owner's shared snapshot observer was already stamped onto this node on the top-down pass
+        // (see insertTopDown); here we only perform the Swing attachment.
         val attachment = instance.slotAttachment
         if (attachment != null) {
             // This node fills a single-occupancy slot of `container` reached through a dedicated Swing

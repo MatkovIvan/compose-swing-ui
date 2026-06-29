@@ -77,8 +77,9 @@ private class CanvasComponent :
 
     /**
      * The composition owner's shared snapshot observer this surface paints under, adopted from its
-     * holder's `ownerObserver` in [Canvas]'s update block. `null` only before the first update, which
-     * never overlaps a paint.
+     * holder's `ownerObserver` in [Canvas]'s update block. `null` only before the node is inserted: the
+     * applier stamps the observer on its insert pass, before this surface can join the Swing tree and be
+     * painted, so it is always set when [paintComponent] runs (which fails loudly otherwise).
      */
     var snapshotObserver: SnapshotStateObserver? = null
 
@@ -94,14 +95,20 @@ private class CanvasComponent :
 
     override fun paintComponent(g: Graphics) {
         // Non-opaque: deliberately skip super.paintComponent (it would do nothing useful here).
+        val graphics = g as Graphics2D
+        // The applier stamps the owner's snapshot observer onto this node on its top-down insert pass,
+        // before the node's update changes run and before the surface joins the Swing tree, so it is
+        // always set by the time this surface is painted.
+        val observer =
+            checkNotNull(snapshotObserver) {
+                "Canvas was painted before its snapshot observer was wired. The composition owner's " +
+                    "observer is stamped onto each node on the applier's top-down insert pass, before " +
+                    "the surface joins the Swing tree, so it must be set by paint time."
+            }
         // Run onDraw under the owner observer so any snapshot state it reads is tracked against this
         // surface; when that state changes the observer repaints this surface, which re-enters here and
         // re-invokes the same lambda with the new values.
-        val graphics = g as Graphics2D
-        snapshotObserver?.observeReads(
-            scope = this,
-            onValueChangedForScope = { it.repaint() },
-        ) {
+        observer.observeReads(scope = this, onValueChangedForScope = { it.repaint() }) {
             onDraw(graphics, width, height)
         }
     }

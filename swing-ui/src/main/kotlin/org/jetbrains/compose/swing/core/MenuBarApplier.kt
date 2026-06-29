@@ -30,7 +30,11 @@ internal class MenuBarApplier(
         index: Int,
         instance: SwingNodeHolder<*>,
     ) {
-        // Menu items are inserted bottom-up.
+        // Stamp the owner's shared snapshot observer on the top-down pass, mirroring [SwingApplier]: it
+        // must precede the node's own update changes (a stamp deferred to insertBottomUp would land after
+        // them, leaving a snapshot-observing node unwired). Menu items do not observe snapshots today,
+        // but keeping the seam uniform avoids that latent trap if one ever does.
+        instance.ownerObserver = ownerObserver
     }
 
     override fun insertBottomUp(
@@ -38,9 +42,6 @@ internal class MenuBarApplier(
         instance: SwingNodeHolder<*>,
     ) {
         val container = menuContainer("add menu child ${instance.component}")
-        // Stamp the owner's shared snapshot observer onto the node, mirroring [SwingApplier], so the
-        // seam is uniform across appliers even though menu items do not observe snapshots themselves.
-        instance.ownerObserver = ownerObserver
         container.add(instance.component, index)
         dirtyContainers += container
     }

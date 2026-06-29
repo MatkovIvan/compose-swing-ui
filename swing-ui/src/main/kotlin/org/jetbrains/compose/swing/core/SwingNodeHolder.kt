@@ -102,10 +102,9 @@ public class SwingNodeHolder<out T : Component>(
     internal var slotUninstall: (() -> Unit)? = null
 
     /**
-     * The composition owner's shared [SnapshotStateObserver], stamped onto this node by its applier at
-     * insert (the way CMP's owner attaches itself to each node). A snapshot-observing component (e.g.
-     * `Canvas`) reads it from here to register its paint reads, instead of resolving a
-     * `CompositionLocal`.
+     * The composition owner's shared [SnapshotStateObserver], stamped onto this node by its applier on
+     * the top-down insert pass. A snapshot-observing component (e.g. `Canvas`) reads it from here to
+     * register its paint reads, instead of resolving a `CompositionLocal`.
      *
      * Like [slotAttachment] this is an owner-stable structural property: set once at insert and
      * retained across [reset], since a recycled node stays in the same composition owner.
