@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.core
 
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import java.awt.Component
 import javax.swing.JComponent
 import javax.swing.JMenu
@@ -39,7 +40,7 @@ class MenuBarApplierTest {
     private fun itemNames(menu: JMenu): List<String?> = (0 until menu.itemCount).map { menu.getItem(it)?.name }
 
     /** Observers created for the appliers under test, disposed in [disposeObservers]. */
-    private val observers = mutableListOf<SwingSnapshotObserver>()
+    private val observers = mutableListOf<SnapshotStateObserver>()
 
     /**
      * Builds a [MenuBarApplier] over [root] with a snapshot observer this test owns and disposes, so
@@ -47,14 +48,14 @@ class MenuBarApplierTest {
      * leaked (the production path disposes it with the composition mount).
      */
     private fun applierFor(root: JComponent): MenuBarApplier {
-        val observer = SwingSnapshotObserver().apply { start() }
+        val observer = SnapshotStateObserver { it() }.apply { start() }
         observers += observer
         return MenuBarApplier(root, observer)
     }
 
     @AfterTest
     fun disposeObservers() {
-        observers.forEach { it.dispose() }
+        observers.forEach { it.stop() }
         observers.clear()
     }
 

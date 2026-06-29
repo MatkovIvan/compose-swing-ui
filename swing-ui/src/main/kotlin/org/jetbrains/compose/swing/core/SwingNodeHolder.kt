@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
@@ -101,7 +102,7 @@ public class SwingNodeHolder<out T : Component>(
     internal var slotUninstall: (() -> Unit)? = null
 
     /**
-     * The composition owner's shared [SwingSnapshotObserver], stamped onto this node by its applier at
+     * The composition owner's shared [SnapshotStateObserver], stamped onto this node by its applier at
      * insert (the way CMP's owner attaches itself to each node). A snapshot-observing component (e.g.
      * `Canvas`) reads it from here to register its paint reads, instead of resolving a
      * `CompositionLocal`.
@@ -109,7 +110,7 @@ public class SwingNodeHolder<out T : Component>(
      * Like [slotAttachment] this is an owner-stable structural property: set once at insert and
      * retained across [reset], since a recycled node stays in the same composition owner.
      */
-    internal var ownerObserver: SwingSnapshotObserver? = null
+    internal var ownerObserver: SnapshotStateObserver? = null
 
     /**
      * `true` while this node's [component] carries a [COMPOSITION_KEY] stamp published by

@@ -1,8 +1,8 @@
 package org.jetbrains.compose.swing
 
 import androidx.compose.runtime.Updater
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.core.SwingNodeHolder
-import org.jetbrains.compose.swing.core.SwingSnapshotObserver
 import java.awt.Component
 
 /**
@@ -64,12 +64,12 @@ public value class SwingNodeUpdater<T : Component>
             }
 
         /**
-         * Hands the composition owner's shared [SwingSnapshotObserver] — stamped onto this node's
+         * Hands the composition owner's shared [SnapshotStateObserver] — stamped onto this node's
          * holder by the applier at insert — to [block] with the typed component as `this`, so a
          * snapshot-observing component (e.g. `Canvas`) can adopt it. Runs on every composition like
          * [reconcile]; the observer is owner-stable, so re-running is idempotent.
          */
-        internal fun ownerObserver(block: T.(SwingSnapshotObserver?) -> Unit): Unit =
+        internal fun ownerObserver(block: T.(SnapshotStateObserver?) -> Unit): Unit =
             updater.reconcile {
                 component.block(ownerObserver)
             }

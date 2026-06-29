@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.AbstractApplier
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import java.awt.Component
 import java.awt.Container
 import java.util.Collections
@@ -20,7 +21,7 @@ import javax.swing.JPopupMenu
  */
 internal class MenuBarApplier(
     root: JComponent,
-    private val ownerObserver: SwingSnapshotObserver,
+    private val ownerObserver: SnapshotStateObserver,
 ) : AbstractApplier<SwingNodeHolder<*>>(SwingNodeHolder(root)) {
     private val dirtyContainers: MutableSet<Container> =
         Collections.newSetFromMap(IdentityHashMap())

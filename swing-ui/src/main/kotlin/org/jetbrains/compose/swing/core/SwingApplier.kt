@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.AbstractApplier
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import java.awt.Component
 import java.awt.Container
@@ -11,7 +12,7 @@ import java.util.IdentityHashMap
  * The [androidx.compose.runtime.Applier] that [SwingNode] emits into, mutating the Swing component
  * tree as the composition changes.
  *
- * Construct one over a root [Container] and a [SwingSnapshotObserver] owned by the surrounding
+ * Construct one over a root [Container] and a [SnapshotStateObserver] owned by the surrounding
  * composition, and hand it to a `Composition` to host Compose-Swing content at the applier level; the
  * everyday entry points are the `setContent` functions, which build one internally and dispose the
  * observer with the composition. Opt in with `@OptIn(InternalSwingUiApi::class)` to use it directly.
@@ -31,7 +32,7 @@ import java.util.IdentityHashMap
 @InternalSwingUiApi
 public class SwingApplier internal constructor(
     root: Container,
-    private val ownerObserver: SwingSnapshotObserver,
+    private val ownerObserver: SnapshotStateObserver,
 ) : AbstractApplier<SwingNodeHolder<*>>(SwingNodeHolder(root)) {
     /** Containers touched during the current change pass; revalidated in [onEndChanges]. */
     private val dirtyContainers: MutableSet<Container> =

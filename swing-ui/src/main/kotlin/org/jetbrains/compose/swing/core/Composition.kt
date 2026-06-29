@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.runtime.staticCompositionLocalOf
 import java.awt.Component
 import javax.swing.JComponent
@@ -70,40 +71,45 @@ internal fun checkEventDispatchThread() {
  * Mounts a single island [Composition] as a child of a [CompositionContext].
  *
  * The island shares its parent's recomposition runtime (the parent context owns the recomposer,
- * clock, and scope); this mount owns only its [Composition] and its [SwingSnapshotObserver]. Disposing
+ * clock, and scope); this mount owns only its [Composition] and its [SnapshotStateObserver]. Disposing
  * it disposes both — just this island's composition and its observer.
  *
  * The island is the composition owner for snapshot-observing components (e.g. `Canvas`): it owns one
- * [SwingSnapshotObserver] shared by every such component in this composition. The applier stamps that
- * observer onto each node it inserts, so a component reaches it from its [SwingNodeHolder] rather than
- * resolving a `CompositionLocal`.
+ * [SnapshotStateObserver] shared by every such component in this composition, each registered as its
+ * own scope. The applier stamps that observer onto each node it inserts, so a component reaches it from
+ * its [SwingNodeHolder] rather than resolving a `CompositionLocal`.
  */
 internal class SwingCompositionMount private constructor(
     private val composition: Composition,
-    private val observer: SwingSnapshotObserver,
+    private val observer: SnapshotStateObserver,
 ) {
     fun setContent(content: @Composable () -> Unit) {
         composition.setContent(content)
     }
 
-    /** Disposes this island's [Composition] and its owner-level [SwingSnapshotObserver]. */
+    /** Disposes this island's [Composition] and stops its owner-level [SnapshotStateObserver]. */
     fun dispose() {
         composition.dispose()
-        observer.dispose()
+        observer.stop()
+        observer.clear()
     }
 
     companion object {
         /**
          * Mounts a child composition of [parent]. [applierFactory] builds the [Applier] over the
-         * owner's freshly started [SwingSnapshotObserver], which the applier then stamps onto every
+         * owner's freshly started [SnapshotStateObserver], which the applier then stamps onto every
          * node it inserts.
          */
         fun nested(
             parent: CompositionContext,
-            applierFactory: (SwingSnapshotObserver) -> Applier<*>,
+            applierFactory: (SnapshotStateObserver) -> Applier<*>,
         ): SwingCompositionMount {
             GlobalSnapshotManager.ensureStarted()
-            val observer = SwingSnapshotObserver().apply { start() }
+            // One observer shared by every snapshot-observing component (e.g. Canvas) in this owner. The
+            // change callback runs directly: apply notifications are already pumped on the event dispatch
+            // thread (see GlobalSnapshotManager) and a component reacts with repaint(), which is
+            // thread-safe, so no extra thread marshaling is needed.
+            val observer = SnapshotStateObserver { onChanged -> onChanged() }.apply { start() }
             return SwingCompositionMount(
                 composition = Composition(applierFactory(observer), parent),
                 observer = observer,

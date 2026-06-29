@@ -4,8 +4,8 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.SwingNode
-import org.jetbrains.compose.swing.core.SwingSnapshotObserver
 import org.jetbrains.compose.swing.modifier.AccessibleRoleProvider
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -66,7 +66,7 @@ public fun Canvas(
 
 /**
  * The backing Swing surface for [Canvas]. Non-opaque (it contributes no background of its own) and
- * delegates painting to [onDraw] run under the composition owner's [SwingSnapshotObserver], so
+ * delegates painting to [onDraw] run under the composition owner's [SnapshotStateObserver], so
  * snapshot state read inside [onDraw] at paint time is tracked and a later change to it repaints this
  * surface and re-invokes the same lambda.
  */
@@ -80,7 +80,7 @@ private class CanvasComponent :
      * holder's `ownerObserver` in [Canvas]'s update block. `null` only before the first update, which
      * never overlaps a paint.
      */
-    var snapshotObserver: SwingSnapshotObserver? = null
+    var snapshotObserver: SnapshotStateObserver? = null
 
     // The accessible role advertised to assistive technologies; null reports the intrinsic CANVAS role.
     // Set by the accessibleRole modifier and read by the accessible context below.

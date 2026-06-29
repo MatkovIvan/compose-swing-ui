@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.core
 
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -36,7 +37,7 @@ class SwingApplierConstraintTest {
     ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.constraint = constraint }
 
     /** Observers created for the appliers under test, disposed in [disposeObservers]. */
-    private val observers = mutableListOf<SwingSnapshotObserver>()
+    private val observers = mutableListOf<SnapshotStateObserver>()
 
     /**
      * Builds a [SwingApplier] over [root] with a snapshot observer this test owns and disposes, so the
@@ -44,14 +45,14 @@ class SwingApplierConstraintTest {
      * leaked (the production path disposes it with the composition mount).
      */
     private fun applierFor(root: Container): SwingApplier {
-        val observer = SwingSnapshotObserver().apply { start() }
+        val observer = SnapshotStateObserver { it() }.apply { start() }
         observers += observer
         return SwingApplier(root, observer)
     }
 
     @AfterTest
     fun disposeObservers() {
-        observers.forEach { it.dispose() }
+        observers.forEach { it.stop() }
         observers.clear()
     }
 
