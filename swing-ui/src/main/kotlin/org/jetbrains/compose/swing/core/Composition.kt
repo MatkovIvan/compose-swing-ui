@@ -4,7 +4,9 @@ import androidx.compose.runtime.Applier
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.runtime.staticCompositionLocalOf
 import java.awt.Component
@@ -85,6 +87,58 @@ internal class SwingCompositionMount private constructor(
 ) {
     fun setContent(content: @Composable () -> Unit) {
         composition.setContent(content)
+    }
+
+    /**
+     * Applies [writeState] to the island's driving state and then recomposes this island
+     * **synchronously**, applying its changes on the caller's thread and driving both passes to
+     * completion before returning. This bypasses the parent recomposer's asynchronous, frame-clock-gated
+     * loop: the island is a [ControlledComposition], so its own [recompose]/[applyChanges] run inline.
+     *
+     * Intended for a host that must have its Swing subtree fully materialized the instant it returns — a
+     * `ListCellRenderer` stamping the same reused composition for each row Swing asks it to paint.
+     *
+     * The state writes are performed inside a mutable snapshot whose read/write observers feed this
+     * composition directly (via [ControlledComposition.recordReadOf]/[ControlledComposition.recordWriteOf]),
+     * rather than left to the parent recomposer to observe on its own (asynchronous) schedule. That is
+     * what makes each stamp's write invalidate the cell body *now*, so a synchronous [recompose] here
+     * re-runs it — without it, only the parent recomposer would eventually pick the write up, and this
+     * synchronous recompose would see nothing to do.
+     *
+     * Must be called on the Event Dispatch Thread.
+     */
+    fun recomposeSynchronously(writeState: () -> Unit) {
+        val controlled = composition as? ControlledComposition
+        if (controlled == null) {
+            writeState()
+            return
+        }
+        // Recompose the island inside a mutable snapshot whose read/write observers feed this
+        // composition, exactly as a recomposer wraps a composition it drives. This is load-bearing: the
+        // composition only re-records the state it reads (its `observations`) when composed under such a
+        // snapshot, so without this wrapper the FIRST stamp would compose but a SECOND would find nothing
+        // observing the row inputs and skip recomposing — the cell would freeze on the first row's value.
+        val snapshot =
+            Snapshot.takeMutableSnapshot(
+                readObserver = { controlled.recordReadOf(it) },
+                writeObserver = { controlled.recordWriteOf(it) },
+            )
+        try {
+            snapshot.enter {
+                // The row inputs are written here so the write observer records them against the
+                // composition, invalidating the scopes that read them; recompose() then re-runs those
+                // scopes and applyChanges() flushes them through the applier so the Swing tree is
+                // materialized before this returns. Both are synchronous and take no frame from the
+                // parent recomposer's clock.
+                writeState()
+                if (controlled.recompose()) {
+                    controlled.applyChanges()
+                }
+            }
+        } finally {
+            snapshot.apply().check()
+            snapshot.dispose()
+        }
     }
 
     /** Disposes this island's [Composition] and stops its owner-level [SnapshotStateObserver]. */

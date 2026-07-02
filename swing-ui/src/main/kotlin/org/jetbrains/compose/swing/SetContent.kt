@@ -21,7 +21,6 @@ import java.awt.Window
 import java.awt.event.HierarchyEvent
 import java.awt.event.HierarchyListener
 import javax.swing.JComponent
-import javax.swing.JFrame
 import javax.swing.JMenuBar
 import javax.swing.RootPaneContainer
 import javax.swing.SwingUtilities
@@ -280,8 +279,7 @@ private const val ATTACH_CHANGE_FLAGS: Long =
  * @param content the composable content to set
  * @return a [DisposableHandle] that disposes the child composition when invoked.
  */
-@InternalSwingUiApi
-public fun Container.setContentAsInteropHost(
+internal fun Container.setContentAsInteropHost(
     parent: CompositionContext,
     content:
         @Composable @SwingComposable
@@ -300,7 +298,7 @@ public fun Container.setContentAsInteropHost(
 }
 
 /**
- * Sets the composable [content] of a [Window] (a [JFrame], [javax.swing.JDialog], or
+ * Sets the composable [content] of a [Window] (a [javax.swing.JFrame], [javax.swing.JDialog], or
  * [javax.swing.JWindow]).
  *
  * The content is hosted on the window's content pane and joins the composition shared by all islands
@@ -324,22 +322,6 @@ public fun Window.setContent(
             )
     return contentPane.setContent(content = content)
 }
-
-/**
- * Sets the composable [content] of a [JFrame].
- *
- * The frame shares one composition with any other islands hosted in the same frame.
- *
- * Must be called on the Event Dispatch Thread.
- *
- * @param content the composable content to set
- * @return a [DisposableHandle] that disposes the composition when invoked.
- */
-public fun JFrame.setContent(
-    content:
-        @Composable @SwingComposable
-        () -> Unit,
-): DisposableHandle = (this as Window).setContent(content = content)
 
 /**
  * Sets the composable content of a [JMenuBar].

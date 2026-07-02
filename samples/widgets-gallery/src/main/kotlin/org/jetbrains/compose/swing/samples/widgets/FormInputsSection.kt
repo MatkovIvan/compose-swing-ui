@@ -2,8 +2,6 @@ package org.jetbrains.compose.swing.samples.widgets
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -11,10 +9,11 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.rememberSpinnerState
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.documentFilter
+import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 import java.text.NumberFormat
@@ -44,33 +43,29 @@ internal fun FormInputsSection() {
 @Composable
 private fun IntSpinnerCard() {
     ExampleCard("Spinner (Int)") {
-        var count by remember { mutableIntStateOf(3) }
+        val count = rememberSpinnerState(value = 3, min = 0, max = 10, step = 1)
         FlowPanel {
             Label("Count:")
-            Spinner(value = count, onValueChange = { count = it }, min = 0, max = 10, step = 1)
+            Spinner(count)
         }
-        Label("Count is $count")
+        Label("Count is ${count.value}")
     }
 }
 
 @Composable
 private fun DoubleSpinnerCard() {
     ExampleCard("Spinner (Double)") {
-        var rate by remember { mutableDoubleStateOf(1.5) }
+        val rate = rememberSpinnerState(value = 1.5, min = 0.0, max = 5.0, step = 0.5)
         FlowPanel {
             Label("Rate:")
             Spinner(
-                value = rate,
-                onValueChange = { rate = it },
-                min = 0.0,
-                max = 5.0,
-                step = 0.5,
+                rate,
                 // The default editor is sized for short integers and would clip "1.5" to "1."; a wider
                 // preferred width lets the whole fractional value show.
                 modifier = SwingModifier.preferredSize(Dimension(80, 28)),
             )
         }
-        Label("Rate is $rate")
+        Label("Rate is ${rate.value}")
     }
 }
 
@@ -78,12 +73,12 @@ private fun DoubleSpinnerCard() {
 private fun ListSpinnerCard() {
     ExampleCard("Spinner (list)") {
         val sizes = listOf("S", "M", "L", "XL")
-        var selected by remember { mutableIntStateOf(1) }
+        val size = rememberSpinnerState(items = sizes, selectedIndex = 1)
         FlowPanel {
             Label("Size:")
-            Spinner(items = sizes, selectedIndex = selected, onSelectionChange = { selected = it })
+            Spinner(size)
         }
-        Label("Size is ${sizes[selected]} (index $selected)")
+        Label("Size is ${size.value} (index ${sizes.indexOf(size.value)})")
     }
 }
 

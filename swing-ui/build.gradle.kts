@@ -36,6 +36,9 @@ val composeCompilerPluginClasspath: Configuration by configurations.creating {
 
 dependencies {
     api(libs.composeRuntime)
+    // DisposableHandle appears in public signatures (setContent returns it), so the common coroutine
+    // types must be on consumers' compile classpath; the Swing dispatcher stays an implementation detail.
+    api(libs.kotlinxCoroutinesCore)
     implementation(libs.kotlinxCoroutinesSwing)
     // @MagicConstant typed-constant annotations. CLASS/IDE-only: compileOnly so they warn consumers
     // in-IDE across the jar boundary without leaking org.jetbrains:annotations to the published runtime.

@@ -112,7 +112,15 @@ private fun ToggleCard() {
 @Composable
 private fun ChoiceCard() {
     ExampleCard("ComboBox") {
-        val options = listOf("Kotlin", "Java", "Scala", "Groovy")
+        // Each option carries a glyph and a name; itemContent renders an arbitrary composable cell
+        // (a Row of a glyph label and a name label) rather than the item's toString.
+        val options =
+            listOf(
+                Language("🟣", "Kotlin"),
+                Language("☕", "Java"),
+                Language("🔴", "Scala"),
+                Language("🎸", "Groovy"),
+            )
         var selected by remember { mutableIntStateOf(0) }
         FlowPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
             Label("Language:")
@@ -120,11 +128,22 @@ private fun ChoiceCard() {
                 items = options,
                 selectedIndex = selected,
                 onSelectionChange = { selected = it },
-            )
+            ) { language ->
+                FlowPanel {
+                    Label(language.glyph)
+                    Label(language.name)
+                }
+            }
         }
-        Label("Selected: ${options.getOrElse(selected) { "none" }}")
+        Label("Selected: ${options.getOrNull(selected)?.name ?: "none"}")
     }
 }
+
+/** A choice with a leading glyph, so the [ComboBox]/[ListBox] cards can render a composable cell. */
+private data class Language(
+    val glyph: String,
+    val name: String,
+)
 
 @Composable
 private fun RangeCard() {
@@ -152,12 +171,19 @@ private fun ListBoxCard() {
         var selection by remember { mutableStateOf(listOf(0)) }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120)).alignmentX(LEFT_ALIGNED)) {
             content {
+                // itemContent renders each row as a composable cell: a bullet glyph plus the row text,
+                // with the glyph reflecting whether that row is selected.
                 ListBox(
                     items = rows,
                     selectedIndices = selection,
                     onSelectionChange = { selection = it },
                     selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
-                )
+                ) { row ->
+                    FlowPanel {
+                        Label(if (isSelected) "●" else "○")
+                        Label(row)
+                    }
+                }
             }
         }
         Label("Selected indices: $selection")

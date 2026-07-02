@@ -1,5 +1,9 @@
-package org.jetbrains.compose.swing.modifier
+@file:JvmMultifileClass
+@file:JvmName("InteractionModifiersKt")
 
+package org.jetbrains.compose.swing.modifier.interaction
+
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.beans.PropertyChangeListener
 import javax.swing.text.AbstractDocument
 import javax.swing.text.DocumentFilter

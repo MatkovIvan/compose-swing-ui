@@ -55,15 +55,15 @@ public inline fun <reified T : Component, L : Any> SwingModifier.listener(
 @PublishedApi
 internal class InstanceListenerElement<T : Component, L : Any>(
     override val targetType: Class<T>,
-    private val instance: L,
-    private val attach: (component: T, listener: L) -> Unit,
-    private val detach: (component: T, listener: L) -> Unit,
+    internal val instance: L,
+    internal val attach: (component: T, listener: L) -> Unit,
+    internal val detach: (component: T, listener: L) -> Unit,
 ) : SwingModifier.Element<T, InstanceListenerNode<T, L>> {
     override val additive: Boolean get() = true
 
-    override fun create(): InstanceListenerNode<T, L> = InstanceListenerNode(attach, detach)
+    override fun create(): InstanceListenerNode<T, L> = InstanceListenerNode()
 
-    override fun update(node: InstanceListenerNode<T, L>): Unit = node.swapTo(instance)
+    override fun update(node: InstanceListenerNode<T, L>): Unit = node.swapTo(this)
 }
 
 /**
@@ -71,21 +71,22 @@ internal class InstanceListenerElement<T : Component, L : Any>(
  * a new instance on identity change (detach old, attach new), and removes the attached instance on
  * [onDetach].
  *
+ * The node keeps the whole element as the unit of attachment, pairing each instance with the
+ * attach/detach it was supplied with. An instance is thus always removed through its own detach,
+ * even after a positional rebind hands the node an element carrying a different listener type.
+ *
  * Marked [InternalSwingUiApi]; it may change without notice in any release.
  */
 @InternalSwingUiApi
 @PublishedApi
-internal class InstanceListenerNode<T : Component, L : Any>(
-    private val attach: (component: T, listener: L) -> Unit,
-    private val detach: (component: T, listener: L) -> Unit,
-) : SwingModifier.Node<T>() {
-    private var pending: L? = null
-    private var attached: L? = null
+internal class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Node<T>() {
+    private var pending: InstanceListenerElement<T, L>? = null
+    private var attached: InstanceListenerElement<T, L>? = null
 
-    /** Records the latest instance, then reconciles attachments. Called from the element's `update`. */
+    /** Records the latest element, then reconciles attachments. Called from the element's `update`. */
     @InternalSwingUiApi
-    fun swapTo(instance: L) {
-        pending = instance
+    fun swapTo(element: InstanceListenerElement<T, L>) {
+        pending = element
         reconcile()
     }
 
@@ -94,14 +95,16 @@ internal class InstanceListenerNode<T : Component, L : Any>(
     private fun reconcile() {
         val next = pending ?: return
         val current = attached
-        if (current === next) return
-        if (current != null) detach(component, current)
-        attach(component, next)
+        // The same instance stays registered, owned by the pairing that attached it; only an
+        // identity change swaps the registration.
+        if (current?.instance === next.instance) return
+        current?.let { it.detach(component, it.instance) }
+        next.attach(component, next.instance)
         attached = next
     }
 
     override fun onDetach() {
-        attached?.let { detach(component, it) }
+        attached?.let { it.detach(component, it.instance) }
         attached = null
     }
 }

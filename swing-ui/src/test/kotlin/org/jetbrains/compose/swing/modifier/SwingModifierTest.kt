@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.onHover
+import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.alignmentY
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
@@ -19,6 +20,8 @@ import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runSwingUiTest
 import java.awt.Color
@@ -28,6 +31,7 @@ import java.awt.Dimension
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
+import java.awt.event.MouseMotionListener
 import javax.swing.JButton
 import javax.swing.JComponent
 import kotlin.test.Test
@@ -43,6 +47,12 @@ import kotlin.test.assertTrue
 class SwingModifierTest {
     private fun mouseEntered(component: Component): MouseEvent =
         MouseEvent(component, MouseEvent.MOUSE_ENTERED, 0L, 0, 0, 0, 0, false)
+
+    private fun mouseClicked(component: Component): MouseEvent =
+        MouseEvent(component, MouseEvent.MOUSE_CLICKED, 0L, 0, 0, 0, 1, false)
+
+    private fun mouseMoved(component: Component): MouseEvent =
+        MouseEvent(component, MouseEvent.MOUSE_MOVED, 0L, 0, 0, 0, 0, false)
 
     private fun mouseEnterListener(onEnter: () -> Unit): MouseListener = object : MouseAdapter() {
         override fun mouseEntered(e: MouseEvent?): Unit = onEnter()
@@ -438,6 +448,142 @@ class SwingModifierTest {
         button.dispatchEvent(mouseEntered(button))
         assertEquals(1, first, "the removed listener must not fire again")
         assertEquals(2, second, "the surviving listener must stay installed and keep firing")
+    }
+
+    @Test
+    fun survivingListenerKeepsFiringWhenAKindChangeShiftsItsPosition() = runSwingUiTest {
+        var hoverEnabled by mutableStateOf(true)
+        var clickCount = 0
+        setContent {
+            Button(
+                "X",
+                modifier =
+                    SwingModifier
+                        .name("b")
+                        .let { if (hoverEnabled) it.onHover(onEnter = {}) else it }
+                        .onPointerEvent(onClick = { clickCount++ }),
+            )
+        }
+        val button = onNodeWithName("b").fetch<JComponent>()
+
+        button.dispatchEvent(mouseClicked(button))
+        assertEquals(1, clickCount, "the click listener should fire before the shape change")
+
+        // Dropping the conditional hover shifts the click element onto the hover's position. The
+        // kinds differ, so the slot swaps wholesale — the click listener must survive the shift.
+        hoverEnabled = false
+        awaitIdle()
+        button.dispatchEvent(mouseClicked(button))
+        assertEquals(2, clickCount, "the surviving click listener must keep firing after the kind change")
+    }
+
+    @Test
+    fun listenerLeavingTheChainIsDetachedWhenAKindChangeShiftsPositions() = runSwingUiTest {
+        var hoverEnabled by mutableStateOf(true)
+        var enterCount = 0
+        setContent {
+            Button(
+                "X",
+                modifier =
+                    SwingModifier
+                        .name("b")
+                        .let { if (hoverEnabled) it.onHover(onEnter = { enterCount++ }) else it }
+                        .onPointerEvent(onClick = {}),
+            )
+        }
+        val button = onNodeWithName("b").fetch<JComponent>()
+
+        button.dispatchEvent(mouseEntered(button))
+        assertEquals(1, enterCount, "the hover listener should fire while its element is present")
+
+        // The hover leaves the chain and a different kind takes over its position: the hover node
+        // is detached, so its listener is gone from the component.
+        hoverEnabled = false
+        awaitIdle()
+        button.dispatchEvent(mouseEntered(button))
+        assertEquals(1, enterCount, "the hover listener must be detached when its element leaves the chain")
+    }
+
+    @Test
+    fun instanceListenerKindChangeAtOnePositionSwapsInstances() = runSwingUiTest {
+        var mouseEnabled by mutableStateOf(true)
+        var enterCount = 0
+        var moveCount = 0
+        val mouse = mouseEnterListener { enterCount++ }
+        val motion =
+            object : MouseMotionListener {
+                override fun mouseMoved(e: MouseEvent?) {
+                    moveCount++
+                }
+
+                override fun mouseDragged(e: MouseEvent?) = Unit
+            }
+        setContent {
+            Button(
+                "X",
+                modifier =
+                    SwingModifier
+                        .name("b")
+                        .let { if (mouseEnabled) it.mouseListener(mouse) else it }
+                        .mouseMotionListener(motion),
+            )
+        }
+        val button = onNodeWithName("b").fetch<JComponent>()
+
+        button.dispatchEvent(mouseEntered(button))
+        button.dispatchEvent(mouseMoved(button))
+        assertEquals(1, enterCount, "the mouse listener should fire before the shape change")
+        assertEquals(1, moveCount, "the motion listener should fire before the shape change")
+
+        // The two builders share an element class but pair different listener types with their own
+        // add/remove calls: shifting the motion listener onto the mouse listener's position must
+        // remove the mouse listener through its own pairing and keep the motion listener live.
+        mouseEnabled = false
+        awaitIdle()
+        button.dispatchEvent(mouseEntered(button))
+        button.dispatchEvent(mouseMoved(button))
+        assertEquals(1, enterCount, "the mouse listener must be detached when its element leaves the chain")
+        assertEquals(2, moveCount, "the surviving motion listener must keep firing after the kind change")
+    }
+
+    @Test
+    fun sameKindPersistingPositionKeepsTheListenerInstalledWithoutReattaching() = runSwingUiTest {
+        var label by mutableStateOf("first")
+        var attachCount = 0
+        var detachCount = 0
+        var enterCount = 0
+        val stable = mouseEnterListener { enterCount++ }
+        setContent {
+            Button(
+                label,
+                modifier =
+                    SwingModifier
+                        .name("b")
+                        .listener<JButton, MouseListener>(
+                            stable,
+                            { c, l ->
+                                attachCount++
+                                c.addMouseListener(l)
+                            },
+                            { c, l ->
+                                detachCount++
+                                c.removeMouseListener(l)
+                            },
+                        ),
+            )
+        }
+        assertEquals(1, attachCount, "the listener should be attached once on first apply")
+
+        // Recomposition rebuilds the chain with a fresh element instance. The position persists with
+        // the same kind, so the slot keeps its node and the stable instance is not re-registered.
+        label = "second"
+        awaitIdle()
+        assertEquals(1, attachCount, "a same-kind persisting position must not re-attach the listener")
+        assertEquals(0, detachCount, "a same-kind persisting position must not detach the listener")
+
+        val button = onNodeWithName("b").fetch<JComponent>()
+        button.dispatchEvent(mouseEntered(button))
+        assertEquals(1, enterCount, "the persisting listener must still fire after recomposition")
     }
 
     @Test

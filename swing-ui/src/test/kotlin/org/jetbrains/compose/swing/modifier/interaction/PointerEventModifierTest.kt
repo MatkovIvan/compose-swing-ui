@@ -16,11 +16,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Behavioral coverage for the [onPointerEvent] modifier. The harness runs headless, so there is no
- * real cursor: each test dispatches a synthetic [MouseEvent] through the component's own registered
- * `MouseListener`s (the same listeners Swing's dispatch invokes), then asserts the registered
- * callbacks fired with the event that was delivered. Removing the modifier from the chain must detach
- * the listener so later events no longer reach the callbacks.
+ * Behavioral coverage for the [onPointerEvent] modifier. The harness never realizes an on-screen
+ * peer, so there is no real cursor: each test dispatches a synthetic [MouseEvent] through the
+ * component's own registered `MouseListener`s (the same listeners Swing's dispatch invokes), then
+ * asserts the registered callbacks fired with the event that was delivered. Removing the modifier
+ * from the chain must detach the listener so later events no longer reach the callbacks.
  */
 class PointerEventModifierTest {
     private fun pressEvent(component: Component): MouseEvent =

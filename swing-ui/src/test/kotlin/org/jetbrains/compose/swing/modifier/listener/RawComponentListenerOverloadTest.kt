@@ -43,6 +43,7 @@ import javax.swing.JTextField
 import javax.swing.JTextPane
 import javax.swing.JToggleButton
 import javax.swing.JTree
+import javax.swing.SpinnerNumberModel
 import javax.swing.event.ChangeListener
 import javax.swing.event.ListSelectionListener
 import javax.swing.event.TreeSelectionListener
@@ -117,26 +118,16 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun intSpinnerChangeListenerOverloadRegistersInstance() = runSwingUiTest {
-        val listener = ChangeListener { }
-        setContent { Spinner(value = 1, changeListener = listener, modifier = SwingModifier.name("si")) }
-        assertTrue(onNodeWithName("si").fetch<JSpinner>().changeListeners.any { it === listener })
-    }
-
-    @Test
-    fun doubleSpinnerChangeListenerOverloadRegistersInstance() = runSwingUiTest {
-        val listener = ChangeListener { }
-        setContent { Spinner(value = 1.0, changeListener = listener, modifier = SwingModifier.name("sd")) }
-        assertTrue(onNodeWithName("sd").fetch<JSpinner>().changeListeners.any { it === listener })
-    }
-
-    @Test
-    fun listSpinnerChangeListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun spinnerChangeListenerOverloadRegistersInstance() = runSwingUiTest {
         val listener = ChangeListener { }
         setContent {
-            Spinner(items = listOf("a", "b"), changeListener = listener, modifier = SwingModifier.name("sl"))
+            Spinner(
+                model = SpinnerNumberModel(1, 0, 10, 1),
+                changeListener = listener,
+                modifier = SwingModifier.name("si"),
+            )
         }
-        assertTrue(onNodeWithName("sl").fetch<JSpinner>().changeListeners.any { it === listener })
+        assertTrue(onNodeWithName("si").fetch<JSpinner>().changeListeners.any { it === listener })
     }
 
     @Test

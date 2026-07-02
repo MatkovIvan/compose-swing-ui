@@ -30,12 +30,16 @@ import javax.swing.JSplitPane
  * behind an `if`) clears it.
  *
  * The divider position is controlled: pass a pixel offset as [dividerLocation] to place the divider,
- * and [onDividerLocationChange] fires with the new offset whenever the divider moves. Pass `null` to
- * leave the position to Swing (initially derived from [resizeWeight] and the sides' preferred sizes).
+ * and [onDividerLocationChange] fires with the new offset whenever the divider moves. The default
+ * `-1` is `JSplitPane`'s own initial divider location; as `setDividerLocation` documents, a negative
+ * offset resets the divider to a position honoring the sides' preferred sizes (shaped by
+ * [resizeWeight]).
  *
  * @param modifier the [SwingModifier] applied to the underlying `JSplitPane`
  * @param orientation the axis along which the two sides are arranged
- * @param dividerLocation the divider offset in pixels (controlled), or `null` to leave it to Swing
+ * @param dividerLocation the divider offset in pixels (controlled); a negative offset — the default
+ *   `-1` is `JSplitPane`'s own initial divider location — resets the divider to honor the sides'
+ *   preferred sizes
  * @param onDividerLocationChange callback invoked with the new offset when the divider moves
  * @param resizeWeight how extra space is shared when the pane resizes, from `0.0` (all to the second
  *   side) to `1.0` (all to the first side)
@@ -45,7 +49,7 @@ import javax.swing.JSplitPane
 public fun SplitPane(
     modifier: SwingModifier = SwingModifier,
     @SplitOrientation orientation: Int = JSplitPane.HORIZONTAL_SPLIT,
-    dividerLocation: Int? = null,
+    dividerLocation: Int = -1,
     onDividerLocationChange: (Int) -> Unit = {},
     resizeWeight: Double = 0.0,
     block: SplitPaneScope.() -> Unit,
@@ -71,7 +75,9 @@ public fun SplitPane(
  * @param dividerLocationListener the listener notified when the `dividerLocation` property changes
  * @param modifier the [SwingModifier] applied to the underlying `JSplitPane`
  * @param orientation the axis along which the two sides are arranged
- * @param dividerLocation the divider offset in pixels (controlled), or `null` to leave it to Swing
+ * @param dividerLocation the divider offset in pixels (controlled); a negative offset — the default
+ *   `-1` is `JSplitPane`'s own initial divider location — resets the divider to honor the sides'
+ *   preferred sizes
  * @param resizeWeight how extra space is shared when the pane resizes
  * @param block declares the two sides; see [SplitPaneScope]
  */
@@ -80,7 +86,7 @@ public fun SplitPane(
     dividerLocationListener: PropertyChangeListener,
     modifier: SwingModifier = SwingModifier,
     @SplitOrientation orientation: Int = JSplitPane.HORIZONTAL_SPLIT,
-    dividerLocation: Int? = null,
+    dividerLocation: Int = -1,
     resizeWeight: Double = 0.0,
     block: SplitPaneScope.() -> Unit,
 ) {
@@ -100,7 +106,7 @@ public fun SplitPane(
 private fun SplitPaneImpl(
     modifier: SwingModifier,
     @SplitOrientation orientation: Int,
-    dividerLocation: Int?,
+    dividerLocation: Int,
     resizeWeight: Double,
     dividerListener: (SwingModifier) -> SwingModifier,
     block: SplitPaneScope.() -> Unit,
@@ -116,11 +122,13 @@ private fun SplitPaneImpl(
         update = {
             set(orientation) { this.orientation = it }
             set(resizeWeight) { this.resizeWeight = it }
-            // Apply the controlled location only when it differs from the live position, so a
-            // programmatic set never echoes back through the divider listener as a spurious
-            // onDividerLocationChange.
+            // Apply the controlled location only when the composed value changes and differs from
+            // the live position: a recomposition with an unchanged value never fights a user drag,
+            // and a programmatic set never echoes back through the divider listener as a spurious
+            // onDividerLocationChange. An explicit change to a negative offset writes through and
+            // gets setDividerLocation's documented reset-to-preferred-sizes semantics.
             set(dividerLocation) { location ->
-                if (location != null && this.dividerLocation != location) {
+                if (this.dividerLocation != location) {
                     this.dividerLocation = location
                 }
             }

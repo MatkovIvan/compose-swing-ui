@@ -16,6 +16,7 @@ import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.event.ListSelectionListener
 import javax.swing.table.AbstractTableModel
+import javax.swing.table.TableModel
 
 /**
  * A composable wrapper for `JTable` with declarative, data-driven rows and columns.
@@ -63,18 +64,9 @@ public fun <R> Table(
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     block: TableScope<R>.() -> Unit,
 ) {
-    val callback = rememberUpdatedState(onSelectionChange)
-    // The table registers the listener on its selection model, so the event source is the model; read
-    // the settled row selection from it once the value stops adjusting.
-    val listener =
-        remember {
-            ListSelectionListener { event ->
-                if (!event.valueIsAdjusting) callback.value((event.source as ListSelectionModel).selectedIndices())
-            }
-        }
     Table(
         rows = rows,
-        listSelectionListener = listener,
+        listSelectionListener = rememberSettledSelectionListener(onSelectionChange),
         modifier = modifier,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -105,7 +97,7 @@ public fun <R> Table(
     block: TableScope<R>.() -> Unit,
 ) {
     val columns = TableScopeImpl<R>().apply(block).columns
-    val model = remember { TableModel<R>() }
+    val model = remember { ColumnsTableModel<R>() }
 
     SwingNode(
         factory = { JTable(model) },
@@ -121,6 +113,111 @@ public fun <R> Table(
             )
         },
     )
+}
+
+/**
+ * A composable wrapper for `JTable` driven by a caller-owned [TableModel].
+ *
+ * The [model] is displayed as-is: its own columns, values, and editability drive the table, and the
+ * library never mutates it. Supplying a new [model] instance swaps it into the table on recomposition.
+ * Selection is controlled via [selectedRowIndices] + [onSelectionChange], expressed as the general
+ * multi-select shape so one component covers all of [SelectionMode]'s modes; a model swap clears the
+ * table's selection, after which [selectedRowIndices] is re-applied so the controlled selection
+ * survives. Place it in a [ScrollPane] to scroll and to show the column header.
+ *
+ * ```
+ * ScrollPane {
+ *     content {
+ *         Table(
+ *             model = myTableModel,
+ *             selectedRowIndices = selection,
+ *             onSelectionChange = { selection = it },
+ *         )
+ *     }
+ * }
+ * ```
+ *
+ * [onSelectionChange] fires once per settled selection change, so dragging across rows produces one
+ * callback at the end rather than one per row crossed.
+ *
+ * @param model the table model to display; owned by the caller and never mutated by the library
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param selectedRowIndices the currently selected row indices (controlled); re-applied after a model swap
+ * @param onSelectionChange callback invoked when the settled row selection changes
+ * @param selectionMode how many rows/ranges may be selected
+ */
+@Composable
+public fun Table(
+    model: TableModel,
+    modifier: SwingModifier = SwingModifier,
+    selectedRowIndices: List<Int> = emptyList(),
+    onSelectionChange: (List<Int>) -> Unit = {},
+    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+) {
+    Table(
+        model = model,
+        listSelectionListener = rememberSettledSelectionListener(onSelectionChange),
+        modifier = modifier,
+        selectedRowIndices = selectedRowIndices,
+        selectionMode = selectionMode,
+    )
+}
+
+/**
+ * A model-driven [Table] driven by a raw [ListSelectionListener] instead of an `onSelectionChange`
+ * lambda. The listener is attached to the table's `selectionModel` as-is (so it observes the same
+ * settled-or-raw selection events the model publishes) and removed on the same instance; pass a stable
+ * instance (e.g. `remember {}`) to avoid churn.
+ *
+ * The [model] is displayed as-is and never mutated by the library. A model swap clears the table's
+ * selection, after which [selectedRowIndices] is re-applied so the controlled selection survives.
+ *
+ * @param model the table model to display; owned by the caller and never mutated by the library
+ * @param listSelectionListener the listener notified of selection-model changes
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param selectedRowIndices the currently selected row indices (controlled); re-applied after a model swap
+ * @param selectionMode how many rows/ranges may be selected
+ */
+@Composable
+public fun Table(
+    model: TableModel,
+    listSelectionListener: ListSelectionListener,
+    modifier: SwingModifier = SwingModifier,
+    selectedRowIndices: List<Int> = emptyList(),
+    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+) {
+    SwingNode(
+        factory = { JTable(model) },
+        update = {
+            set(selectionMode) { this.setSelectionMode(it) }
+            // setModel recreates the columns and clears the selection, so re-apply the controlled
+            // selection to keep it intact across a model swap.
+            set(model) {
+                this.model = it
+                applySelection(this, selectedRowIndices)
+            }
+            set(selectedRowIndices) { applySelection(this, it) }
+            applyModifier(
+                SwingModifier.tableSelectionListener(listSelectionListener) then modifier,
+            )
+        },
+    )
+}
+
+/**
+ * A stable [ListSelectionListener] that forwards each settled row selection to [onSelectionChange],
+ * bridging a lambda-based [Table] overload to the raw-listener overload it delegates to.
+ */
+@Composable
+private fun rememberSettledSelectionListener(onSelectionChange: (List<Int>) -> Unit): ListSelectionListener {
+    val callback = rememberUpdatedState(onSelectionChange)
+    // The table registers the listener on its selection model, so the event source is the model; read
+    // the settled row selection from it once the value stops adjusting.
+    return remember {
+        ListSelectionListener { event ->
+            if (!event.valueIsAdjusting) callback.value((event.source as ListSelectionModel).selectedIndices())
+        }
+    }
 }
 
 /**
@@ -182,7 +279,7 @@ private class TableScopeImpl<R> : TableScope<R> {
  * An in-place edit never mutates [rows] itself, so the displayed value only changes once the caller
  * updates the backing state and a new composition supplies fresh rows.
  */
-private class TableModel<R> : AbstractTableModel() {
+private class ColumnsTableModel<R> : AbstractTableModel() {
     private var rows: List<R> = emptyList()
     private var columns: List<ColumnDeclaration<R>> = emptyList()
 

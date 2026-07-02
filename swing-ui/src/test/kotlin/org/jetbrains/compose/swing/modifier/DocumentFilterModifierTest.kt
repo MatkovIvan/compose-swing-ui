@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runSwingUiTest
 import javax.swing.JEditorPane

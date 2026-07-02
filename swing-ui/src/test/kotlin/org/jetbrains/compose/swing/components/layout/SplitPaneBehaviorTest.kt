@@ -11,7 +11,9 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runSwingUiTest
 import javax.swing.JSplitPane
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
@@ -150,6 +152,60 @@ class SplitPaneBehaviorTest {
         location = 200
         awaitIdle()
         assertEquals(200, pane.dividerLocation, "the divider should follow the controlled location")
+    }
+
+    @Test
+    fun defaultDividerLocationDoesNotFightAUserDrag() = runSwingUiTest {
+        val reported = mutableListOf<Int>()
+        var firstLabel by mutableStateOf("A")
+        setContent {
+            SplitPane(onDividerLocationChange = { reported += it }) {
+                first { Label(text = firstLabel) }
+                second { Label(text = "B") }
+            }
+        }
+
+        val pane = splitPane()
+        reported.clear()
+
+        // A user drag of the divider is observable as a dividerLocation property change.
+        pane.dividerLocation = 150
+        awaitIdle()
+        assertEquals(150, reported.last(), "the drag must flow through onDividerLocationChange")
+
+        // An unrelated recomposition must not re-assert the default location over the drag.
+        firstLabel = "A!"
+        awaitIdle()
+        assertEquals(150, pane.dividerLocation, "the divider must stay where the user dragged it")
+    }
+
+    @Test
+    fun aNegativeDividerLocationAppliesTheDocumentedReset() = runSwingUiTest {
+        val reported = mutableListOf<Int>()
+        var location by mutableIntStateOf(200)
+        setContent {
+            SplitPane(
+                dividerLocation = location,
+                onDividerLocationChange = {
+                    reported += it
+                    location = it
+                },
+            ) {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        val pane = splitPane()
+        assertEquals(200, pane.dividerLocation, "the divider should start at the explicit location")
+
+        // A negative offset is JSplitPane's documented request to re-derive the divider position
+        // from the sides' preferred sizes.
+        location = -1
+        awaitIdle()
+
+        assertContains(reported, -1, "an explicit -1 must be written through as the documented reset request")
+        assertNotEquals(200, pane.dividerLocation, "the reset must move the divider off the explicit location")
     }
 
     @Test

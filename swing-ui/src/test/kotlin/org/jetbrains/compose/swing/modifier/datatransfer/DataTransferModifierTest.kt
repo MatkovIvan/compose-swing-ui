@@ -41,9 +41,10 @@ class DataTransferModifierTest {
         transferable: Transferable,
     ): TransferHandler.TransferSupport = TransferHandler.TransferSupport(component, transferable)
 
-    // A local clipboard standing in for the system clipboard, which throws HeadlessException under the
-    // headless test harness. Driving the installed handler's exportToClipboard/importData against it
-    // asserts the exact copy/paste round-trip the public helpers perform on the real clipboard.
+    // A local clipboard standing in for the system clipboard, a shared environment-dependent global
+    // that is absent entirely without a display. Driving the installed handler's
+    // exportToClipboard/importData against it asserts the exact copy/paste round-trip the public
+    // helpers perform on the real clipboard.
     private fun localClipboard(): Clipboard = Clipboard("data-transfer-test")
 
     @Test
@@ -392,30 +393,61 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun clipboardMenuHelpersDegradeGracefully() = runSwingUiTest {
+    fun clipboardHandleRoundTripsThroughTheBoundComponent() = runSwingUiTest {
+        var pasted: String? = null
+        lateinit var handle: ClipboardHandle
         setContent {
+            handle = rememberClipboardHandle()
             TextField(
                 value = "",
                 onValueChange = {},
                 modifier =
                     SwingModifier.name("clip").clipboard(
-                        transferable = { StringSelection("x") },
-                        onPaste = { true },
+                        transferable = { StringSelection("handle-roundtrip") },
+                        onPaste = { t ->
+                            pasted = t.getTransferData(DataFlavor.stringFlavor) as String
+                            true
+                        },
                         bindKeys = false,
+                        handle = handle,
                     ),
             )
         }
-        val component = onNodeWithName("clip").fetch<JComponent>()
-        // The menu helpers must run cleanly whether or not a system clipboard is reachable: where one
-        // is absent (no display) paste reports failure; where one is present the round-trip is imported.
-        copyToClipboard(component)
-        cutFromClipboard(component)
-        val pasted = pasteFromClipboard(component)
+
+        // The handle drives copy/cut/paste on the bound component through the real system clipboard,
+        // so it must run cleanly whether or not one is reachable: where one is absent (no display)
+        // paste reports failure and onPaste never fires; where one is present the value the bound
+        // component exported on copy round-trips back through onPaste on paste.
+        handle.copy()
+        handle.cut()
+        val imported = handle.paste()
         if (GraphicsEnvironment.isHeadless()) {
-            assertFalse(pasted, "paste reports failure when no system clipboard is reachable")
+            assertFalse(imported, "paste reports failure when no system clipboard is reachable")
+            assertNull(pasted, "onPaste must not fire when there is nothing to import")
         } else {
-            assertTrue(pasted, "paste imports the round-tripped value when a system clipboard is present")
+            assertTrue(imported, "paste imports the round-tripped value when a system clipboard is present")
+            assertEquals(
+                "handle-roundtrip",
+                pasted,
+                "the value the bound component exported must survive copy then paste",
+            )
         }
+    }
+
+    @Test
+    fun clipboardHandleIsInertWhileUnbound() = runSwingUiTest {
+        lateinit var handle: ClipboardHandle
+        setContent {
+            handle = rememberClipboardHandle()
+            // The handle is created but never passed to a clipboard modifier, so it binds no component.
+            TextField(value = "", onValueChange = {})
+        }
+
+        // An unbound handle has no component to act on: copy and cut are no-ops that must not throw,
+        // and paste reports failure without touching any component.
+        handle.copy()
+        handle.cut()
+        assertFalse(handle.paste(), "an unbound handle's paste must report failure")
     }
 
     @Test

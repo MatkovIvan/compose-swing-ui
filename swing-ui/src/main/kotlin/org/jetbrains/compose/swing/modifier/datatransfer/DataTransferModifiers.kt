@@ -1,5 +1,7 @@
 package org.jetbrains.compose.swing.modifier.datatransfer
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.constants.TransferAction
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Point
@@ -73,39 +75,84 @@ public fun SwingModifier.dropTarget(
  * operations while it is focused; pass `false` to enable the operations without installing key
  * bindings (e.g. to drive them from your own menu). Requires a [JComponent] target. All callbacks are
  * read live, so passing fresh lambdas across recompositions takes effect immediately.
+ *
+ * Pass a [handle] from [rememberClipboardHandle] to also trigger copy/cut/paste programmatically. The
+ * handle binds to the component this modifier is applied to, so [ClipboardHandle.copy],
+ * [ClipboardHandle.cut] and [ClipboardHandle.paste] drive these same operations from an event handler
+ * (e.g. a menu item) without the caller ever touching the [JComponent].
  */
 public fun SwingModifier.clipboard(
     transferable: (component: JComponent) -> Transferable?,
     onPaste: (transferable: Transferable) -> Boolean,
     canImport: (flavors: List<DataFlavor>) -> Boolean = { true },
     bindKeys: Boolean = true,
-): SwingModifier = this then ClipboardElement(transferable, onPaste, canImport, bindKeys)
+    handle: ClipboardHandle? = null,
+): SwingModifier = this then ClipboardElement(transferable, onPaste, canImport, bindKeys, handle)
 
 /**
- * Triggers a clipboard copy on the component: exports the value its [clipboard] modifier produces to
- * the system clipboard as a `TransferHandler.COPY`. A no-op if the component has no transfer handler
- * configured for export. Useful for driving copy from a menu item rather than the bound keystroke.
+ * A programmatic trigger for the clipboard copy/cut/paste of the component a [clipboard] modifier binds
+ * it to. Obtain one from [rememberClipboardHandle], pass it to `clipboard(handle = …)`, then call
+ * [copy]/[cut]/[paste] from an event handler (e.g. a menu item) to drive the same operations the bound
+ * keystrokes do — without ever holding the underlying [JComponent].
+ *
+ * The handle captures the component (and its transfer handler) the modifier binds it to; while unbound —
+ * before the modifier applies or after it leaves the chain — [copy] and [cut] are no-ops and [paste]
+ * returns `false`.
  */
-public fun copyToClipboard(component: JComponent): Unit = exportToClipboard(component, TransferHandler.COPY)
+public class ClipboardHandle internal constructor() {
+    // The component the clipboard modifier bound this handle to, or null while unbound. Copy/cut/paste
+    // operate on it through the transfer handler that same modifier installed.
+    private var component: JComponent? = null
 
-/**
- * Triggers a clipboard cut on the component: exports the value its [clipboard] modifier produces to
- * the system clipboard as a `TransferHandler.MOVE`. A no-op if the component has no transfer handler
- * configured for export. Useful for driving cut from a menu item rather than the bound keystroke.
- */
-public fun cutFromClipboard(component: JComponent): Unit = exportToClipboard(component, TransferHandler.MOVE)
+    /**
+     * Copies to the system clipboard: exports the value the bound component's [clipboard] modifier
+     * produces as a `TransferHandler.COPY`. A no-op while the handle is unbound.
+     */
+    public fun copy() {
+        component?.let { exportToClipboard(it, TransferHandler.COPY) }
+    }
 
-/**
- * Triggers a clipboard paste on the component: reads the system clipboard and, when its [clipboard]
- * modifier's `canImport` accepts the flavors, imports the clipboard contents through that modifier's
- * `onPaste`. Returns whether the import succeeded. A no-op returning `false` if the component has no
- * transfer handler configured for import. Useful for driving paste from a menu item.
- */
-public fun pasteFromClipboard(component: JComponent): Boolean {
-    val handler = component.transferHandler ?: return false
-    val contents = clipboardContents()
-    return contents != null && handler.importData(TransferHandler.TransferSupport(component, contents))
+    /**
+     * Cuts to the system clipboard: exports the value the bound component's [clipboard] modifier
+     * produces as a `TransferHandler.MOVE`. A no-op while the handle is unbound.
+     */
+    public fun cut() {
+        component?.let { exportToClipboard(it, TransferHandler.MOVE) }
+    }
+
+    /**
+     * Pastes from the system clipboard: reads the clipboard and, when the bound component's [clipboard]
+     * modifier's `canImport` accepts the flavors, imports the contents through that modifier's
+     * `onPaste`. Returns whether the import succeeded; returns `false` while the handle is unbound or
+     * the clipboard is empty.
+     */
+    public fun paste(): Boolean {
+        val component = component ?: return false
+        val handler = component.transferHandler
+        val contents = clipboardContents()
+        return handler != null &&
+            contents != null &&
+            handler.importData(TransferHandler.TransferSupport(component, contents))
+    }
+
+    /** Binds the handle to [target] so copy/cut/paste act on it; called by the [clipboard] modifier. */
+    internal fun bind(target: JComponent) {
+        component = target
+    }
+
+    /** Unbinds [target] if it is the currently bound component, leaving a handle bound elsewhere intact. */
+    internal fun unbind(target: JComponent) {
+        if (component === target) component = null
+    }
 }
+
+/**
+ * Creates and remembers a [ClipboardHandle] to drive a component's clipboard copy/cut/paste
+ * programmatically. Pass it to `clipboard(handle = …)` to bind it to that component, then call
+ * [ClipboardHandle.copy]/[ClipboardHandle.cut]/[ClipboardHandle.paste] from an event handler.
+ */
+@Composable
+public fun rememberClipboardHandle(): ClipboardHandle = remember { ClipboardHandle() }
 
 private class DraggableElement(
     @param:TransferAction private val exportedActions: Int,
@@ -230,6 +277,7 @@ private class ClipboardElement(
     private val onPaste: (Transferable) -> Boolean,
     private val canImport: (List<DataFlavor>) -> Boolean,
     private val bindKeys: Boolean,
+    private val handle: ClipboardHandle?,
 ) : SwingModifier.Element<JComponent, ClipboardElement.Node> {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
@@ -239,6 +287,7 @@ private class ClipboardElement(
         node.transferable = transferable
         node.onPaste = onPaste
         node.canImport = canImport
+        node.handle = handle
         node.apply()
     }
 
@@ -248,6 +297,17 @@ private class ClipboardElement(
         var transferable: (JComponent) -> Transferable? = { null }
         var onPaste: (Transferable) -> Boolean = { false }
         var canImport: (List<DataFlavor>) -> Boolean = { true }
+
+        // The handle to drive copy/cut/paste, read live so a handle passed on a later recomposition
+        // binds to this component and one that leaves (or is replaced) unbinds. The field holds the
+        // currently bound handle, so onDetach unbinds exactly the one this node bound.
+        var handle: ClipboardHandle? = null
+            set(value) {
+                if (value === field) return
+                field?.unbind(component)
+                field = value
+                value?.bind(component)
+            }
 
         private var sourceToken: SliceToken? = null
         private var dropToken: SliceToken? = null
@@ -279,6 +339,8 @@ private class ClipboardElement(
 
         override fun onDetach() {
             val component = component
+            // Clearing the handle runs its setter, which unbinds this component from the bound handle.
+            handle = null
             clearSourceIfOwned(component, sourceToken)
             clearDropIfOwned(component, dropToken)
             sourceToken = null

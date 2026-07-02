@@ -33,6 +33,7 @@ import javax.swing.JRadioButton
 import javax.swing.JScrollPane
 import javax.swing.JSeparator
 import javax.swing.JSlider
+import javax.swing.JSpinner
 import javax.swing.JSplitPane
 import javax.swing.JTabbedPane
 import javax.swing.JTable
@@ -42,6 +43,7 @@ import javax.swing.JTextPane
 import javax.swing.JToggleButton
 import javax.swing.JToolBar
 import javax.swing.JTree
+import javax.swing.SpinnerNumberModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -119,6 +121,17 @@ class WrapperDefaultsMatchWidgetTest {
         val bare = JSlider()
         setContent { Slider(value = bare.value) }
         val wrapped = onNodeOfType<JSlider>().fetch<JSlider>()
+        assertEquals(bare.minimum, wrapped.minimum, "minimum")
+        assertEquals(bare.maximum, wrapped.maximum, "maximum")
+    }
+
+    @Test
+    fun spinnerDefaultsMatchBareWidget() = runSwingUiTest {
+        val bare = JSpinner().model as SpinnerNumberModel
+        setContent { Spinner(rememberSpinnerState(value = bare.number.toInt())) }
+        val wrapped = onNodeOfType<JSpinner>().fetch<JSpinner>().model as SpinnerNumberModel
+        assertEquals(bare.value, wrapped.value, "value")
+        assertEquals(bare.stepSize, wrapped.stepSize, "stepSize")
         assertEquals(bare.minimum, wrapped.minimum, "minimum")
         assertEquals(bare.maximum, wrapped.maximum, "maximum")
     }

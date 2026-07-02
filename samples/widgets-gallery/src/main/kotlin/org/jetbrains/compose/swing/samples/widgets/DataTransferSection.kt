@@ -12,19 +12,16 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.datatransfer.copyToClipboard
+import org.jetbrains.compose.swing.modifier.datatransfer.clipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
 import org.jetbrains.compose.swing.modifier.datatransfer.dropTarget
-import org.jetbrains.compose.swing.modifier.datatransfer.pasteFromClipboard
+import org.jetbrains.compose.swing.modifier.datatransfer.rememberClipboardHandle
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
-import java.awt.event.HierarchyEvent
 import javax.swing.BorderFactory
-import javax.swing.JComponent
 import javax.swing.TransferHandler
 
 // The data-transfer modifiers: drag-and-drop between components and system-clipboard copy/paste.
@@ -76,28 +73,32 @@ private fun DragAndDropCard() {
 
 @Composable
 private fun ClipboardCard() {
-    ExampleCard("copyToClipboard + pasteFromClipboard (explicit buttons)") {
+    ExampleCard("clipboard handle (copy/paste from explicit buttons)") {
         var text by remember { mutableStateOf("Copy me to the system clipboard") }
         var status by remember { mutableStateOf("") }
-        var field by remember { mutableStateOf<JComponent?>(null) }
+        val clipboard = rememberClipboardHandle()
 
         FlowPanel {
             TextField(
                 value = text,
                 onValueChange = { text = it },
                 modifier =
-                    SwingModifier.hierarchyListener { event ->
-                        if (event.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L) {
-                            field = event.component as JComponent
-                        }
-                    },
+                    SwingModifier.clipboard(
+                        transferable = { StringSelection(text) },
+                        onPaste = { transferable ->
+                            text = transferable.getTransferData(DataFlavor.stringFlavor) as String
+                            true
+                        },
+                        // The buttons drive this field through the handle, so leave the standard in-field
+                        // editing keystrokes to the text component rather than binding them here.
+                        bindKeys = false,
+                        handle = clipboard,
+                    ),
             )
         }
         FlowPanel {
-            Button("Copy") { field?.let { copyToClipboard(it) } }
-            Button("Paste") {
-                status = field?.let { if (pasteFromClipboard(it)) "Pasted" else "Nothing to paste" }.orEmpty()
-            }
+            Button("Copy") { clipboard.copy() }
+            Button("Paste") { status = if (clipboard.paste()) "Pasted" else "Nothing to paste" }
             Label(status)
         }
     }

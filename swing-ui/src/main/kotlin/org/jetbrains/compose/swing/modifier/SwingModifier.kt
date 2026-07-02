@@ -64,7 +64,6 @@ public interface SwingModifier {
      * `docs/CUSTOM-COMPONENTS.md`.
      */
     public open class Node<T : Component> {
-        @PublishedApi
         internal var attachedComponent: T? = null
 
         /** The typed target, valid from [onAttach] until [onDetach]. */
@@ -164,7 +163,7 @@ internal class CombinedSwingModifier(
 
 /**
  * Mutable per-slot state held by the node holder across recompositions: the diff path's non-generic
- * handle on one slot's node, driven through [refresh]/[detach]/[rebindAndRefresh].
+ * handle on one slot's node, driven through [canRebind]/[rebindAndRefresh]/[refresh]/[detach].
  *
  * The node and its type are captured together at the statically-typed apply site (see
  * [attachElement]) inside the [Slot] implementation, so a later recomposition pushes a fresh element
@@ -178,11 +177,19 @@ internal sealed interface ElementRecord {
     fun detach()
 
     /**
+     * Whether [element] is of the kind this slot's node was created for, i.e. whether
+     * [rebindAndRefresh] can apply it through the existing node. A diff hands a slot an element of a
+     * different kind when a conditional chain changes shape; the slot cannot host it, so the caller
+     * [detach]es this record and attaches the element fresh instead.
+     */
+    fun canRebind(element: SwingModifier.Element<*, *>): Boolean
+
+    /**
      * Rebinds the slot to a (possibly new) [element] instance, then refreshes it against [target].
      * A fresh element instance arrives each recomposition (its callbacks are new), so rebinding keeps
      * a node-installed listener's callbacks current via [SwingModifier.Element.update] without
-     * reattaching. The slot's node statically knows its own type, so [element] is applied through it
-     * without an unchecked cast.
+     * reattaching. Only call when [canRebind] holds: the slot's node statically knows its own type,
+     * so a [canRebind]-checked [element] is applied through it without an unchecked cast.
      */
     fun rebindAndRefresh(
         element: SwingModifier.Element<*, *>,
@@ -193,8 +200,8 @@ internal sealed interface ElementRecord {
 /**
  * The typed slot backing one [ElementRecord]. Constructed at [attachElement] where the element's
  * [T] and [N] are statically known, so it captures the concrete [node] and the [elementType] that
- * created it. A rebind runtime-checks the incoming element against that [elementType] before pushing
- * it onto the node, so the narrowing is a verified [Class.cast] rather than an unchecked cast.
+ * created it. [canRebind] runtime-checks an incoming element against that [elementType], so the
+ * rebind's narrowing is a verified [Class.cast] rather than an unchecked cast.
  */
 private class Slot<T : Component, N : SwingModifier.Node<T>>(
     private val node: N,
@@ -204,6 +211,8 @@ private class Slot<T : Component, N : SwingModifier.Node<T>>(
     override fun refresh(target: Component): Unit = refreshElement(element, target, node)
 
     override fun detach(): Unit = node.onDetach()
+
+    override fun canRebind(element: SwingModifier.Element<*, *>): Boolean = elementType.isInstance(element)
 
     override fun rebindAndRefresh(
         element: SwingModifier.Element<*, *>,
@@ -338,7 +347,9 @@ private fun diffKeyedElements(
 /**
  * Diffs the additive (subscription) elements by position: a position present last time but gone now is
  * detached and removed; a persisting position keeps its node and is refreshed via update(); a new
- * trailing position is created and attached.
+ * trailing position is created and attached. A conditional chain changing shape can hand a persisting
+ * position an element of a different kind; the slot's node cannot host it, so the slot is swapped
+ * wholesale — the old node detaches (removing its listener) and the new element attaches fresh.
  */
 private fun diffAdditiveElements(
     target: Component,
@@ -351,14 +362,24 @@ private fun diffAdditiveElements(
         record.detach()
     }
 
-    // Apply (add or refresh) each position. A persisting position refreshes via update(), keeping a
-    // node-installed listener's callbacks current without reattaching.
+    // Apply (add or refresh) each position. A persisting position of the same kind refreshes via
+    // update(), keeping a node-installed listener's callbacks current without reattaching.
     for (index in incoming.indices) {
         val element = incoming[index]
-        if (index < records.size) {
-            records[index].rebindAndRefresh(element, target)
-        } else {
-            records.add(attachElement(element, target))
+        val record = records.getOrNull(index)
+        when {
+            record == null -> {
+                records.add(attachElement(element, target))
+            }
+
+            record.canRebind(element) -> {
+                record.rebindAndRefresh(element, target)
+            }
+
+            else -> {
+                record.detach()
+                records[index] = attachElement(element, target)
+            }
         }
     }
 }

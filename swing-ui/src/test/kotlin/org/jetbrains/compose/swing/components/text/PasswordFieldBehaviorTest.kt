@@ -14,8 +14,10 @@ import kotlin.test.assertTrue
 /**
  * End-to-end tests for [PasswordField] over a real [SwingApplier]. They assert observable behavior on
  * the rendered [JPasswordField]: the controlled [CharArray] round-trips through `getPassword()`, typing
- * fires `onValueChange` with the typed characters, and an external value change reflects into the field
- * without thrashing the caret (the content-equality guard skips a no-op set).
+ * fires `onValueChange` with the typed characters, an external value change reflects into the field
+ * without thrashing the caret (the content-equality guard skips a no-op set), and the echo character
+ * tracks the composed value across recomposition, reverting to the look-and-feel default when null is
+ * re-applied.
  */
 class PasswordFieldBehaviorTest {
     @Test
@@ -60,5 +62,25 @@ class PasswordFieldBehaviorTest {
         awaitIdle()
         assertEquals("second", String(field.password), "a genuinely different value should update the field")
         assertTrue(field.password.isNotEmpty(), "the updated field should expose a non-empty password")
+    }
+
+    @Test
+    fun echoCharTracksComposedValueAcrossRecomposition() = runSwingUiTest {
+        val defaultEchoChar = JPasswordField().echoChar
+        var echoChar by mutableStateOf<Char?>('#')
+        setContent { PasswordField(value = "hunter2".toCharArray(), echoChar = echoChar) }
+
+        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
+        assertEquals('#', field.echoChar, "a non-null echo character should be applied")
+
+        // Re-applying null must revert to the look-and-feel default rather than leaving the custom mask.
+        echoChar = null
+        awaitIdle()
+        assertEquals(defaultEchoChar, field.echoChar, "null should reset to the look-and-feel default")
+
+        // The NUL character (U+0000) renders the text in clear text.
+        echoChar = '\u0000'
+        awaitIdle()
+        assertEquals('\u0000', field.echoChar, "NUL should be applied to show clear text")
     }
 }

@@ -27,6 +27,8 @@ public sealed interface WindowPosition {
      * The window has not been placed yet, so the platform positions it (typically in a cascade
      * relative to the previously focused window).
      *
+     * [x] and [y] are `0` until the platform places the window.
+     *
      * Meaningful only before the window is shown: once a window is visible it always has concrete
      * coordinates and can no longer return to [PlatformDefault].
      */
