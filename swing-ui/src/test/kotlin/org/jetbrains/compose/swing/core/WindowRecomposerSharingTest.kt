@@ -27,10 +27,9 @@ import kotlin.test.assertSame
 /**
  * Behavioral tests for the per-window recomposer resolution model.
  *
- * A real top-level [java.awt.Window] cannot be constructed under the suite's enforced
- * `-Djava.awt.headless=true` (`new JFrame()` throws `HeadlessException`). These tests therefore
- * exercise the *resolution mechanism* the window path is built on, which is fully observable
- * headless:
+ * Nothing here attaches to a real top-level [java.awt.Window], so these tests run with or without a
+ * display; they exercise the *resolution mechanism* the window path is built on, which is fully
+ * observable off-screen:
  *  - a window publishes ONE [Recomposer] as the [COMPOSITION_KEY] context on a [JComponent] ancestor
  *    of its content (its root pane), and
  *  - every island under that ancestor resolves to it via the self-first
@@ -164,12 +163,11 @@ class WindowRecomposerSharingTest {
         onEdt { handle.dispose() }
         assertEquals(0, onEdt { orphan.hierarchyListeners.size }, "a double-dispose must leave no listener behind")
 
-        // NOTE: the defer-THEN-attach-THEN-mount transition cannot be exercised here because the suite
-        // runs with -Djava.awt.headless=true, under which a real top-level Window cannot be constructed
-        // (`new JFrame()` throws HeadlessException), so a detached container can never actually gain a
-        // window ancestor. We assert the deferred/no-throw/clean-dispose behavior that IS observable
-        // headless, exactly as the other tests in this suite stand in for the real-window path. The
-        // attach->mount path is covered by the non-headless sample app.
+        // NOTE: the defer-THEN-attach-THEN-mount transition needs the container to gain a real
+        // top-level Window ancestor, i.e. a realized window on a display. This test stays
+        // display-independent and asserts the deferred/no-throw/clean-dispose behavior, exactly as
+        // the other tests in this suite stand in for the real-window path. The attach->mount path
+        // is covered by the sample apps, which realize real windows.
     }
 
     @Test

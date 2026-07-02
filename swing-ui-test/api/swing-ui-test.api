@@ -14,6 +14,7 @@ public final class org/jetbrains/compose/swing/test/SwingMatcher$Companion {
 	public final fun hasTestTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun hasText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public static synthetic fun hasText$default (Lorg/jetbrains/compose/swing/test/SwingMatcher$Companion;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public final fun hasTitle (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun isEnabled (Z)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public static synthetic fun isEnabled$default (Lorg/jetbrains/compose/swing/test/SwingMatcher$Companion;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun ofType (Ljava/lang/Class;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
@@ -26,18 +27,23 @@ public abstract interface class org/jetbrains/compose/swing/test/SwingUiTest {
 	public abstract fun onAllNodesWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public abstract fun onAllNodesWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public static synthetic fun onAllNodesWithText$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public abstract fun onAllWindows (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection;
 	public abstract fun onNode (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public abstract fun onNodeWithName (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public abstract fun onNodeWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public abstract fun onNodeWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public static synthetic fun onNodeWithText$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public abstract fun onRoot ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public abstract fun onWindow (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public abstract fun setContent (Lkotlin/jvm/functions/Function2;)V
 	public abstract fun waitUntil (JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun waitUntil$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class org/jetbrains/compose/swing/test/SwingUiTestKt {
+	public static final fun onAllWindows (Lorg/jetbrains/compose/swing/test/SwingUiTest;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection;
+	public static final fun onWindow (Lorg/jetbrains/compose/swing/test/SwingUiTest;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
+	public static final fun onWindowWithTitle (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public static final fun runSwingUiTest (Lkotlin/jvm/functions/Function2;)V
 }
 
@@ -61,8 +67,39 @@ public final class org/jetbrains/compose/swing/test/interaction/SwingNodeInterac
 	public static final field $stable I
 	public final fun assertCountEquals (I)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public final fun fetchSize ()I
+	public final fun get (I)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun getMatcherDescription ()Ljava/lang/String;
+	public final fun onFirst ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun onLast ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun resolveAll ()Ljava/util/List;
 	public final fun within (Ljava/awt/Component;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+}
+
+public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInteraction {
+	public static final field $stable I
+	public final fun assertDoesNotExist ()V
+	public final fun assertExists ()Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
+	public final fun assertIsNotVisible ()Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
+	public final fun assertIsVisible ()Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
+	public final fun getMatcherDescription ()Ljava/lang/String;
+	public final fun onAllNodes (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public final fun onAllNodesWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public final fun onAllNodesWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public static synthetic fun onAllNodesWithText$default (Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public final fun onNode (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun onNodeWithName (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun onNodeWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun onNodeWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static synthetic fun onNodeWithText$default (Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun resolve ()Ljava/awt/Window;
+}
+
+public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection {
+	public static final field $stable I
+	public final fun assertCountEquals (I)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection;
+	public final fun fetchSize ()I
+	public final fun getMatcherDescription ()Ljava/lang/String;
+	public final fun resolveAll ()Ljava/util/List;
 }
 
 public final class org/jetbrains/compose/swing/test/screenshot/GoldenScreenshotKt {

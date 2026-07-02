@@ -5,25 +5,33 @@ import org.jetbrains.compose.swing.test.SwingUiTest
 import org.jetbrains.compose.swing.test.dumpTree
 import org.jetbrains.compose.swing.test.findMatching
 import java.awt.Component
+import java.awt.Container
 import javax.swing.SwingUtilities
 
 /**
  * A lazy handle to the set of components matched by a query. The match set is resolved against the
  * live AWT tree each time it is needed, so it reflects the current tree.
  *
- * All methods are intended to be called from a [runSwingUiTest] body, which runs on the EDT.
+ * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runSwingUiTest]
+ * body, which runs on the EDT.
  */
 public class SwingNodeInteractionCollection internal constructor(
     private val test: SwingUiTest,
     private val matcher: SwingMatcher,
+    private val root: () -> Container,
     private val ancestor: Component? = null,
 ) {
     @PublishedApi
     internal fun resolveAll(): List<Component> {
-        val matches = test.root.findMatching(matcher)
+        val matches = root().findMatching(matcher)
         val scope = ancestor ?: return matches
         return matches.filter { it !== scope && SwingUtilities.isDescendingFrom(it, scope) }
     }
+
+    /** Human-readable description of this collection's query, for [fetchAll] failure messages. */
+    @PublishedApi
+    internal val matcherDescription: String
+        get() = matcher.description
 
     /**
      * Narrows this collection to only the matches that are descendants of [ancestor] (at any depth),
@@ -36,7 +44,33 @@ public class SwingNodeInteractionCollection internal constructor(
      * ```
      */
     public fun within(ancestor: Component): SwingNodeInteractionCollection =
-        SwingNodeInteractionCollection(test, matcher, ancestor)
+        SwingNodeInteractionCollection(test, matcher, root, ancestor)
+
+    /**
+     * Returns a lazy handle to the match at [index], in depth-first pre-order. Like every
+     * interaction, the handle re-resolves against the live tree on each use, so it tracks matches
+     * added or removed by recomposition; it fails on use when fewer than `index + 1` nodes match.
+     *
+     * ```
+     * onAllNodesWithText("row")[1].assertIsEnabled()
+     * ```
+     */
+    public operator fun get(index: Int): SwingNodeInteraction =
+        SwingNodeInteraction(test, "${matcher.description}[$index]", root, NodePick.AtIndex(index), ::resolveAll)
+
+    /**
+     * Returns a lazy handle to the first match, in depth-first pre-order. Convenience for
+     * [get]`(0)`.
+     */
+    public fun onFirst(): SwingNodeInteraction = get(0)
+
+    /**
+     * Returns a lazy handle to the last match, in depth-first pre-order. The handle re-resolves
+     * against the live tree on each use, so it tracks the current last match across recomposition;
+     * it fails on use when nothing matches.
+     */
+    public fun onLast(): SwingNodeInteraction =
+        SwingNodeInteraction(test, "${matcher.description}.onLast()", root, NodePick.Last, ::resolveAll)
 
     /** Asserts that exactly [expected] nodes match. */
     public fun assertCountEquals(expected: Int): SwingNodeInteractionCollection {
@@ -44,7 +78,7 @@ public class SwingNodeInteractionCollection internal constructor(
         if (actual != expected) {
             throw AssertionError(
                 "Expected $expected nodes matching '${matcher.description}' but found $actual.\n" +
-                    "Tree:\n${test.root.dumpTree()}",
+                    "Tree:\n${root().dumpTree()}",
             )
         }
         return this
@@ -60,11 +94,5 @@ public class SwingNodeInteractionCollection internal constructor(
      * @throws AssertionError if any matched node is not a [T].
      */
     public inline fun <reified T : Component> fetchAll(): List<T> =
-        resolveAll().map { component ->
-            component as? T
-                ?: throw AssertionError(
-                    "Node is a ${component.javaClass.simpleName}, " +
-                        "expected a ${T::class.java.simpleName}.",
-                )
-        }
+        resolveAll().map { component -> component.castOrFail<T>("Node", matcherDescription) }
 }

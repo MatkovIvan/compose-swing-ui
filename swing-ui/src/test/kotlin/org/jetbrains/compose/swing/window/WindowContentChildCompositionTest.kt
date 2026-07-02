@@ -37,8 +37,8 @@ import kotlin.test.assertEquals
  * in the application scope is observed inside that DETACHED content, and an application-scope update
  * recomposes it.
  *
- * This reproduces what `Window` does without constructing a real `JFrame` (which is impossible under
- * the suite's enforced `-Djava.awt.headless=true`): capture the parent context in the composable
+ * This reproduces what `Window` does without constructing a real `JFrame` (so it needs no display
+ * and runs with or without one): capture the parent context in the composable
  * body, then mount a detached top-level peer's content pane via `setContentAsInteropHost(parent)`.
  * The host [JPanel] is deliberately NOT attached to the application's Swing tree, exactly like a
  * `JFrame` content pane, so the production [findParentCompositionContext] tree-walk would find only

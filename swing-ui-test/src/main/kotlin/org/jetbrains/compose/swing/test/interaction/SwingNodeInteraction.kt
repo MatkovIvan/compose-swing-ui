@@ -1,85 +1,83 @@
 package org.jetbrains.compose.swing.test.interaction
 
-import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.SwingUiTest
 import org.jetbrains.compose.swing.test.dumpTree
-import org.jetbrains.compose.swing.test.findMatching
 import org.jetbrains.compose.swing.test.textOrNull
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.Container
 import javax.swing.AbstractButton
 import javax.swing.text.JTextComponent
 
 /**
- * A lazy handle to the single component matched by a query. The match is resolved against the live
- * AWT tree each time it is needed, so it always reflects the current tree after recomposition.
+ * A lazy handle to the single component targeted by a query. The target is resolved against the
+ * live AWT tree each time it is needed, so it always reflects the current tree after recomposition.
  *
- * All methods are intended to be called from a [runSwingUiTest] body, which runs on the EDT.
- * Resolution fails with a readable tree dump when zero or more than one component matches.
+ * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runSwingUiTest]
+ * body, which runs on the EDT.
+ * Resolution fails with a readable tree dump when the query does not resolve to a single component.
  */
 public class SwingNodeInteraction internal constructor(
     private val test: SwingUiTest,
-    private val matcher: SwingMatcher,
     private val description: String,
+    private val root: () -> Container,
+    private val pick: NodePick,
+    private val candidates: () -> List<Component>,
 ) {
     private fun resolveOrNull(): Component? {
-        val matches = collectMatches()
-        return when (matches.size) {
-            0 -> null
-
-            1 -> matches.single()
-
-            else -> throw AssertionError(
-                "Expected exactly one node matching '$description' but found ${matches.size}.\n" +
-                    "Tree:\n${test.root.dumpTree()}",
-            )
+        val matches = candidates()
+        if (pick == NodePick.Single && matches.size > 1) {
+            throw AssertionError("${singleMatchMessage(matches.size)}\nTree:\n${root().dumpTree()}")
         }
+        return selectTarget(matches)
     }
 
-    /** Resolves the single matching component, failing with a tree dump if not exactly one matches. */
+    /** Resolves the single targeted component, failing with a tree dump if the query has no target. */
     @PublishedApi
     internal fun resolve(): Component {
-        val matches = collectMatches()
-        return when (matches.size) {
-            1 -> matches.single()
+        val matches = candidates()
+        return selectTarget(matches)
+            ?: throw AssertionError("${noTargetMessage(matches.size)}\nTree:\n${root().dumpTree()}")
+    }
 
-            0 -> throw AssertionError(
-                "Expected exactly one node matching '$description' but found none.\n" +
-                    "Tree:\n${test.root.dumpTree()}",
-            )
-
-            else -> throw AssertionError(
-                "Expected exactly one node matching '$description' but found ${matches.size}.\n" +
-                    "Tree:\n${test.root.dumpTree()}",
-            )
+    /** The single component this query's [pick] selects among [matches], or null when none is selected. */
+    private fun selectTarget(matches: List<Component>): Component? =
+        when (pick) {
+            NodePick.Single -> matches.singleOrNull()
+            is NodePick.AtIndex -> matches.getOrNull(pick.index)
+            NodePick.Last -> matches.lastOrNull()
         }
-    }
 
-    private fun collectMatches(): List<Component> {
-        val root = test.root
-        val all = root.findMatching(matcher)
-        // onRoot() targets the root itself, which findMatching (children only) never returns.
-        return if (matcher.matches(root)) listOf<Component>(root) + all else all
-    }
+    /** Why [resolve] found no target among [matched] matches, phrased for this query's [pick]. */
+    private fun noTargetMessage(matched: Int): String =
+        when (pick) {
+            NodePick.Single -> {
+                singleMatchMessage(matched)
+            }
+
+            is NodePick.AtIndex -> {
+                "Expected a node at '$description' but only $matched node(s) matched."
+            }
+
+            NodePick.Last -> {
+                "Expected a node at '$description' but none matched."
+            }
+        }
+
+    /** The single source of the "expected exactly one node" message, for both ambiguity and no match. */
+    private fun singleMatchMessage(matched: Int): String =
+        "Expected exactly one node matching '$description' but found " +
+            "${if (matched == 0) "none" else "$matched"}."
 
     /**
      * Resolves the matched component and returns it typed as [T], for driving a component's own API
      * directly (e.g. a `JTable`'s model, a `JTree`'s selection, a `JList`'s model).
      *
-     * @throws AssertionError if no single node matches, or if the matched node is not a [T].
+     * @throws AssertionError if the query has no single target, or if the target is not a [T].
      */
-    public inline fun <reified T : Component> fetch(): T {
-        val component = resolve()
-        if (component !is T) {
-            throw AssertionError(
-                "Node '$matcherDescription' is a ${component.javaClass.simpleName}, " +
-                    "expected a ${T::class.java.simpleName}.",
-            )
-        }
-        return component
-    }
+    public inline fun <reified T : Component> fetch(): T = resolve().castOrFail("Node", matcherDescription)
 
-    /** Human-readable description of this interaction's matcher, for [fetch] failure messages. */
+    /** Human-readable description of this interaction's query, for [fetch] failure messages. */
     @PublishedApi
     internal val matcherDescription: String
         get() = description
@@ -90,13 +88,13 @@ public class SwingNodeInteraction internal constructor(
 
     // region assertions
 
-    /** Asserts that exactly one node matches. Returns this interaction for chaining. */
+    /** Asserts that the query resolves to a node. Returns this interaction for chaining. */
     public fun assertExists(): SwingNodeInteraction {
         resolve()
         return this
     }
 
-    /** Asserts that no node matches. */
+    /** Asserts that the query resolves to no node. */
     public fun assertDoesNotExist() {
         val match = resolveOrNull()
         if (match != null) {
@@ -137,14 +135,15 @@ public class SwingNodeInteraction internal constructor(
     }
 
     /**
-     * Asserts the matched node is displayed, with **headless semantics**.
+     * Asserts the matched node is displayed, with **off-screen semantics**.
      *
-     * The test harness runs off-screen (`-Djava.awt.headless=true`) and never realizes a native
-     * window, so [java.awt.Component.isShowing] is permanently `false` and cannot be used. Instead,
-     * "displayed" here means the node is genuinely part of the laid-out tree under the test [root]:
+     * The test harness never attaches its root to a window, so no native peer is realized (with or
+     * without a display), [java.awt.Component.isShowing] is permanently `false`, and it cannot be
+     * used. Instead, "displayed" here means the node is genuinely part of the laid-out tree under
+     * the query's root — the harness root, or the window's content pane for a window-scoped query:
      *
-     *  1. it is **attached** — reachable from [root] by walking parents (so an orphaned/removed
-     *     component fails even if it still reports stale bounds), and
+     *  1. it is **attached** — reachable from the query's root by walking parents (so an
+     *     orphaned/removed component fails even if it still reports stale bounds), and
      *  2. it has **non-zero bounds** produced by the forced layout pass the harness runs, i.e. a real
      *     width and height assigned by its ancestor's layout manager.
      *
@@ -153,17 +152,18 @@ public class SwingNodeInteraction internal constructor(
      */
     public fun assertIsDisplayed(): SwingNodeInteraction {
         val component = resolve()
-        if (!component.isAttachedTo(test.root)) {
+        val currentRoot = root()
+        if (!component.isAttachedTo(currentRoot)) {
             throw AssertionError(
-                "Node '$description' is not displayed: it is not attached under the test root.\n" +
-                    "Tree:\n${test.root.dumpTree()}",
+                "Node '$description' is not displayed: it is not attached under the query root.\n" +
+                    "Tree:\n${currentRoot.dumpTree()}",
             )
         }
         if (component.width <= 0 || component.height <= 0) {
             throw AssertionError(
                 "Node '$description' is not displayed: it has zero laid-out size " +
                     "(${component.width}x${component.height}). The forced layout pass assigned " +
-                    "it no bounds within its ancestor.\nTree:\n${test.root.dumpTree()}",
+                    "it no bounds within its ancestor.\nTree:\n${currentRoot.dumpTree()}",
             )
         }
         return this
@@ -271,4 +271,18 @@ public class SwingNodeInteraction internal constructor(
     }
 
     // endregion
+}
+
+/** How a [SwingNodeInteraction] selects its target among the query's matches. */
+internal sealed interface NodePick {
+    /** The query must match exactly one node. */
+    data object Single : NodePick
+
+    /** The query targets the match at [index], in depth-first pre-order; other matches may exist. */
+    data class AtIndex(
+        val index: Int,
+    ) : NodePick
+
+    /** The query targets the last match, re-resolved on every use. */
+    data object Last : NodePick
 }

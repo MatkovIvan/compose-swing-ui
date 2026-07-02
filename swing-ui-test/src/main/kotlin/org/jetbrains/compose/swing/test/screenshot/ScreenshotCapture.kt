@@ -130,8 +130,8 @@ internal fun Component.captureComponentToImage(): BufferedImage {
         applyDeterministicRenderingHints(graphics)
         // printAll (not paintAll) renders a component and its descendants to an arbitrary Graphics
         // regardless of on-screen showing state; paintAll early-returns for a component with no
-        // realized peer, leaving the image blank. The harness runs headless with no realized window,
-        // so the print path is what actually rasterizes the component's pixels off-screen.
+        // realized peer, leaving the image blank. The harness never realizes a window, so the print
+        // path is what actually rasterizes the component's pixels off-screen.
         printAll(graphics)
     } finally {
         graphics.dispose()

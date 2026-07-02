@@ -294,6 +294,9 @@ public abstract interface annotation class org/jetbrains/compose/swing/constants
 public abstract interface annotation class org/jetbrains/compose/swing/constants/VerticalScrollbarPolicy : java/lang/annotation/Annotation {
 }
 
+public abstract interface annotation class org/jetbrains/compose/swing/constants/WindowExtendedState : java/lang/annotation/Annotation {
+}
+
 public final class org/jetbrains/compose/swing/core/CompositionKt {
 	public static final fun getLocalSlotAttachment ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun getLocalSwingConstraint ()Landroidx/compose/runtime/ProvidableCompositionLocal;
@@ -487,13 +490,21 @@ public final class org/jetbrains/compose/swing/modifier/layout/LayoutModifiersKt
 	public static final fun alignmentY (Lorg/jetbrains/compose/swing/modifier/SwingModifier;F)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun bounds (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIII)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun componentOrientation (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/ComponentOrientation;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun height (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun location (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun location (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Point;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun maximumSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun maximumSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun minimumSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun minimumSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun preferredSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun preferredSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun size (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun size (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun visible (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun width (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun x (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun y (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifiersKt {
@@ -531,10 +542,80 @@ public final class org/jetbrains/compose/swing/window/CompositionLocalsKt {
 }
 
 public final class org/jetbrains/compose/swing/window/DialogKt {
-	public static final fun Dialog (Lkotlin/jvm/functions/Function0;Ljava/lang/String;Ljava/awt/Dialog$ModalityType;Ljava/awt/Dimension;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Dialog (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/DialogState;Ljava/lang/String;Ljava/awt/Dialog$ModalityType;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/window/DialogState {
+	public abstract fun getHeight ()I
+	public abstract fun getPosition ()Lorg/jetbrains/compose/swing/window/WindowPosition;
+	public fun getSize ()Ljava/awt/Dimension;
+	public abstract fun getWidth ()I
+	public abstract fun setHeight (I)V
+	public abstract fun setPosition (Lorg/jetbrains/compose/swing/window/WindowPosition;)V
+	public fun setSize (Ljava/awt/Dimension;)V
+	public abstract fun setWidth (I)V
+}
+
+public final class org/jetbrains/compose/swing/window/DialogStateKt {
+	public static final fun DialogState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/window/DialogState;
+	public static synthetic fun DialogState$default (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/window/DialogState;
+	public static final fun rememberDialogState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/window/DialogState;
 }
 
 public final class org/jetbrains/compose/swing/window/WindowKt {
-	public static final fun Window (Lkotlin/jvm/functions/Function0;Ljava/lang/String;Ljava/awt/Dimension;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Window (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/WindowState;Ljava/lang/String;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/window/WindowPosition {
+	public abstract fun getX ()I
+	public abstract fun getY ()I
+	public abstract fun isSpecified ()Z
+}
+
+public final class org/jetbrains/compose/swing/window/WindowPosition$Absolute : org/jetbrains/compose/swing/window/WindowPosition {
+	public static final field $stable I
+	public fun <init> (II)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lorg/jetbrains/compose/swing/window/WindowPosition$Absolute;
+	public static synthetic fun copy$default (Lorg/jetbrains/compose/swing/window/WindowPosition$Absolute;IIILjava/lang/Object;)Lorg/jetbrains/compose/swing/window/WindowPosition$Absolute;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getX ()I
+	public fun getY ()I
+	public fun hashCode ()I
+	public fun isSpecified ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/window/WindowPosition$PlatformDefault : org/jetbrains/compose/swing/window/WindowPosition {
+	public static final field $stable I
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/window/WindowPosition$PlatformDefault;
+	public fun getX ()I
+	public fun getY ()I
+	public fun isSpecified ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/window/WindowPositionKt {
+	public static final fun WindowPosition (II)Lorg/jetbrains/compose/swing/window/WindowPosition;
+}
+
+public abstract interface class org/jetbrains/compose/swing/window/WindowState {
+	public abstract fun getExtendedState ()I
+	public abstract fun getHeight ()I
+	public abstract fun getPosition ()Lorg/jetbrains/compose/swing/window/WindowPosition;
+	public fun getSize ()Ljava/awt/Dimension;
+	public abstract fun getWidth ()I
+	public abstract fun setExtendedState (I)V
+	public abstract fun setHeight (I)V
+	public abstract fun setPosition (Lorg/jetbrains/compose/swing/window/WindowPosition;)V
+	public fun setSize (Ljava/awt/Dimension;)V
+	public abstract fun setWidth (I)V
+}
+
+public final class org/jetbrains/compose/swing/window/WindowStateKt {
+	public static final fun WindowState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;I)Lorg/jetbrains/compose/swing/window/WindowState;
+	public static synthetic fun WindowState$default (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;IILjava/lang/Object;)Lorg/jetbrains/compose/swing/window/WindowState;
+	public static final fun rememberWindowState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;ILandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/window/WindowState;
 }
 

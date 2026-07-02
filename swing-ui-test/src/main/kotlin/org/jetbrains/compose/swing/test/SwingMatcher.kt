@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.test
 import org.jetbrains.compose.swing.modifier.appearance.TEST_TAG_CLIENT_PROPERTY_KEY
 import java.awt.Component
 import java.awt.Container
+import java.awt.Dialog
+import java.awt.Frame
 import javax.accessibility.AccessibleRole
 import javax.swing.AbstractButton
 import javax.swing.JComponent
@@ -83,6 +85,19 @@ public class SwingMatcher internal constructor(
                 component.accessibleContext?.accessibleRole == role
             }
 
+        /**
+         * Matches a top-level window whose title equals [title], read from [Frame.getTitle] or
+         * [Dialog.getTitle]. Use with [SwingUiTest.onWindow] to pick one window out of several.
+         */
+        public fun hasTitle(title: String): SwingMatcher =
+            SwingMatcher("hasTitle(\"$title\")") { component ->
+                when (component) {
+                    is Frame -> component.title == title
+                    is Dialog -> component.title == title
+                    else -> false
+                }
+            }
+
         /** Matches a component whose enabled state equals [enabled]. */
         public fun isEnabled(enabled: Boolean = true): SwingMatcher =
             SwingMatcher("isEnabled($enabled)") { it.isEnabled == enabled }
@@ -95,6 +110,9 @@ public class SwingMatcher internal constructor(
             SwingMatcher("isOfType(${type.simpleName})") { type.isInstance(it) }
 
         internal fun isRoot(root: Container): SwingMatcher = SwingMatcher("isRoot") { it === root }
+
+        /** Matches every component; the identity for narrowing combinators. */
+        internal fun any(): SwingMatcher = SwingMatcher("any") { true }
     }
 }
 
@@ -127,6 +145,15 @@ internal fun Container.findMatching(matcher: SwingMatcher): List<Component> {
     }
     visit(this)
     return results
+}
+
+/**
+ * Collects [this] container (when it matches) and every matching descendant, in depth-first
+ * pre-order. Must be called on the EDT.
+ */
+internal fun Container.findMatchingIncludingSelf(matcher: SwingMatcher): List<Component> {
+    val self = if (matcher.matches(this)) listOf<Component>(this) else emptyList()
+    return self + findMatching(matcher)
 }
 
 /**

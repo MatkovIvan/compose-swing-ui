@@ -18,8 +18,8 @@ import kotlin.test.assertEquals
 /**
  * Behavioral tests for the tray popup menu, exercised through [TrayMenuHost].
  *
- * The system tray cannot be realized headless: `SystemTray.isSupported()` is `false` under
- * `-Djava.awt.headless=true`, and even constructing a `java.awt.TrayIcon` throws there. So these tests
+ * A live system tray exists only where the platform provides one (`SystemTray.isSupported()`), so
+ * end-to-end tray coverage is environment-dependent. These tests
  * never create a tray icon; they drive [TrayMenuHost] — the tray's menu logic, deliberately separated
  * from the icon it would drive — directly, and capture the populated [JPopupMenu] through the host's
  * display seam instead of showing it on screen. The end-to-end `Tray` composable that registers an icon

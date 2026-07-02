@@ -13,6 +13,7 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
+import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
 import org.jetbrains.compose.swing.core.MenuApplier
 import org.jetbrains.compose.swing.core.SwingCompositionMount
 import java.awt.Image
@@ -36,8 +37,11 @@ import javax.swing.event.PopupMenuListener
  * items reflect the current state each time it opens, and an item's callback updates state like any
  * other composable callback.
  *
- * The icon is added when this enters the composition and removed when it leaves. It does nothing when
- * the platform has no system tray.
+ * The icon is added when this enters the composition and removed when it leaves.
+ *
+ * A tray icon requires a platform system tray; [java.awt.SystemTray.isSupported] is the caller's
+ * probe for one. Where the platform has none, this composable registers no icon and prints a
+ * warning to standard error, leaving an application whose only content is a [Tray] free to end.
  *
  * Call this inside an `application { }` content block so the menu shares the application composition's
  * scope and [androidx.compose.runtime.CompositionLocal]s.
@@ -56,7 +60,20 @@ public fun Tray(
         @Composable @SwingMenuComposable
         () -> Unit = {},
 ) {
-    if (!SystemTray.isSupported()) return
+    if (!SystemTray.isSupported()) {
+        // Warns once, on composition entry, so an application declaring a Tray still runs on
+        // platforms with no system tray.
+        DisposableEffect(Unit) {
+            System.err.println(
+                "The system tray is not supported on the current platform; the Tray icon is not " +
+                    "shown. Check java.awt.SystemTray.isSupported() before relying on it.",
+            )
+            onDispose {}
+        }
+        return
+    }
+
+    KeepEnclosingApplicationAlive()
 
     val currentOnAction by rememberUpdatedState(onAction)
     val currentMenu by rememberUpdatedState(menu)
@@ -124,18 +141,7 @@ public class TrayMenuHost(
         val mount = SwingCompositionMount.nested(parentContext) { observer -> MenuApplier(popup, observer) }
         mount.setContent(menu)
 
-        popup.addPopupMenuListener(
-            object : PopupMenuListener {
-                override fun popupMenuWillBecomeVisible(e: PopupMenuEvent) = Unit
-
-                override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent) {
-                    popup.removePopupMenuListener(this)
-                    mount.dispose()
-                }
-
-                override fun popupMenuCanceled(e: PopupMenuEvent) = Unit
-            },
-        )
+        popup.doOnHiddenOnce { mount.dispose() }
 
         display(popup, x, y)
     }
@@ -155,17 +161,25 @@ private fun showPopupAtCursor(
             setLocation(x, y)
             isVisible = true
         }
-    popup.addPopupMenuListener(
+    popup.doOnHiddenOnce { invoker.dispose() }
+    popup.show(invoker, 0, 0)
+}
+
+/**
+ * Installs a self-removing [PopupMenuListener] that runs [action] exactly once, after the listener has
+ * removed itself, the first time this popup becomes invisible.
+ */
+private fun JPopupMenu.doOnHiddenOnce(action: () -> Unit) {
+    addPopupMenuListener(
         object : PopupMenuListener {
             override fun popupMenuWillBecomeVisible(e: PopupMenuEvent) = Unit
 
             override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent) {
-                popup.removePopupMenuListener(this)
-                invoker.dispose()
+                removePopupMenuListener(this)
+                action()
             }
 
             override fun popupMenuCanceled(e: PopupMenuEvent) = Unit
         },
     )
-    popup.show(invoker, 0, 0)
 }

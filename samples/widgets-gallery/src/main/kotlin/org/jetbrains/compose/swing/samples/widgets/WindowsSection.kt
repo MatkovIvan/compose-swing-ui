@@ -11,6 +11,8 @@ import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.window.Dialog
 import org.jetbrains.compose.swing.window.Window
+import org.jetbrains.compose.swing.window.rememberDialogState
+import org.jetbrains.compose.swing.window.rememberWindowState
 import java.awt.Dimension
 import javax.swing.SwingConstants
 
@@ -41,8 +43,8 @@ private fun SecondaryWindowCard() {
         if (open) {
             Window(
                 onCloseRequest = { open = false },
+                state = rememberWindowState(size = Dimension(320, 200)),
                 title = "Secondary Window",
-                size = Dimension(320, 200),
             ) {
                 BorderPanel {
                     center {
@@ -75,9 +77,9 @@ private fun ModalDialogCard() {
         if (open) {
             Dialog(
                 onCloseRequest = { open = false },
+                state = rememberDialogState(size = Dimension(320, 160)),
                 title = "Confirm",
                 modality = java.awt.Dialog.ModalityType.APPLICATION_MODAL,
-                size = Dimension(320, 160),
             ) {
                 BorderPanel {
                     center {

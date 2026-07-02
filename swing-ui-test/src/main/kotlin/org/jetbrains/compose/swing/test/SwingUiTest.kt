@@ -14,8 +14,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.interaction.NodePick
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteractionCollection
+import org.jetbrains.compose.swing.test.interaction.SwingWindowInteraction
+import org.jetbrains.compose.swing.test.interaction.SwingWindowInteractionCollection
+import org.jetbrains.compose.swing.test.interaction.realizedWindowsTreeDump
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
@@ -62,11 +66,14 @@ public interface SwingUiTest {
      * Suspends until the composition is idle, making the AWT tree reflect the latest state.
      *
      * This is suspending rather than blocking, so recomposition can make progress while it waits. It
-     * returns once there is neither pending recomposition nor pending snapshot work.
+     * returns once there is neither pending recomposition nor pending snapshot work AND the EDT
+     * queue has drained the runnables the settled composition scheduled — a window show that a
+     * `Dialog { }` defers to its own dispatch, for example, has landed by the time this returns.
      *
      * If the composition never settles within a generous frame cap, this fails with an
      * [AssertionError] whose message names the outstanding work and includes a readable dump of the
-     * current AWT tree, rather than hanging until the surrounding test framework times out.
+     * current AWT tree (including composition-owned windows), rather than hanging until the
+     * surrounding test framework times out.
      */
     public suspend fun awaitIdle()
 
@@ -77,10 +84,12 @@ public interface SwingUiTest {
      * deterministic. Use [waitUntil] only when a settled condition cannot be expressed that way
      * (e.g. work gated on genuinely external timing).
      *
-     * Bounded by BOTH a frame (iteration) cap and the [timeoutMillis] wall-clock deadline; whichever
-     * trips first fails with an [AssertionError] that includes a tree dump. The frame cap keeps CI
-     * deterministic: a condition that never becomes true fails after a fixed number of frames
-     * regardless of machine speed.
+     * Bounded by BOTH a frame cap and the [timeoutMillis] wall-clock deadline; whichever trips first
+     * fails with an [AssertionError] that includes a tree dump. The frame cap counts only frames the
+     * composition consumes, keeping CI deterministic: a condition gated on a recomposition or
+     * frame-effect loop that never becomes true fails after a fixed number of frames regardless of
+     * machine speed, while a condition gated on external timing (e.g. a native window-system event)
+     * keeps being polled until the wall-clock deadline.
      *
      * @param timeoutMillis the wall-clock deadline after which an unmet condition fails the test.
      * @param condition the predicate to await; evaluated on the EDT.
@@ -137,6 +146,27 @@ public interface SwingUiTest {
      * Returns an interaction targeting the composition [root] itself.
      */
     public fun onRoot(): SwingNodeInteraction
+
+    /**
+     * Finds the single window matching [matcher] realized by the composition — a top-level window
+     * realized by a [org.jetbrains.compose.swing.window.Window] or
+     * [org.jetbrains.compose.swing.window.Dialog] composable that is currently in the composition,
+     * whether or not it is shown. A top-level window from any other source, or a disposed peer that
+     * left the composition, is never matched. The match is resolved lazily when the returned
+     * interaction is first used.
+     *
+     * ```
+     * setContent { Window(onCloseRequest = {}, title = "Settings") { … } }
+     * onWindow(SwingMatcher.hasTitle("Settings")).assertIsVisible()
+     * ```
+     */
+    public fun onWindow(matcher: SwingMatcher): SwingWindowInteraction
+
+    /**
+     * Finds all composition-owned windows matching [matcher] (see [onWindow] for what
+     * composition-owned means).
+     */
+    public fun onAllWindows(matcher: SwingMatcher): SwingWindowInteractionCollection
 }
 
 /**
@@ -152,6 +182,28 @@ public inline fun <reified T : Component> SwingUiTest.onAllNodesOfType(): SwingN
     onAllNodes(SwingMatcher.isOfType<T>())
 
 /**
+ * Finds the single composition-owned window (see [SwingUiTest.onWindow]). Convenience for the
+ * common one-window composition:
+ *
+ * ```
+ * setContent { Window(onCloseRequest = {}, title = "Main") { … } }
+ * val frame = onWindow().fetch<JFrame>()
+ * ```
+ */
+public fun SwingUiTest.onWindow(): SwingWindowInteraction = onWindow(SwingMatcher.any())
+
+/**
+ * Finds the single composition-owned window titled [title]. Convenience for
+ * `onWindow(SwingMatcher.hasTitle(title))`.
+ */
+public fun SwingUiTest.onWindowWithTitle(title: String): SwingWindowInteraction = onWindow(SwingMatcher.hasTitle(title))
+
+/**
+ * Finds all composition-owned windows (see [SwingUiTest.onWindow]).
+ */
+public fun SwingUiTest.onAllWindows(): SwingWindowInteractionCollection = onAllWindows(SwingMatcher.any())
+
+/**
  * Sets up an isolated Swing-Compose composition, runs the suspending [block] against it on the EDT,
  * and tears everything down.
  *
@@ -161,9 +213,16 @@ public inline fun <reified T : Component> SwingUiTest.onAllNodesOfType(): SwingN
  * the EDT, queries and actions read and write the AWT tree directly, and [SwingUiTest.awaitIdle]
  * suspends rather than blocking.
  *
- * Runs fully under `-Djava.awt.headless=true`: the root is given a fixed size and laid out
- * synchronously on every idle pass, so tree/text/constraint AND bounds-based assertions (see
- * [SwingNodeInteraction.assertIsDisplayed]) all work without realizing an on-screen window.
+ * Runs with or without a display: the root is never attached to a [java.awt.Window], so no native
+ * peer is realized and no UI is shown. The root is given a fixed size and laid out synchronously on
+ * every idle pass, so tree/text/constraint AND bounds-based assertions (see
+ * [SwingNodeInteraction.assertIsDisplayed]) all work off-screen.
+ *
+ * Content may also compose real top-level peers (`Window { }`, `Dialog { }`); those are found with
+ * [SwingUiTest.onWindow] and are torn down with the composition when the block completes. Realizing
+ * them requires a display — declare that requirement with a JUnit assumption
+ * (`org.junit.jupiter.api.Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`) at the top
+ * of the block, so the test reports SKIPPED rather than failing on headless environments.
  */
 public fun runSwingUiTest(block: suspend SwingUiTest.() -> Unit) {
     // Host the test coroutine on the EDT and block the calling thread until it finishes. The whole
@@ -217,12 +276,14 @@ private class SwingUiTestImpl : SwingUiTest {
     override suspend fun awaitIdle() {
         // Deterministic idle gate. Because the test body runs on the EDT, a blocking wait would
         // deadlock the recomposer (which also runs on the EDT); instead we suspend, yielding the EDT
-        // back to the recomposer between frames so it can recompose and apply changes.
+        // back to the recomposer between passes so it can recompose and apply changes.
         //
-        // Each iteration: publish pending snapshot writes, send exactly one frame, yield the EDT so
-        // the recomposer coroutine runs, then force a synchronous layout pass. Stop once neither the
-        // recomposer nor the snapshot system has outstanding work.
-        var iterations = 0
+        // Each outer pass: publish pending snapshot writes, send exactly one frame, yield the EDT so
+        // the recomposer coroutine runs, then force a synchronous layout pass. The gate returns only
+        // when the composition is quiescent AND the EDT queue holds nothing that could revive it.
+        // Idleness is never declared while a recomposition, a pending snapshot write, or an
+        // already-scheduled EDT task could still produce observable work.
+        var work = 0
         while (true) {
             // Deliver pending snapshot writes to the recomposer ourselves rather than relying on the
             // production GlobalSnapshotManager, whose apply-notification dispatch is asynchronous and
@@ -238,47 +299,93 @@ private class SwingUiTestImpl : SwingUiTest {
             yield()
             // Force a synchronous layout pass so descendants get real, non-zero bounds off-screen.
             layoutRoot()
-            if (!recomposer.hasPendingWork && !Snapshot.current.hasPendingChanges()) {
-                return
+            work++
+            if (composed()) {
+                // The composition is quiescent, but applying it may have left runnables scheduled on
+                // the EDT that a single yield does not reach — a window/dialog defers its realization
+                // to a later dispatch, and any such task can chain another invokeLater or wake a frame
+                // awaiter that posts its own runnable. Drain until no scheduled runnable remains rather
+                // than a fixed number of turns: a yield dispatches exactly the runnables queued before
+                // its own continuation, so work scheduled during a yield lands after it and needs
+                // another. Yielding is the drain step precisely because it advances queued work without
+                // leaving any dispatch artifact behind.
+                //
+                // The termination condition tracks scheduled runnables only — the invocation events
+                // that carry invokeLater callbacks and coroutine continuations — not every event on
+                // the queue. A realized visible window peer streams native paint events indefinitely;
+                // those never mutate composition state and must not be mistaken for pending work, or a
+                // visible window would make the gate spin forever. So the gate returns once the
+                // composition is quiescent AND no invocation is queued: no scheduled EDT callback and
+                // no pending recomposition remain to revive observable work. If a dispatched runnable
+                // instead revived the composition (a snapshot write, a fresh invalidation), we abandon
+                // draining and let the next outer pass send a frame and recompose. MAX_IDLE_FRAMES
+                // bounds the combined drains and frames so a runnable source that never quiesces fails
+                // readably instead of spinning forever.
+                while (composed()) {
+                    if (noPendingInvocations()) return
+                    yield()
+                    Snapshot.sendApplyNotifications()
+                    if (++work >= MAX_IDLE_FRAMES) break
+                }
             }
-            if (++iterations >= MAX_IDLE_FRAMES) {
-                throw AssertionError(
-                    "awaitIdle did not settle after $MAX_IDLE_FRAMES frames: there is still " +
-                        "pending recomposition work or pending snapshot changes " +
-                        "(hasPendingWork=${recomposer.hasPendingWork}, " +
-                        "hasPendingChanges=${Snapshot.current.hasPendingChanges()}). " +
-                        "The composition likely never reaches a stable frame. Current tree:\n" +
-                        root.dumpTree(),
-                )
-            }
+            if (work >= MAX_IDLE_FRAMES) throw notSettled("awaitIdle")
         }
     }
+
+    /** True once the composition itself is quiescent: no pending recomposition and no unpublished snapshot writes. */
+    private fun composed(): Boolean = !recomposer.hasPendingWork && !Snapshot.current.hasPendingChanges()
+
+    /**
+     * True when no invocation event is queued on the EDT — no scheduled `invokeLater` callback and no
+     * coroutine continuation awaiting dispatch. This is the "no scheduled runnable remains" signal the
+     * idle gate drains toward. It deliberately ignores every other event class: a realized visible
+     * window peer posts native paint events continuously, and treating those as pending work would
+     * keep the gate spinning even though they never revive the composition.
+     */
+    private fun noPendingInvocations(): Boolean =
+        java.awt.Toolkit
+            .getDefaultToolkit()
+            .systemEventQueue
+            .peekEvent(java.awt.event.InvocationEvent.INVOCATION_DEFAULT) == null
+
+    private fun notSettled(gate: String): AssertionError =
+        AssertionError(
+            "$gate did not settle after $MAX_IDLE_FRAMES frames: there is still pending " +
+                "recomposition work, pending snapshot changes, or scheduled EDT work " +
+                "(hasPendingWork=${recomposer.hasPendingWork}, " +
+                "hasPendingChanges=${Snapshot.current.hasPendingChanges()}). " +
+                "The composition likely never reaches a stable frame. Current tree:\n" +
+                root.dumpTree() + realizedWindowsTreeDump(),
+        )
 
     override suspend fun waitUntil(
         timeoutMillis: Long,
         condition: () -> Boolean,
     ) {
-        // Escape hatch (see interface KDoc). Bounded by BOTH an iteration cap (frames pumped) and a
-        // wall-clock deadline; whichever trips first fails. The iteration cap is the deterministic
-        // bound that keeps CI from stalling when a condition never becomes true regardless of how
-        // fast the machine is; the wall-clock deadline is a secondary guard for conditions gated on
-        // genuinely external timing.
+        // Escape hatch (see interface KDoc). Bounded by BOTH a frame cap and a wall-clock deadline;
+        // whichever trips first fails. Only frames the composition consumes count toward the cap, so
+        // it is the deterministic bound on frame-driven work (a recomposition or frame-effect loop
+        // that never meets the condition fails after a fixed number of frames regardless of machine
+        // speed), while a condition gated on genuinely external timing — no compose work to consume
+        // the frames — keeps being polled, with each yield dispatching arriving AWT events, until
+        // the wall-clock deadline.
         val deadline = System.nanoTime() + timeoutMillis * 1_000_000
-        var iterations = 0
+        var frames = 0
         while (true) {
             if (condition()) return
-            if (iterations >= MAX_WAIT_UNTIL_FRAMES || System.nanoTime() >= deadline) {
+            if (frames >= MAX_WAIT_UNTIL_FRAMES || System.nanoTime() >= deadline) {
                 throw AssertionError(
-                    "Condition still not met after $iterations frames / ${timeoutMillis}ms. " +
-                        "Current tree:\n" + root.dumpTree(),
+                    "Condition still not met after $frames consumed frames / ${timeoutMillis}ms. " +
+                        "Current tree:\n" + root.dumpTree() + realizedWindowsTreeDump(),
                 )
             }
             Snapshot.sendApplyNotifications()
+            val consumesFrame = clock.hasAwaiters || recomposer.hasPendingWork
             frameTimeNanos += FRAME_INTERVAL_NANOS
             clock.sendFrame(frameTimeNanos)
             yield()
             layoutRoot()
-            iterations++
+            if (consumesFrame) frames++
         }
     }
 
@@ -289,34 +396,43 @@ private class SwingUiTestImpl : SwingUiTest {
      * anything else.
      */
     private fun settleBlocking() {
-        var iterations = 0
+        // Same termination proof as awaitIdle, expressed inline: this variant cannot suspend, so it
+        // drives its drain by pumping the EDT queue rather than yielding, but the loop shape and the
+        // termination condition are identical. It returns only when the composition is quiescent AND a
+        // pump found no scheduled runnable still queued, and never declares idleness while a scheduled
+        // EDT callback or pending recomposition could still revive work. A pump advances only the work
+        // queued before its exit marker, so work scheduled during a pump lands after it and needs
+        // another pass; the loop keeps pumping until one pump both drains every queued invocation and
+        // finds the composition quiescent. Like awaitIdle it tracks scheduled runnables only, never
+        // the native paint events a visible window peer streams. MAX_IDLE_FRAMES bounds the combined
+        // drains and frames as a runaway backstop.
+        var work = 0
         while (true) {
             Snapshot.sendApplyNotifications()
             frameTimeNanos += FRAME_INTERVAL_NANOS
             clock.sendFrame(frameTimeNanos)
-            pumpEdtQueue()
+            val invocationsDrained = pumpEdtQueue()
+            Snapshot.sendApplyNotifications()
             layoutRoot()
-            if (!recomposer.hasPendingWork && !Snapshot.current.hasPendingChanges()) {
-                return
-            }
-            if (++iterations >= MAX_IDLE_FRAMES) {
-                throw AssertionError(
-                    "setContent did not settle after $MAX_IDLE_FRAMES frames " +
-                        "(hasPendingWork=${recomposer.hasPendingWork}, " +
-                        "hasPendingChanges=${Snapshot.current.hasPendingChanges()}). Current tree:\n" +
-                        root.dumpTree(),
-                )
-            }
+            work++
+            if (composed() && invocationsDrained) return
+            if (work >= MAX_IDLE_FRAMES) throw notSettled("setContent")
         }
     }
 
     /**
      * Lets Runnables already queued on the EDT (including the recomposer's apply step) run, without
-     * leaving the EDT. We are on the EDT, so we cannot block on `invokeAndWait`; instead we enter an
-     * AWT [java.awt.SecondaryLoop] and post a task that exits it. The secondary loop processes the
-     * pending events first, so the recomposer's continuation runs before this returns.
+     * leaving the EDT, and reports whether the pump drained every scheduled runnable. We are on the
+     * EDT, so we cannot block on `invokeAndWait`; instead we enter an AWT [java.awt.SecondaryLoop] and
+     * post a task that exits it. The secondary loop processes the pending events first, so the
+     * recomposer's continuation runs before this returns.
+     *
+     * Whether any invocation remains is read from inside the exit task, at the one instant it is
+     * honest: every event queued before the exit marker has been dispatched, and the secondary loop's
+     * own teardown invocation has not yet been posted. A check taken after [enter] returns would
+     * instead always see that teardown artifact and could never report a drained queue.
      */
-    private fun pumpEdtQueue() {
+    private fun pumpEdtQueue(): Boolean {
         val loop =
             java.awt.Toolkit
                 .getDefaultToolkit()
@@ -324,8 +440,13 @@ private class SwingUiTestImpl : SwingUiTest {
                 .createSecondaryLoop()
         // Post the exit AFTER the recomposer's already-queued continuation, so the loop drains those
         // first. enter() blocks the current EDT dispatch until exit() runs, while still pumping events.
-        javax.swing.SwingUtilities.invokeLater { loop.exit() }
+        val drained = booleanArrayOf(false)
+        javax.swing.SwingUtilities.invokeLater {
+            drained[0] = noPendingInvocations()
+            loop.exit()
+        }
         loop.enter()
+        return drained[0]
     }
 
     private fun layoutRoot() {
@@ -361,7 +482,9 @@ private class SwingUiTestImpl : SwingUiTest {
     override fun onNodeWithTag(tag: String): SwingNodeInteraction = onNode(SwingMatcher.hasTestTag(tag))
 
     override fun onNode(matcher: SwingMatcher): SwingNodeInteraction =
-        SwingNodeInteraction(this, matcher, description = matcher.description)
+        SwingNodeInteraction(this, matcher.description, { root }, NodePick.Single) {
+            root.findMatchingIncludingSelf(matcher)
+        }
 
     override fun onAllNodesWithText(
         text: String,
@@ -372,10 +495,18 @@ private class SwingUiTestImpl : SwingUiTest {
         onAllNodes(SwingMatcher.hasTestTag(tag))
 
     override fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection =
-        SwingNodeInteractionCollection(this, matcher)
+        SwingNodeInteractionCollection(this, matcher, { root })
 
     override fun onRoot(): SwingNodeInteraction =
-        SwingNodeInteraction(this, SwingMatcher.isRoot(root), description = "root")
+        SwingNodeInteraction(this, "root", { root }, NodePick.Single) {
+            root.findMatchingIncludingSelf(SwingMatcher.isRoot(root))
+        }
+
+    override fun onWindow(matcher: SwingMatcher): SwingWindowInteraction =
+        SwingWindowInteraction(this, matcher, description = matcher.description)
+
+    override fun onAllWindows(matcher: SwingMatcher): SwingWindowInteractionCollection =
+        SwingWindowInteractionCollection(matcher)
 
     fun dispose() {
         disposeHandle?.dispose()

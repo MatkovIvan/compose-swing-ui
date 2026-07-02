@@ -10,12 +10,12 @@ import kotlin.test.assertEquals
  * Behavioral tests for the per-window frame clock retiming.
  *
  * The clock translates a nominal frames-per-second rate into a timer delay and re-derives that delay
- * when the host window reports a new display refresh rate. A real top-level [java.awt.Window] cannot be
- * constructed under the suite's enforced `-Djava.awt.headless=true`, so the actual multi-monitor drag
- * (a window physically moving between a 60 Hz and a 120 Hz display) is verified manually with the
- * non-headless sample app. These tests cover the headless-observable contract the window path is built
- * on: the fps -> delay recompute, and that firing the same `"graphicsConfiguration"` event the window
- * raises drives that recompute, observed through the clock's active cadence ([SwingFrameClock.frameDelayMillis]).
+ * when the host window reports a new display refresh rate. The actual multi-monitor drag (a window
+ * physically moving between a 60 Hz and a 120 Hz display) needs real displays and is verified manually
+ * with the sample apps. These tests never realize a window, so they run with or without a display and
+ * cover the contract the window path is built on: the fps -> delay recompute, and that firing the same
+ * `"graphicsConfiguration"` event the window raises drives that recompute, observed through the
+ * clock's active cadence ([SwingFrameClock.frameDelayMillis]).
  */
 class SwingFrameClockRetimeTest {
     @Test
@@ -53,7 +53,7 @@ class SwingFrameClockRetimeTest {
         // Models the exact wiring WindowRecomposer.create installs: a "graphicsConfiguration"
         // PropertyChangeListener that retimes the clock to the display rate carried by the event. The
         // listener reads its target fps from the event's new value, standing in for
-        // window.displayRefreshRate() which is unreadable headless without a real Window.
+        // window.displayRefreshRate(), which needs a realized Window on a display.
         val clock = SwingFrameClock(FPS_60)
         val listener = PropertyChangeListener { event -> clock.setFramesPerSecond(event.newValue as Int) }
 

@@ -124,6 +124,81 @@ class NodeCollectionInteractionTest {
     }
 
     @Test
+    fun getTargetsTheMatchAtTheGivenIndex() = runSwingUiTest {
+        setContent {
+            BoxPanel {
+                Label(text = "row", modifier = SwingModifier.name("row-0"))
+                Label(text = "row", modifier = SwingModifier.name("row-1"))
+                Label(text = "row", modifier = SwingModifier.name("row-2"))
+            }
+        }
+        val rows = onAllNodesWithText("row")
+        rows[0].assertExists()
+        assertEquals("row-1", rows[1].fetch<JLabel>().name, "index 1 should target the second match in tree order")
+        assertEquals("row-2", rows[2].fetch<JLabel>().name, "index 2 should target the third match in tree order")
+    }
+
+    @Test
+    fun getFailsOnUseWhenTheIndexIsOutOfBounds() = runSwingUiTest {
+        setContent {
+            BoxPanel {
+                Label(text = "row")
+                Label(text = "row")
+            }
+        }
+        // Creating the handle is fine — resolution is lazy — but using it must fail readably.
+        val outOfBounds = onAllNodesWithText("row")[2]
+        assertFailsWith<AssertionError> { outOfBounds.assertExists() }
+        assertFailsWith<AssertionError> { outOfBounds.fetch<JLabel>() }
+        // An index past the match set targets nothing, so the negative assertion holds.
+        outOfBounds.assertDoesNotExist()
+    }
+
+    @Test
+    fun onFirstAndOnLastTargetTheEndsAndTrackRecomposition() = runSwingUiTest {
+        var rows by mutableIntStateOf(2)
+        setContent {
+            BoxPanel {
+                repeat(rows) { index -> Label(text = "row", modifier = SwingModifier.name("row-$index")) }
+            }
+        }
+        val collection = onAllNodesWithText("row")
+        assertEquals("row-0", collection.onFirst().fetch<JLabel>().name, "onFirst should target the first match")
+        assertEquals("row-1", collection.onLast().fetch<JLabel>().name, "onLast should target the last match")
+
+        rows = 4
+        awaitIdle()
+        assertEquals(
+            "row-3",
+            collection.onLast().fetch<JLabel>().name,
+            "onLast should re-resolve to the new last match after recomposition adds rows",
+        )
+
+        rows = 0
+        awaitIdle()
+        assertFailsWith<AssertionError> { collection.onFirst().assertExists() }
+        assertFailsWith<AssertionError> { collection.onLast().assertExists() }
+    }
+
+    @Test
+    fun getRespectsAWithinScope() = runSwingUiTest {
+        setContent {
+            BoxPanel {
+                Label(text = "before")
+                Panel(modifier = SwingModifier.name("inside")) {
+                    Label(text = "alpha")
+                    Label(text = "beta")
+                }
+            }
+        }
+        val inside = onNodeWithName("inside").fetch<JPanel>()
+        val scoped = onAllNodesOfType<JLabel>().within(inside)
+        assertEquals("alpha", scoped.onFirst().fetch<JLabel>().text, "indexing should apply after the within scope")
+        assertEquals("beta", scoped[1].fetch<JLabel>().text, "indexing should apply after the within scope")
+        assertFailsWith<AssertionError> { scoped[2].assertExists() }
+    }
+
+    @Test
     fun aHeldCollectionReResolvesAsRecompositionAddsAndRemovesMatches() = runSwingUiTest {
         var rows by mutableIntStateOf(1)
         setContent {

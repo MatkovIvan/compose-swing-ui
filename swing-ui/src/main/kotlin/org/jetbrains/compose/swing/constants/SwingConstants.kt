@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.constants
 
 import org.intellij.lang.annotations.MagicConstant
 import java.awt.FlowLayout
+import java.awt.Frame
 import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JFileChooser
@@ -280,3 +281,20 @@ public annotation class MessageType
     ],
 )
 public annotation class ConfirmResult
+
+/**
+ * A `Frame` extended state (`NORMAL`/`ICONIFIED`/`MAXIMIZED_HORIZ`/`MAXIMIZED_VERT`/`MAXIMIZED_BOTH`).
+ * The state is a bit mask: combine `ICONIFIED` with a maximized bit using the bitwise `or` to express
+ * both.
+ */
+@Retention(AnnotationRetention.BINARY)
+@MagicConstant(
+    intValues = [
+        Frame.NORMAL.toLong(),
+        Frame.ICONIFIED.toLong(),
+        Frame.MAXIMIZED_HORIZ.toLong(),
+        Frame.MAXIMIZED_VERT.toLong(),
+        Frame.MAXIMIZED_BOTH.toLong(),
+    ],
+)
+public annotation class WindowExtendedState

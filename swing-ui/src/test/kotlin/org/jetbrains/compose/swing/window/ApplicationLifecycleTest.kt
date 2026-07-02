@@ -13,12 +13,13 @@ import kotlin.test.assertTrue
  * recomposer over a non-visual [ApplicationScope] composition and so are exercisable headless without
  * any real window.
  *
- * The visual entry points that realize AWT peers ([Window], [Dialog], [Tray]) are NOT covered here:
- * each constructs a real `JFrame` / `JDialog` / system-tray peer that throws `HeadlessException` (or
- * is unsupported) under the suite's enforced `-Djava.awt.headless=true`. The application loop itself,
- * however, needs no peer — it spins a recomposer on the EDT — so its start/exit contract is asserted
- * by observable effects: the suspending entry point returns once the scope requests exit, and the
- * scope-bound coroutine variant completes its job.
+ * The visual entry points that realize AWT peers ([Window], [Dialog],
+ * [org.jetbrains.compose.swing.components.Tray]) are NOT covered here: each constructs a real
+ * `JFrame` / `JDialog` / system-tray peer and so needs a display; their lifecycle contract is
+ * asserted in [ApplicationWindowKeepAliveTest], which skips where the environment lacks one. The
+ * application loop itself needs no peer — it spins a recomposer on the EDT — so its start/exit
+ * contract is asserted by observable effects: the suspending entry point returns once the scope
+ * requests exit, and the scope-bound coroutine variant completes its job.
  */
 class ApplicationLifecycleTest {
     @Test

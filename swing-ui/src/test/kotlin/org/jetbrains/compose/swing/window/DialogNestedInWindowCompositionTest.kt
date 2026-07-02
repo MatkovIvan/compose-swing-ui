@@ -23,13 +23,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Headless-safe coverage that a `Dialog`'s content composes WITHIN a `Window`-owned composition and
- * that state flows from the window scope into the nested dialog content.
+ * Display-independent coverage that a `Dialog`'s content composes WITHIN a `Window`-owned composition
+ * and that state flows from the window scope into the nested dialog content.
  *
- * The suite runs under `-Djava.awt.headless=true`, where realizing a real `Window`/`JDialog` peer
- * throws `HeadlessException` (the constraint documented on the library's own
- * `WindowContentChildCompositionTest` and `DialogModalityTest`). This test therefore does NOT realize
- * on-screen peers. It models the wiring `Window`/`Dialog` use: the harness composition plays the
+ * Realizing a real `Window`/`JDialog` peer needs a display; the display-gated window and dialog tests
+ * cover that path. This test does not realize on-screen peers, so it runs with or without a display.
+ * It models the wiring `Window`/`Dialog` use: the harness composition plays the
  * window-owned scope, the dialog's content is mounted into a DETACHED host container (standing in for
  * a `JDialog` content pane that is not part of the window's Swing tree) as a CHILD of the captured
  * window-scope [androidx.compose.runtime.CompositionContext] via
