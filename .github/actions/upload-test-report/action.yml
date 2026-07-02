@@ -1,5 +1,5 @@
 name: Upload Test Report
-description: Publish JUnit test report and optionally upload test artifacts.
+description: Publish the JUnit and JaCoCo coverage reports to the run summary, and optionally upload test artifacts.
 
 inputs:
   artifact-name:
@@ -20,17 +20,22 @@ runs:
         detailed_summary: true
         fail_on_failure: false
 
+    - name: Publish Coverage Report
+      uses: madrapps/jacoco-report@v1
+      with:
+        paths: "**/build/reports/jacoco/test/jacocoTestReport.xml"
+        comment-type: summary
+        token: ${{ github.token }}
+
     - name: Upload Test Results
       if: ${{ inputs.upload-artifact == 'true' }}
       uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.artifact-name }}
         path: |
+          **/build/reports/jacoco/**
           **/build/reports/tests/**
           **/build/reports/problems/**
-          **/build/generated/**
-          **/build/fixture-matrix/**
-          **/build/matrix/**
           **/hs_err_pid*.log
           **/replay_pid*.log
           **/java_pid*.hprof

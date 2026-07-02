@@ -189,6 +189,14 @@ the matched component) and on the test itself (captures the root). A `threshold`
 how strict the structural-similarity match is. To compare two captured images without a golden file,
 capture with `captureToImage()` and use `assertImageMatches(expected)`.
 
+`captureToImages()` on a `SwingNodeInteractionCollection` captures every match at once, returning one
+image per matched component sized to its own bounds, in depth-first pre-order — the same order as the
+collection's other accessors:
+
+```kotlin
+val images = onAllNodesOfType<JButton>().captureToImages()
+```
+
 ## Related
 
 - [`../swing-ui-test/README.md`](../swing-ui-test/README.md) — the harness module.

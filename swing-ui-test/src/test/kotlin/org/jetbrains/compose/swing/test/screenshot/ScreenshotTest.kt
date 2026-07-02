@@ -2,9 +2,12 @@ package org.jetbrains.compose.swing.test.screenshot
 
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runSwingUiTest
 import java.awt.Color
 import java.awt.image.BufferedImage
+import javax.swing.JButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -23,6 +26,32 @@ class ScreenshotTest {
         assertTrue(image.width > 0 && image.height > 0, "captured image should have a positive size")
         assertEquals(component.width, image.width, "captured image width should match the component")
         assertEquals(component.height, image.height, "captured image height should match the component")
+    }
+
+    @Test
+    fun captureToImagesProducesOneImagePerMatchedComponent() = runSwingUiTest {
+        setContent {
+            BoxPanel {
+                Button(text = "First", onClick = {})
+                Button(text = "Second longer label", onClick = {})
+            }
+        }
+
+        val buttons = onAllNodesOfType<JButton>()
+        val components = buttons.fetchAll<JButton>()
+        val images = buttons.captureToImages()
+
+        assertEquals(components.size, images.size, "one image is produced per matched component")
+        assertEquals(2, images.size, "both buttons should be captured")
+
+        // Depth-first pre-order: image[i] belongs to component[i], each sized to its own bounds.
+        components.forEachIndexed { index, component ->
+            assertEquals(component.width, images[index].width, "image $index width should match its component")
+            assertEquals(component.height, images[index].height, "image $index height should match its component")
+        }
+
+        // Distinct components are captured independently, so their images differ.
+        assertTrue(imagesDiffer(images[0], images[1]), "each match is captured independently")
     }
 
     @Test
@@ -139,6 +168,25 @@ class ScreenshotTest {
         graphics.fillRect(elementX, ELEMENT_Y, ELEMENT_WIDTH, ELEMENT_HEIGHT)
         graphics.dispose()
         return image
+    }
+
+    /**
+     * Two captures differ when they disagree in size or in any ARGB pixel. Differing dimensions are a
+     * difference in themselves; equal dimensions fall back to an exact per-pixel comparison.
+     */
+    private fun imagesDiffer(
+        first: BufferedImage,
+        second: BufferedImage,
+    ): Boolean {
+        if (first.width != second.width || first.height != second.height) return true
+        val result =
+            PixelPerfectMatcher.compare(
+                first.toArgbIntArray(),
+                second.toArgbIntArray(),
+                first.width,
+                first.height,
+            )
+        return !result.matches
     }
 
     private fun invert(source: BufferedImage): BufferedImage {

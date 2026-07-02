@@ -14,18 +14,6 @@ class TopLevelSectionsTest {
         }
 
     @Test
-    fun theDialogsSectionMountsWithItsIdleEchoes() =
-        runSwingUiTest {
-            openSection("Standard dialogs")
-
-            onNodeWithText("Status: Not shown yet", substring = true).assertExists()
-            onNodeWithText("No answer yet", substring = true).assertExists()
-            onNodeWithText("Nothing entered", substring = true).assertExists()
-            onNodeWithText("No file chosen", substring = true).assertExists()
-            onNodeWithText("No color chosen", substring = true).assertExists()
-        }
-
-    @Test
     fun theDesktopPaneAddsAndControlledClosesAnInternalFrame() =
         runSwingUiTest {
             openSection("Layered & MDI")

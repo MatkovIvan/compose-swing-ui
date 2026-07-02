@@ -52,7 +52,6 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Context menu") { ContextMenuSection() },
         ShowcaseSection("Data transfer") { DataTransferSection() },
         ShowcaseSection("Top-level windows") { WindowsSection() },
-        ShowcaseSection("Standard dialogs") { DialogsSection() },
         ShowcaseSection("Layered & MDI") { LayeredAndMdiSection() },
         ShowcaseSection("System tray") { TraySection() },
         ShowcaseSection("Dynamic hierarchy") { DynamicHierarchySection() },

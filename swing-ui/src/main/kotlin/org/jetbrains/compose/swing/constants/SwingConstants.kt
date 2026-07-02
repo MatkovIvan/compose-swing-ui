@@ -5,9 +5,7 @@ import java.awt.FlowLayout
 import java.awt.Frame
 import javax.swing.BoxLayout
 import javax.swing.JComponent
-import javax.swing.JFileChooser
 import javax.swing.JFormattedTextField
-import javax.swing.JOptionPane
 import javax.swing.JScrollPane
 import javax.swing.JSplitPane
 import javax.swing.JTabbedPane
@@ -229,58 +227,6 @@ public annotation class TransferAction
 @Retention(AnnotationRetention.BINARY)
 @MagicConstant(stringValues = ["text/plain", "text/html", "text/rtf"])
 public annotation class ContentType
-
-/** A `JFileChooser` file-selection mode (`FILES_ONLY`/`DIRECTORIES_ONLY`/`FILES_AND_DIRECTORIES`). */
-@Retention(AnnotationRetention.BINARY)
-@MagicConstant(
-    intValues = [
-        JFileChooser.FILES_ONLY.toLong(),
-        JFileChooser.DIRECTORIES_ONLY.toLong(),
-        JFileChooser.FILES_AND_DIRECTORIES.toLong(),
-    ],
-)
-public annotation class FileSelectionMode
-
-/** A `JOptionPane` option type — the button set of a confirm dialog (`YES_NO_OPTION`, …). */
-@Retention(AnnotationRetention.BINARY)
-@MagicConstant(
-    intValues = [
-        JOptionPane.YES_NO_OPTION.toLong(),
-        JOptionPane.YES_NO_CANCEL_OPTION.toLong(),
-        JOptionPane.OK_CANCEL_OPTION.toLong(),
-    ],
-)
-public annotation class ConfirmOption
-
-/** A `JOptionPane` message type — the icon a dialog shows (`ERROR_MESSAGE`, …). */
-@Retention(AnnotationRetention.BINARY)
-@MagicConstant(
-    intValues = [
-        JOptionPane.ERROR_MESSAGE.toLong(),
-        JOptionPane.INFORMATION_MESSAGE.toLong(),
-        JOptionPane.WARNING_MESSAGE.toLong(),
-        JOptionPane.QUESTION_MESSAGE.toLong(),
-        JOptionPane.PLAIN_MESSAGE.toLong(),
-    ],
-)
-public annotation class MessageType
-
-/**
- * A `JOptionPane` confirm-dialog outcome — the raw return code (`YES_OPTION`, `NO_OPTION`, `OK_OPTION`,
- * `CANCEL_OPTION`, `CLOSED_OPTION`). `YES_OPTION` and `OK_OPTION` share the value `0`; the option type
- * the dialog was shown with disambiguates which button was meant.
- */
-@Retention(AnnotationRetention.BINARY)
-@MagicConstant(
-    intValues = [
-        JOptionPane.YES_OPTION.toLong(),
-        JOptionPane.NO_OPTION.toLong(),
-        JOptionPane.OK_OPTION.toLong(),
-        JOptionPane.CANCEL_OPTION.toLong(),
-        JOptionPane.CLOSED_OPTION.toLong(),
-    ],
-)
-public annotation class ConfirmResult
 
 /**
  * A `Frame` extended state (`NORMAL`/`ICONIFIED`/`MAXIMIZED_HORIZ`/`MAXIMIZED_VERT`/`MAXIMIZED_BOTH`).

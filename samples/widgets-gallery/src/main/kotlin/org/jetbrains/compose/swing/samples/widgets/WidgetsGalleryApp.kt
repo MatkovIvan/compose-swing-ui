@@ -5,9 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.components.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Menu
@@ -17,8 +15,6 @@ import org.jetbrains.compose.swing.components.RadioButtonMenuItem
 import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.ListBox
-import org.jetbrains.compose.swing.dialogs.FileChooserResult
-import org.jetbrains.compose.swing.dialogs.showOpenDialog
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.border
@@ -32,24 +28,23 @@ import javax.swing.SwingConstants
 // The composable menu bar: File, Edit, and a View menu exercising CheckBoxMenuItem and a
 // RadioButtonMenuItem group, all driven by hoisted state. File > New and File > Open drive the
 // gallery's shared editor document, which the Editor section renders. The owner window is passed in
-// because the menu bar is its own composition and does not receive the shell's LocalWindow; it anchors
-// the file-chooser dialog.
+// because the menu bar is its own composition and does not receive the shell's LocalWindow; File > Open
+// brings it to the front so the loaded document is in view.
 @Composable
 internal fun ShowcaseMenuBar(
     owner: Window,
     onExit: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
     var wrapText by remember { mutableStateOf(true) }
     var density by remember { mutableIntStateOf(0) }
     Menu("File") {
         MenuItem("New", onClick = { setEditorText("") })
         MenuItem("Open") {
-            scope.launch {
-                val result = showOpenDialog(parent = owner, title = "Open a file")
-                // Cancelling leaves the current document untouched.
-                if (result is FileChooserResult.Approved) setEditorText(result.file.readText())
-            }
+            // Loads a canned document into the shared editor and surfaces the window that renders it,
+            // showing one composition (the menu bar) drive another (the Editor section) through the
+            // document they share.
+            setEditorText(SAMPLE_DOCUMENT)
+            owner.toFront()
         }
         MenuSeparator()
         MenuItem("Exit", onClick = onExit)
@@ -99,3 +94,10 @@ internal fun ShowcaseShell() {
         }
     }
 }
+
+// The canned text File > Open loads into the shared editor document — a stand-in for a real file's
+// contents, so the sample stays self-contained and needs no file on disk.
+private const val SAMPLE_DOCUMENT =
+    "Opened from the File menu.\n\n" +
+        "This text was loaded into the editor's shared document by File > Open, which lives in a " +
+        "separate composition from the Editor section that renders it."

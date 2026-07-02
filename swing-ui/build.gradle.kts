@@ -78,45 +78,18 @@ tasks.named("test") {
     finalizedBy(tasks.named("jacocoTestReport"))
 }
 
-// Class-file paths whose behavior needs a real display/window server (windows, tray, native dialogs),
-// so their tests skip where no display exists. They are removed from the verified class set so the
-// coverage gate measures only code the suite exercises in every environment.
-val coverageUntestableClassFiles =
-    listOf(
-        "org/jetbrains/compose/swing/window/WindowKt.class",
-        "org/jetbrains/compose/swing/window/WindowKt\$*.class",
-        "org/jetbrains/compose/swing/window/DialogKt.class",
-        "org/jetbrains/compose/swing/window/DialogKt\$*.class",
-        "org/jetbrains/compose/swing/window/ApplicationKt.class",
-        "org/jetbrains/compose/swing/window/ApplicationKt\$*.class",
-        "org/jetbrains/compose/swing/window/ApplicationApplier.class",
-        "org/jetbrains/compose/swing/window/ApplicationApplier\$*.class",
-        "org/jetbrains/compose/swing/components/TrayKt.class",
-        "org/jetbrains/compose/swing/components/TrayKt\$*.class",
-        "org/jetbrains/compose/swing/components/TrayMenuHost.class",
-        "org/jetbrains/compose/swing/components/TrayMenuHost\$*.class",
-        "org/jetbrains/compose/swing/components/ComposableSingletons\$TrayKt.class",
-        "org/jetbrains/compose/swing/dialogs/DialogsKt.class",
-        "org/jetbrains/compose/swing/dialogs/DialogsKt\$*.class",
-    )
-
 // Regression ratchet: the floor sits a few points under the currently achieved ratio so ordinary noise
-// never breaks the build while a real coverage regression does.
+// never breaks the build while a real coverage regression does. The gate measures every class: tests
+// run under a display (CI supplies one via xvfb), so display-dependent code — windows, dialogs, tray,
+// the per-window recomposer — is exercised and must be counted, not excluded.
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn(tasks.named("jacocoTestReport"))
-    classDirectories.setFrom(
-        files(
-            classDirectories.files.map { dir ->
-                fileTree(dir) { exclude(coverageUntestableClassFiles) }
-            },
-        ),
-    )
     violationRules {
         rule {
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
-                minimum = "0.89".toBigDecimal()
+                minimum = 0.9.toBigDecimal()
             }
         }
     }

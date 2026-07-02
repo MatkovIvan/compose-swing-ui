@@ -310,16 +310,7 @@ public final class org/jetbrains/compose/swing/components/text/TextRange {
 public abstract interface annotation class org/jetbrains/compose/swing/constants/BoxAxis : java/lang/annotation/Annotation {
 }
 
-public abstract interface annotation class org/jetbrains/compose/swing/constants/ConfirmOption : java/lang/annotation/Annotation {
-}
-
-public abstract interface annotation class org/jetbrains/compose/swing/constants/ConfirmResult : java/lang/annotation/Annotation {
-}
-
 public abstract interface annotation class org/jetbrains/compose/swing/constants/ContentType : java/lang/annotation/Annotation {
-}
-
-public abstract interface annotation class org/jetbrains/compose/swing/constants/FileSelectionMode : java/lang/annotation/Annotation {
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/constants/FlowAlignment : java/lang/annotation/Annotation {
@@ -335,9 +326,6 @@ public abstract interface annotation class org/jetbrains/compose/swing/constants
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/constants/HorizontalScrollbarPolicy : java/lang/annotation/Annotation {
-}
-
-public abstract interface annotation class org/jetbrains/compose/swing/constants/MessageType : java/lang/annotation/Annotation {
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/constants/Orientation : java/lang/annotation/Annotation {
@@ -415,36 +403,6 @@ public final class org/jetbrains/compose/swing/core/SwingNodeHolder : androidx/c
 	public final fun setConstraint (Ljava/lang/Object;)V
 	public final fun setReleaseBlock (Lkotlin/jvm/functions/Function0;)V
 	public final fun setSlotAttachment (Lorg/jetbrains/compose/swing/core/SlotAttachment;)V
-}
-
-public final class org/jetbrains/compose/swing/dialogs/DialogsKt {
-	public static final fun showColorDialog (Ljava/awt/Component;Ljava/lang/String;Ljava/awt/Color;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun showColorDialog$default (Ljava/awt/Component;Ljava/lang/String;Ljava/awt/Color;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun showConfirmDialog (Ljava/lang/String;Ljava/awt/Component;Ljava/lang/String;IILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun showConfirmDialog$default (Ljava/lang/String;Ljava/awt/Component;Ljava/lang/String;IILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun showInputDialog (Ljava/lang/String;Ljava/awt/Component;Ljava/lang/String;Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun showInputDialog$default (Ljava/lang/String;Ljava/awt/Component;Ljava/lang/String;Ljava/lang/String;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun showMessageDialog (Ljava/lang/String;Ljava/awt/Component;Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun showMessageDialog$default (Ljava/lang/String;Ljava/awt/Component;Ljava/lang/String;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun showOpenDialog (Ljava/awt/Component;Ljava/lang/String;IZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun showOpenDialog$default (Ljava/awt/Component;Ljava/lang/String;IZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun showSaveDialog (Ljava/awt/Component;Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun showSaveDialog$default (Ljava/awt/Component;Ljava/lang/String;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-}
-
-public abstract interface class org/jetbrains/compose/swing/dialogs/FileChooserResult {
-}
-
-public final class org/jetbrains/compose/swing/dialogs/FileChooserResult$Approved : org/jetbrains/compose/swing/dialogs/FileChooserResult {
-	public static final field $stable I
-	public fun <init> (Ljava/util/List;)V
-	public final fun getFile ()Ljava/io/File;
-	public final fun getFiles ()Ljava/util/List;
-}
-
-public final class org/jetbrains/compose/swing/dialogs/FileChooserResult$Cancelled : org/jetbrains/compose/swing/dialogs/FileChooserResult {
-	public static final field $stable I
-	public static final field INSTANCE Lorg/jetbrains/compose/swing/dialogs/FileChooserResult$Cancelled;
 }
 
 public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier {
