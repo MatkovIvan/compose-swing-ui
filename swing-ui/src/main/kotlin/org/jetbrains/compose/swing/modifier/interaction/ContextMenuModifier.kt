@@ -8,7 +8,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.core.MenuBarApplier
+import org.jetbrains.compose.swing.core.MenuApplier
 import org.jetbrains.compose.swing.core.SwingCompositionMount
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
@@ -140,7 +140,7 @@ public class ContextMenuElement
                 ) {
                     val popup = JPopupMenu()
                     val mount =
-                        SwingCompositionMount.nested(parentContext) { observer -> MenuBarApplier(popup, observer) }
+                        SwingCompositionMount.nested(parentContext) { observer -> MenuApplier(popup, observer) }
                     mount.setContent(content)
 
                     // Dispose the menu composition when the popup closes, so a recomposed/recycled

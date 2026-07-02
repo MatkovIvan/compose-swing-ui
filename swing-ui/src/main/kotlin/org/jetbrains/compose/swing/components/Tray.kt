@@ -13,7 +13,7 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.core.MenuBarApplier
+import org.jetbrains.compose.swing.core.MenuApplier
 import org.jetbrains.compose.swing.core.SwingCompositionMount
 import java.awt.Image
 import java.awt.SystemTray
@@ -121,7 +121,7 @@ public class TrayMenuHost(
         y: Int,
     ) {
         val popup = JPopupMenu()
-        val mount = SwingCompositionMount.nested(parentContext) { observer -> MenuBarApplier(popup, observer) }
+        val mount = SwingCompositionMount.nested(parentContext) { observer -> MenuApplier(popup, observer) }
         mount.setContent(menu)
 
         popup.addPopupMenuListener(

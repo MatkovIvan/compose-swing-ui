@@ -6,7 +6,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.annotations.SwingMenuComposable
+import org.jetbrains.compose.swing.MenuNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
@@ -21,7 +21,6 @@ import javax.swing.JMenuItem
  * @param onClick callback to be invoked when the menu item is clicked
  */
 @Composable
-@SwingMenuComposable
 public fun MenuItem(
     text: String,
     modifier: SwingModifier = SwingModifier,
@@ -42,7 +41,6 @@ public fun MenuItem(
  * @param modifier the [SwingModifier] applied to the underlying component
  */
 @Composable
-@SwingMenuComposable
 public fun MenuItem(
     text: String,
     actionListener: ActionListener,

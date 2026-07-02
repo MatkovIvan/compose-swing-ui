@@ -3,7 +3,6 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.PropertyKey
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
@@ -14,7 +13,6 @@ import javax.swing.JComponent
 public fun SwingModifier.font(font: Font?): SwingModifier =
     this then
         propertyElement<Component, Font?>(
-            PropertyKey.FONT,
             font,
             read = { it.font },
             write = { c, v ->

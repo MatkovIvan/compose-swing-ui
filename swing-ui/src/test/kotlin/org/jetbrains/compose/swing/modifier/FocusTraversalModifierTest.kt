@@ -4,7 +4,9 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
 import org.jetbrains.compose.swing.modifier.interaction.focusable
+import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runSwingUiTest
 import javax.swing.JButton

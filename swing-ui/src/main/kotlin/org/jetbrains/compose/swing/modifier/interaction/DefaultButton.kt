@@ -1,8 +1,9 @@
 @file:JvmMultifileClass
-@file:JvmName("AccessibilityModifiersKt")
+@file:JvmName("InteractionModifiersKt")
 
-package org.jetbrains.compose.swing.modifier
+package org.jetbrains.compose.swing.modifier.interaction
 
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import javax.swing.JButton
 import javax.swing.SwingUtilities
 

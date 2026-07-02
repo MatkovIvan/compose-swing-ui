@@ -26,11 +26,11 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.alignmentX
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.maximumSize
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.alignmentX
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.RenderingHints

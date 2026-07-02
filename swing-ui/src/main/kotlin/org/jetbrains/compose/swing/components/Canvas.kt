@@ -6,8 +6,8 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.SwingNode
-import org.jetbrains.compose.swing.modifier.AccessibleRoleProvider
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.accessibility.AccessibleRoleProvider
 import org.jetbrains.compose.swing.modifier.applyModifier
 import java.awt.Graphics
 import java.awt.Graphics2D

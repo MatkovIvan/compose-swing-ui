@@ -3,7 +3,6 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.PropertyKey
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Color
@@ -14,7 +13,6 @@ import javax.swing.JComponent
 public fun SwingModifier.background(color: Color?): SwingModifier =
     this then
         propertyElement<Component, Color?>(
-            PropertyKey.BACKGROUND,
             color,
             read = { it.background },
             write = { c, v ->

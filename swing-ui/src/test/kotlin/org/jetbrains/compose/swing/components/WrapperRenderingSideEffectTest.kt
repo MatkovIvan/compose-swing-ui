@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.SwingUiTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction

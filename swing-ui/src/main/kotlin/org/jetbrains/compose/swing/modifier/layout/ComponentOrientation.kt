@@ -1,8 +1,10 @@
 @file:JvmMultifileClass
 @file:JvmName("LayoutModifiersKt")
 
-package org.jetbrains.compose.swing.modifier
+package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
 import java.awt.ComponentOrientation
 
@@ -15,7 +17,6 @@ import java.awt.ComponentOrientation
 public fun SwingModifier.componentOrientation(orientation: ComponentOrientation): SwingModifier =
     this then
         propertyElement<Component, ComponentOrientation>(
-            PropertyKey.COMPONENT_ORIENTATION,
             orientation,
             read = { it.componentOrientation },
             // Honest Swing semantics: set on this component only; do not recurse to children.

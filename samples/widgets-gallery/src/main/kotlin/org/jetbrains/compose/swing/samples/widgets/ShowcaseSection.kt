@@ -7,10 +7,10 @@ import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.alignmentX
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.foreground
+import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import java.awt.Color
 import java.awt.Component
 import java.awt.Font

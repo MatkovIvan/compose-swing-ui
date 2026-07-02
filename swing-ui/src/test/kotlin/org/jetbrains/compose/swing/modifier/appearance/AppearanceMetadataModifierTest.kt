@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.focusable
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runSwingUiTest
 import java.awt.Color
@@ -167,7 +167,7 @@ class AppearanceMetadataModifierTest {
     }
 
     @Test
-    fun distinctClientPropertyKeysAreIndependentSlots() = runSwingUiTest {
+    fun distinctClientPropertiesAreIndependentSlots() = runSwingUiTest {
         setContent {
             Label(
                 "lbl",

@@ -1,8 +1,10 @@
 @file:JvmMultifileClass
-@file:JvmName("AccessibilityModifiersKt")
+@file:JvmName("InteractionModifiersKt")
 
-package org.jetbrains.compose.swing.modifier
+package org.jetbrains.compose.swing.modifier.interaction
 
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
 import java.awt.Container
 import java.awt.FocusTraversalPolicy
@@ -19,7 +21,6 @@ import javax.swing.JComponent
 public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier =
     this then
         propertyElement<JComponent, Any?>(
-            PropertyKey.FOCUS_TRAVERSAL_INDEX,
             index,
             read = { it.getClientProperty(FOCUS_TRAVERSAL_INDEX_KEY) },
             write = { c, v -> c.putClientProperty(FOCUS_TRAVERSAL_INDEX_KEY, v) },
@@ -41,7 +42,6 @@ private const val FOCUS_TRAVERSAL_INDEX_KEY: String = "org.jetbrains.compose.swi
 private object OrderedFocusTraversalElement :
     SwingModifier.Element<JComponent, OrderedFocusTraversalElement.Node> {
     override val targetType: Class<JComponent> get() = JComponent::class.java
-    override val key: Any get() = PropertyKey.ORDERED_FOCUS_TRAVERSAL
 
     override fun create(): Node = Node()
 

@@ -17,11 +17,11 @@ import org.jetbrains.compose.swing.components.layout.GridBagPanel
 import org.jetbrains.compose.swing.components.layout.GridPanel
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.alignmentX
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.componentOrientation
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.alignmentX
+import org.jetbrains.compose.swing.modifier.layout.componentOrientation
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.ComponentOrientation

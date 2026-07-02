@@ -17,7 +17,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import javax.swing.BorderFactory

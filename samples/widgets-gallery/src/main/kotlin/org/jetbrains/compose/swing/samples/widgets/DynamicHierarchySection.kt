@@ -14,8 +14,8 @@ import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.alignmentX
-import org.jetbrains.compose.swing.modifier.visible
+import org.jetbrains.compose.swing.modifier.layout.alignmentX
+import org.jetbrains.compose.swing.modifier.layout.visible
 
 /**
  * Demonstrates a state-driven dynamic hierarchy: a toggle conditionally composes an entire panel

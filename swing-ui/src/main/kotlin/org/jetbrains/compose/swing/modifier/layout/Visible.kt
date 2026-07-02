@@ -1,8 +1,10 @@
 @file:JvmMultifileClass
 @file:JvmName("LayoutModifiersKt")
 
-package org.jetbrains.compose.swing.modifier
+package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
 
 /**
@@ -13,10 +15,4 @@ import java.awt.Component
  * you only need to hide a component that already exists.
  */
 public fun SwingModifier.visible(visible: Boolean): SwingModifier =
-    this then
-        propertyElement<Component, Boolean>(
-            PropertyKey.VISIBLE,
-            visible,
-            read = { it.isVisible },
-            write = { c, v -> c.isVisible = v },
-        )
+    this then propertyElement<Component, Boolean>(visible, read = { it.isVisible }, write = { c, v -> c.isVisible = v })

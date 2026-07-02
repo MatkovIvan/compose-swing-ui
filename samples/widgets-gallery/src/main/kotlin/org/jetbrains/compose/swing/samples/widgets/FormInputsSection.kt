@@ -15,7 +15,7 @@ import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.documentFilter
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 import java.text.NumberFormat
 import javax.swing.JFormattedTextField

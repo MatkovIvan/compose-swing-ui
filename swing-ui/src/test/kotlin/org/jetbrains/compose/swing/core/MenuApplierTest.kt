@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
 /**
- * Low-level unit tests that drive [MenuBarApplier] directly over a root [JMenuBar], with no Compose
+ * Low-level unit tests that drive [MenuApplier] directly over a root [JMenuBar], with no Compose
  * runtime, recomposer, or clock involved — the menu counterpart of `SwingApplierTest`. Now that the
  * menu applier operates on [SwingNodeHolder] wrappers (so menu nodes get the same lifecycle
  * callbacks as ordinary components), these tests pin its AWT-tree manipulation math: that children
@@ -22,13 +22,13 @@ import kotlin.test.assertSame
  * All AWT work happens on the calling thread, which is acceptable for unit tests of pure tree
  * manipulation (no EDT-bound timers or compositions are created here).
  */
-class MenuBarApplierTest {
+class MenuApplierTest {
     private fun holder(component: Component): SwingNodeHolder<*> = SwingNodeHolder(component)
 
     /** Positions `current` on [node], runs [block], and returns to the previous node. */
-    private fun MenuBarApplier.onNode(
+    private fun MenuApplier.onNode(
         node: SwingNodeHolder<*>,
-        block: MenuBarApplier.() -> Unit,
+        block: MenuApplier.() -> Unit,
     ) {
         down(node)
         block()
@@ -43,14 +43,14 @@ class MenuBarApplierTest {
     private val observers = mutableListOf<SnapshotStateObserver>()
 
     /**
-     * Builds a [MenuBarApplier] over [root] with a snapshot observer this test owns and disposes, so
+     * Builds a [MenuApplier] over [root] with a snapshot observer this test owns and disposes, so
      * the global apply-observer registration the applier starts is torn down at test end rather than
      * leaked (the production path disposes it with the composition mount).
      */
-    private fun applierFor(root: JComponent): MenuBarApplier {
+    private fun applierFor(root: JComponent): MenuApplier {
         val observer = SnapshotStateObserver { it() }.apply { start() }
         observers += observer
-        return MenuBarApplier(root, observer)
+        return MenuApplier(root, observer)
     }
 
     @AfterTest

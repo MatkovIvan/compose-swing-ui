@@ -13,17 +13,19 @@ import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibleDescription
-import org.jetbrains.compose.swing.modifier.accessibleName
-import org.jetbrains.compose.swing.modifier.accessibleRole
+import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
+import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
+import org.jetbrains.compose.swing.modifier.accessibility.accessibleRole
+import org.jetbrains.compose.swing.modifier.accessibility.labelFor
+import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
+import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
+import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.defaultButton
-import org.jetbrains.compose.swing.modifier.focusTraversalIndex
-import org.jetbrains.compose.swing.modifier.labelFor
-import org.jetbrains.compose.swing.modifier.mnemonic
-import org.jetbrains.compose.swing.modifier.orderedFocusTraversal
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.interaction.defaultButton
+import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
+import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import javax.accessibility.AccessibleRole
@@ -31,7 +33,6 @@ import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 
 internal const val ACCESSIBLE_NAME_FIELD_TAG: String = "a11y-named-field"
-internal const val LABEL_FOR_FIELD_TAG: String = "a11y-username-field"
 internal const val ACCESSIBLE_ROLE_CANVAS_TAG: String = "a11y-role-canvas"
 
 /**
@@ -90,19 +91,20 @@ private fun AccessibleRoleCard() {
     }
 }
 
-/** labelFor wires a caption to the tagged field, so its mnemonic moves focus to the target. */
+/** labelFor wires a caption to its target field, so its mnemonic moves focus to the target. */
 @Composable
 private fun LabelForCard() {
-    ExampleCard("labelFor (label captions a tagged field)") {
+    ExampleCard("labelFor (label captions a field)") {
         var name by remember { mutableStateOf("") }
+        val usernameField = rememberLabelTarget()
         FlowPanel {
             Label(
                 "Username:",
-                modifier = SwingModifier.labelFor(LABEL_FOR_FIELD_TAG).mnemonic('U'),
+                modifier = SwingModifier.labelFor(usernameField).mnemonic('U'),
             )
             TextField(
                 value = name,
-                modifier = SwingModifier.testTag(LABEL_FOR_FIELD_TAG),
+                modifier = SwingModifier.labelTarget(usernameField),
                 onValueChange = { name = it },
                 columns = 20,
             )

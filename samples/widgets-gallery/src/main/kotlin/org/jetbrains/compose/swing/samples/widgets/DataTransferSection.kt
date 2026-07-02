@@ -16,8 +16,8 @@ import org.jetbrains.compose.swing.modifier.datatransfer.copyToClipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
 import org.jetbrains.compose.swing.modifier.datatransfer.dropTarget
 import org.jetbrains.compose.swing.modifier.datatransfer.pasteFromClipboard
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
-import org.jetbrains.compose.swing.modifier.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.datatransfer.DataFlavor

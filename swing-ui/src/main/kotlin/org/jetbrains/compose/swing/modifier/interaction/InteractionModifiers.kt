@@ -3,7 +3,6 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.PropertyKey
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
@@ -25,7 +24,6 @@ import java.awt.event.MouseEvent
 public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
     this then
         propertyElement<Component, Boolean>(
-            PropertyKey.FOCUSABLE,
             focusable,
             read = { it.isFocusable },
             write = { c, v -> c.isFocusable = v },
@@ -39,11 +37,10 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
  */
 public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
     this then
-        // Honest Swing semantics: set on this component only; Swing does not cascade to children.
         propertyElement<Component, Boolean>(
-            PropertyKey.ENABLED,
             enabled,
             read = { it.isEnabled },
+            // Honest Swing semantics: set on this component only; Swing does not cascade to children.
             write = { c, v -> c.isEnabled = v },
         )
 

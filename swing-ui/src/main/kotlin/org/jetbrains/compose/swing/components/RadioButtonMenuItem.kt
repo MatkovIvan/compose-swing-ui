@@ -6,7 +6,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.annotations.SwingMenuComposable
+import org.jetbrains.compose.swing.MenuNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
@@ -22,7 +22,6 @@ import javax.swing.JRadioButtonMenuItem
  * @param onSelect callback invoked when the menu item is selected
  */
 @Composable
-@SwingMenuComposable
 public fun RadioButtonMenuItem(
     text: String,
     modifier: SwingModifier = SwingModifier,
@@ -46,7 +45,6 @@ public fun RadioButtonMenuItem(
  * @param selected whether the menu item is selected
  */
 @Composable
-@SwingMenuComposable
 public fun RadioButtonMenuItem(
     text: String,
     actionListener: ActionListener,

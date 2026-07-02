@@ -2,21 +2,19 @@ package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.AbstractApplier
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import java.awt.Component
 import java.awt.Container
 import java.util.Collections
 import java.util.IdentityHashMap
 
 /**
- * The [androidx.compose.runtime.Applier] that [SwingNode] emits into, mutating the Swing component
- * tree as the composition changes.
+ * The [androidx.compose.runtime.Applier] that [org.jetbrains.compose.swing.SwingNode] emits into, mutating
+ * the Swing component tree as the composition changes.
  *
  * Construct one over a root [Container] and a [SnapshotStateObserver] owned by the surrounding
  * composition, and hand it to a `Composition` to host Compose-Swing content at the applier level; the
  * everyday entry points are the `setContent` functions, which build one internally and dispose the
- * observer with the composition. Opt in with `@OptIn(InternalSwingUiApi::class)` to use it directly.
- * See `docs/CUSTOM-COMPONENTS.md` and `docs/ARCHITECTURE.md`.
+ * observer with the composition. See `docs/CUSTOM-COMPONENTS.md` and `docs/ARCHITECTURE.md`.
  *
  * Placement of each child:
  * - With its declared [SwingNodeHolder.constraint] when non-null (e.g. a `BorderLayout` region),
@@ -27,10 +25,12 @@ import java.util.IdentityHashMap
  *
  * Every container mutated during a change pass is revalidated and repainted once in [onEndChanges].
  *
- * Marked [InternalSwingUiApi]; it may change without notice in any release.
+ * Internal runtime type; not public API.
+ *
+ * @see org.jetbrains.compose.swing.SwingNode
  */
-@InternalSwingUiApi
-public class SwingApplier internal constructor(
+@PublishedApi
+internal class SwingApplier internal constructor(
     root: Container,
     private val ownerObserver: SnapshotStateObserver,
 ) : AbstractApplier<SwingNodeHolder<*>>(SwingNodeHolder(root)) {

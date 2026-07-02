@@ -16,7 +16,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.alignmentX
+import org.jetbrains.compose.swing.modifier.layout.alignmentX
 
 /**
  * Demonstrates Compose effects running over the Swing recomposer: coroutine-backed

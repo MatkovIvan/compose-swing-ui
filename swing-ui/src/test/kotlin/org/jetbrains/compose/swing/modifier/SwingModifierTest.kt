@@ -12,6 +12,12 @@ import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.onHover
+import org.jetbrains.compose.swing.modifier.layout.alignmentX
+import org.jetbrains.compose.swing.modifier.layout.alignmentY
+import org.jetbrains.compose.swing.modifier.layout.componentOrientation
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.modifier.layout.minimumSize
+import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runSwingUiTest

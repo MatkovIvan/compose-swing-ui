@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.modifier.interaction.defaultButton
 import org.jetbrains.compose.swing.setContent
 import java.awt.Component
 import java.awt.Container

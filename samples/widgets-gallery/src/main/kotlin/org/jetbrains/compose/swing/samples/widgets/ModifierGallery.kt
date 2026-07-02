@@ -13,8 +13,6 @@ import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.alignmentX
-import org.jetbrains.compose.swing.modifier.alignmentY
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
@@ -25,10 +23,12 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.focusable
-import org.jetbrains.compose.swing.modifier.maximumSize
-import org.jetbrains.compose.swing.modifier.minimumSize
-import org.jetbrains.compose.swing.modifier.preferredSize
-import org.jetbrains.compose.swing.modifier.visible
+import org.jetbrains.compose.swing.modifier.layout.alignmentX
+import org.jetbrains.compose.swing.modifier.layout.alignmentY
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.modifier.layout.minimumSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.visible
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension

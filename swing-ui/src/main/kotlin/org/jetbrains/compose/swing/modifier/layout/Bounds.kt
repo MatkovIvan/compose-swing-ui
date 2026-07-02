@@ -1,8 +1,10 @@
 @file:JvmMultifileClass
 @file:JvmName("LayoutModifiersKt")
 
-package org.jetbrains.compose.swing.modifier
+package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.modifier.PropertyElement
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 import java.awt.Rectangle
 
@@ -20,11 +22,13 @@ public fun SwingModifier.bounds(
     y: Int,
     width: Int,
     height: Int,
-): SwingModifier =
-    this then
-        propertyElement<Component, Rectangle>(
-            PropertyKey.BOUNDS,
-            Rectangle(x, y, width, height),
-            read = { it.bounds },
-            write = { c, v -> c.bounds = v },
-        )
+): SwingModifier = this then BoundsElement(Rectangle(x, y, width, height))
+
+private class BoundsElement(
+    bounds: Rectangle,
+) : PropertyElement<Component, Rectangle>(
+        Component::class.java,
+        bounds,
+        read = { it.bounds },
+        write = { c, v -> c.bounds = v },
+    )

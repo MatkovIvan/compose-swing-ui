@@ -1,8 +1,9 @@
 @file:JvmMultifileClass
 @file:JvmName("AccessibilityModifiersKt")
 
-package org.jetbrains.compose.swing.modifier
+package org.jetbrains.compose.swing.modifier.accessibility
 
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 import javax.accessibility.AccessibleRole
 
@@ -32,7 +33,6 @@ private class AccessibleRoleElement(
     private val role: AccessibleRole,
 ) : SwingModifier.Element<Component, AccessibleRoleElement.Node> {
     override val targetType: Class<Component> get() = Component::class.java
-    override val key: Any get() = PropertyKey.ACCESSIBLE_ROLE
 
     override fun create(): Node = Node()
 

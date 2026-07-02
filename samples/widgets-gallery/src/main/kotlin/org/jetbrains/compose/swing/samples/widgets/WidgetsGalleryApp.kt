@@ -18,7 +18,7 @@ import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 import javax.swing.BorderFactory
 import javax.swing.ListSelectionModel

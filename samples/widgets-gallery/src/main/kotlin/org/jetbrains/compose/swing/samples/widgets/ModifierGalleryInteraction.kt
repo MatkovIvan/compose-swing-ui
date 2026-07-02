@@ -13,7 +13,6 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.alignmentX
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.interaction.onFocus
@@ -21,9 +20,10 @@ import org.jetbrains.compose.swing.modifier.interaction.onHover
 import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
 import org.jetbrains.compose.swing.modifier.keyboard.onKeyEvent
 import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
+import org.jetbrains.compose.swing.modifier.layout.alignmentX
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.modifier.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.event.ActionListener

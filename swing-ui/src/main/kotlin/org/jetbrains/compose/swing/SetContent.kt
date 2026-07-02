@@ -8,7 +8,7 @@ import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.core.MenuBarApplier
+import org.jetbrains.compose.swing.core.MenuApplier
 import org.jetbrains.compose.swing.core.SwingApplier
 import org.jetbrains.compose.swing.core.SwingCompositionMount
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
@@ -367,7 +367,7 @@ public fun JMenuBar.setContent(
     checkEventDispatchThread()
 
     return mountWhenParentResolves(this) { parent ->
-        val mount = SwingCompositionMount.nested(parent) { observer -> MenuBarApplier(this, observer) }
+        val mount = SwingCompositionMount.nested(parent) { observer -> MenuApplier(this, observer) }
         mount.setContent(content)
         mount
     }

@@ -8,9 +8,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.foreground
-import org.jetbrains.compose.swing.modifier.maximumSize
-import org.jetbrains.compose.swing.modifier.minimumSize
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.modifier.layout.minimumSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font

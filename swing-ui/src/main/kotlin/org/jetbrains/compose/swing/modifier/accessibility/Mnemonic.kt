@@ -1,8 +1,9 @@
 @file:JvmMultifileClass
 @file:JvmName("AccessibilityModifiersKt")
 
-package org.jetbrains.compose.swing.modifier
+package org.jetbrains.compose.swing.modifier.accessibility
 
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import javax.swing.AbstractButton
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -21,7 +22,6 @@ private class MnemonicElement(
     private val mnemonic: Char,
 ) : SwingModifier.Element<JComponent, MnemonicElement.Node> {
     override val targetType: Class<JComponent> get() = JComponent::class.java
-    override val key: Any get() = PropertyKey.MNEMONIC
 
     override fun create(): Node = Node()
 

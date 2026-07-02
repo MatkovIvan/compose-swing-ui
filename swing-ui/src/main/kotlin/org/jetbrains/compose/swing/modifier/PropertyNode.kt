@@ -3,39 +3,6 @@ package org.jetbrains.compose.swing.modifier
 import java.awt.Component
 
 /**
- * Stable per-property slot keys for the shared [PropertyElement]. Each built-in property gets its own
- * constant so two different properties (which share the [PropertyElement] runtime class) never collapse
- * into one last-wins slot. Keyed escape hatches (a client property) use their own key instead.
- */
-internal enum class PropertyKey {
-    FOREGROUND,
-    BACKGROUND,
-    FONT,
-    BORDER,
-    OPAQUE,
-    CURSOR,
-    BOUNDS,
-    PREFERRED_SIZE,
-    MINIMUM_SIZE,
-    MAXIMUM_SIZE,
-    ALIGNMENT_X,
-    ALIGNMENT_Y,
-    VISIBLE,
-    COMPONENT_ORIENTATION,
-    NAME,
-    TEST_TAG,
-    TOOL_TIP,
-    ACCESSIBLE_NAME,
-    ACCESSIBLE_DESCRIPTION,
-    ACCESSIBLE_ROLE,
-    MNEMONIC,
-    FOCUS_TRAVERSAL_INDEX,
-    ORDERED_FOCUS_TRAVERSAL,
-    FOCUSABLE,
-    ENABLED,
-}
-
-/**
  * A [SwingModifier.Node] for a single component property. On [onAttach] it captures the property's
  * pre-modifier value as a restore action; on each apply it writes the latest value; on [onDetach] it
  * runs the captured restore. [read] reads the current value (for capture), [write] applies a value,
@@ -69,37 +36,45 @@ internal class PropertyNode<T : Component, V>(
 }
 
 /**
- * A [SwingModifier.Element] for a single component property, backed by a [PropertyNode]. Holds the
- * [value] to write plus the property's [read]/[write] accessors and a [slotKey] identifying the
- * property so distinct properties (and distinct client-property keys) are independent last-wins slots.
- * [create] builds the node; [update] rebinds the node's value provider to this element's [value] and
- * writes it.
+ * Base [SwingModifier.Element] for a single component property, backed by a [PropertyNode]. Holds the
+ * [value] to write plus the property's [read]/[write] accessors. The last-wins slot is keyed by the
+ * class of the [write] accessor: each property's builder declares its own `write` lambda — its own
+ * class — so two distinct properties never collapse into one slot, while every invocation of one
+ * builder shares that builder's slot. [create] builds the node; [update] rebinds the node's value
+ * provider to this element's [value] and writes it.
+ *
+ * Build a single property with [propertyElement], which derives [targetType] from the reified type.
+ * For a property whose distinct instances must be independent slots (a client property keyed by its
+ * property key), subclass this and override [SwingModifier.Element.key] instead.
  */
-internal class PropertyElement<T : Component, V>(
-    override val targetType: Class<T>,
-    private val slotKey: Any,
+internal open class PropertyElement<T : Component, V>(
+    final override val targetType: Class<T>,
     private val value: V,
     private val read: (component: T) -> V,
     private val write: (component: T, value: V) -> Unit,
 ) : SwingModifier.Element<T, PropertyNode<T, V>> {
-    override val key: Any get() = slotKey
+    override val key: Any get() = write.javaClass
 
-    override fun create(): PropertyNode<T, V> = PropertyNode(read, write)
+    final override fun create(): PropertyNode<T, V> = PropertyNode(read, write)
 
-    override fun update(node: PropertyNode<T, V>) {
+    final override fun update(node: PropertyNode<T, V>) {
         node.valueProvider = { value }
         node.apply()
     }
 }
 
 /**
- * Builds a keyed property [SwingModifier.Element] over [PropertyNode] from a read/write pair. [slotKey]
- * identifies the property (one per built-in property; a client-property key for keyed escape hatches),
- * so two different properties never collapse into one last-wins slot.
+ * Builds a single-property [SwingModifier.Element], deriving [targetType] from the reified [T]. The
+ * element's last-wins slot is keyed by the class of its [write] lambda, so one modifier builder must
+ * declare exactly one `write` accessor (call this exactly once): every invocation of that builder then
+ * shares one slot (last wins), while a different builder declares a different lambda — a different
+ * class, an independent slot.
+ *
+ * [read] captures the property's pre-modifier value for restore; [write] applies a value. Both are
+ * `noinline` — they are stored in the node, not invoked at the call site.
  */
 internal inline fun <reified T : Component, V> propertyElement(
-    slotKey: Any,
     value: V,
     noinline read: (component: T) -> V,
     noinline write: (component: T, value: V) -> Unit,
-): SwingModifier.Element<T, PropertyNode<T, V>> = PropertyElement(T::class.java, slotKey, value, read, write)
+): SwingModifier.Element<T, PropertyNode<T, V>> = PropertyElement(T::class.java, value, read, write)

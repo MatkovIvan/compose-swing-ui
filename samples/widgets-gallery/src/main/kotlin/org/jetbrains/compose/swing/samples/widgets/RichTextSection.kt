@@ -13,8 +13,8 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.alignmentX
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.alignmentX
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 
 /**

@@ -13,8 +13,8 @@ import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
-import org.jetbrains.compose.swing.modifier.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics

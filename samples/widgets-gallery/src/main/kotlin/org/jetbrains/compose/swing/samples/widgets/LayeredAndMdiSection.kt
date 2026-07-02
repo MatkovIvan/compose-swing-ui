@@ -16,8 +16,8 @@ import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.bounds
-import org.jetbrains.compose.swing.modifier.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.bounds
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Rectangle

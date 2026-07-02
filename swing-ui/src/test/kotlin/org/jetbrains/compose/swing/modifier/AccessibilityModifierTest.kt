@@ -8,7 +8,15 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
+import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
+import org.jetbrains.compose.swing.modifier.accessibility.accessibleRole
+import org.jetbrains.compose.swing.modifier.accessibility.labelFor
+import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
+import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
+import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.runSwingUiTest
@@ -166,15 +174,31 @@ class AccessibilityModifierTest {
     }
 
     @Test
-    fun labelForAssociatesLabelWithTaggedTarget() = runSwingUiTest {
+    fun labelForAssociatesLabelWithItsTarget() = runSwingUiTest {
         setContent {
-            Label("Name", modifier = SwingModifier.testTag("nameLabel").labelFor("nameField"))
-            TextField("", modifier = SwingModifier.testTag("nameField"))
+            val usernameField = rememberLabelTarget()
+            Label("Name", modifier = SwingModifier.labelFor(usernameField))
+            // testTag identifies the field to the test harness; labelTarget wires the caption to it.
+            TextField("", modifier = SwingModifier.labelTarget(usernameField).testTag("field"))
         }
-        // The association is resolved via invokeLater; awaitIdle drains the EDT queue so it lands.
         awaitIdle()
-        val field = onNodeWithTag("nameField").fetch<Component>()
-        assertSame(field, onNodeWithTag("nameLabel").fetch<JLabel>().labelFor)
+        val field = onNodeWithTag("field").fetch<JTextField>()
+        assertSame(field, onNodeWithText("Name").fetch<JLabel>().labelFor)
+    }
+
+    @Test
+    fun labelForResolvesRegardlessOfDeclarationOrder() = runSwingUiTest {
+        setContent {
+            val usernameField = rememberLabelTarget()
+            // The target is declared before its label; the reference still pairs them once both attach.
+            TextField("", modifier = SwingModifier.labelTarget(usernameField).testTag("field"))
+            Label("Name", modifier = SwingModifier.labelFor(usernameField))
+        }
+        awaitIdle()
+        assertSame(
+            onNodeWithTag("field").fetch<JTextField>(),
+            onNodeWithText("Name").fetch<JLabel>().labelFor,
+        )
     }
 
     @Test

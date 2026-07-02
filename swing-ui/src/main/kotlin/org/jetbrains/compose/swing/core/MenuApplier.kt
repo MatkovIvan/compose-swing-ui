@@ -18,8 +18,11 @@ import javax.swing.JPopupMenu
  *
  * The root is the menu host: a [JMenuBar] for a window menu bar, or a [JPopupMenu] for a context
  * menu.
+ *
+ * @see org.jetbrains.compose.swing.MenuNode
  */
-internal class MenuBarApplier(
+@PublishedApi
+internal class MenuApplier(
     root: JComponent,
     private val ownerObserver: SnapshotStateObserver,
 ) : AbstractApplier<SwingNodeHolder<*>>(SwingNodeHolder(root)) {
