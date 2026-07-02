@@ -21,17 +21,15 @@ import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 import javax.swing.ListSelectionModel
 import javax.swing.SwingConstants
 
-/**
- * Demonstrates the leaf input/display components, each wired to `remember { mutableStateOf(...) }`
- * so the rendered value and the live state stay in lock-step.
- */
+// The leaf input/display components, each wired to remember { mutableStateOf(...) } so the rendered
+// value and the live state stay in lock-step. PasswordField exposes its value as a CharArray, so the
+// strength echo is derived from the array length without ever interning the cleartext into a String.
 @Composable
 internal fun ComponentsSection() {
     SectionColumn {
@@ -47,7 +45,6 @@ internal fun ComponentsSection() {
     }
 }
 
-/** Button drives a counter; Label reflects it and shows the alignment options. */
 @Composable
 private fun ButtonAndLabelCard() {
     ExampleCard("Button & Label") {
@@ -62,7 +59,6 @@ private fun ButtonAndLabelCard() {
     }
 }
 
-/** TextField and TextArea share one backing value, so editing either updates the echo label. */
 @Composable
 private fun TextInputCard() {
     ExampleCard("TextField & TextArea") {
@@ -80,10 +76,6 @@ private fun TextInputCard() {
     }
 }
 
-/**
- * PasswordField exposes its value as a [CharArray] (mirroring `getPassword()`); the strength echo is
- * derived from the array length without ever interning the cleartext into a String.
- */
 @Composable
 private fun PasswordCard() {
     ExampleCard("PasswordField (CharArray)") {
@@ -96,7 +88,6 @@ private fun PasswordCard() {
     }
 }
 
-/** CheckBox and a group of RadioButtons, each a controlled boolean/index. */
 @Composable
 private fun ToggleCard() {
     ExampleCard("CheckBox & RadioButton") {
@@ -118,7 +109,6 @@ private fun ToggleCard() {
     }
 }
 
-/** ComboBox selection feeds the echo label. */
 @Composable
 private fun ChoiceCard() {
     ExampleCard("ComboBox") {
@@ -130,14 +120,12 @@ private fun ChoiceCard() {
                 items = options,
                 selectedIndex = selected,
                 onSelectionChange = { selected = it },
-                modifier = SwingModifier.testTag(LANGUAGE_COMBO_TAG),
             )
         }
         Label("Selected: ${options.getOrElse(selected) { "none" }}")
     }
 }
 
-/** Slider drives a value that an indeterminate-aware ProgressBar mirrors. */
 @Composable
 private fun RangeCard() {
     ExampleCard("Slider & ProgressBar") {
@@ -149,7 +137,6 @@ private fun RangeCard() {
                 onValueChange = { amount = it },
                 min = 0,
                 max = 100,
-                modifier = SwingModifier.testTag(AMOUNT_SLIDER_TAG),
             )
         }
         ProgressBar(value = amount, min = 0, max = 100)
@@ -158,10 +145,6 @@ private fun RangeCard() {
     }
 }
 
-/**
- * ListBox lives inside a [ScrollPane] (JList is not self-scrolling) and uses
- * [ListSelectionModel.MULTIPLE_INTERVAL_SELECTION] so the selection echo shows several indices at once.
- */
 @Composable
 private fun ListBoxCard() {
     ExampleCard("ListBox in a ScrollPane") {
@@ -181,7 +164,6 @@ private fun ListBoxCard() {
     }
 }
 
-/** Separator in both orientations. */
 @Composable
 private fun SeparatorCard() {
     ExampleCard("Separator") {
@@ -190,7 +172,3 @@ private fun SeparatorCard() {
         Label("Below the horizontal separator")
     }
 }
-
-/** Test tags for the Components controls the showcase's behavioral tests drive directly. */
-internal const val LANGUAGE_COMBO_TAG: String = "components-language-combo"
-internal const val AMOUNT_SLIDER_TAG: String = "components-amount-slider"

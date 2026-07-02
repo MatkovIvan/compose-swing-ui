@@ -12,7 +12,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 
-/** A node in the sample data tree: a [name] and its ordered [children]. */
 private class Node(
     val name: String,
     val children: List<Node> = emptyList(),
@@ -37,11 +36,8 @@ private val sampleTree =
         ),
     )
 
-/**
- * Demonstrates [Tree]: a nested data structure rendered through the data-driven API ([root] +
- * [children] + [label]), wrapped in a [ScrollPane], with the selection driven by state and echoed
- * into a [Label].
- */
+// Tree: a nested data structure rendered through the data-driven API (root + children + label), with
+// the selection driven by state and echoed into a Label.
 @Composable
 internal fun TreeSection() {
     SectionColumn {
@@ -65,7 +61,6 @@ internal fun TreeSection() {
     }
 }
 
-/** Resolves the first selected index path back to readable node names for display. */
 private fun describeSelection(selection: List<List<Int>>): String {
     val path = selection.firstOrNull() ?: return "(none)"
     val names = ArrayList<String>(path.size + 1)

@@ -23,8 +23,10 @@ the quality gates every change must pass, and the code style.
 ./gradlew :samples:widgets-gallery:run
 ```
 
-Tests run **headless** and deterministically — they never realize an on-screen window and never
-sleep. Write UI tests with the `:swing-ui-test` harness:
+Tests are deterministic and never sleep. Harness-driven tests never attach their root to a window,
+so they run with or without a display. A test that realizes a real top-level peer declares that
+requirement with a JUnit assumption (`Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+…)`), so it reports skipped without a display. Write UI tests with the `:swing-ui-test` harness:
 
 ```kotlin
 @Test
@@ -70,8 +72,8 @@ Piece by piece:
   whenever you touch the convention plugins under `buildSrc/`.
 - **`:swing-ui:jacocoTestCoverageVerification`** — `swing-ui` enforces a per-module line-coverage
   floor: a change that drops coverage below the floor fails the build. The floor covers code the
-  headless test suite can exercise. Add tests for any new behavior you can reach through the test
-  harness.
+  suite can exercise without a display. Add tests for any new behavior you can reach through the
+  test harness.
 
 ## Code style
 

@@ -15,11 +15,9 @@ import javax.swing.BoxLayout
 import javax.swing.JScrollPane
 import javax.swing.SwingConstants
 
-/**
- * Demonstrates the full [ScrollPaneScope][org.jetbrains.compose.swing.components.layout.ScrollPaneScope]:
- * a scrollable grid as the content, a synced row header and column header, and a corner badge in the
- * upper-leading slot, with explicit always-on scrollbar policies so every slot is visible at once.
- */
+// The full ScrollPaneScope: a scrollable grid as the content, a synced row header and column header,
+// and a corner badge in the upper-leading slot. The scrollbar policies are forced always-on so every
+// slot is visible at once.
 @Composable
 internal fun ScrollPaneSection() {
     SectionColumn {
@@ -66,10 +64,7 @@ internal fun ScrollPaneSection() {
 
 private const val ROWS = 12
 private const val COLS = 8
-private const val CELL_WIDTH = 60
-private const val CELL_HEIGHT = 24
 
-/** A fixed-size, filled, centered label so headers, corner, and body cells all line up. */
 @Composable
 private fun Cell(
     text: String,
@@ -81,7 +76,7 @@ private fun Cell(
             SwingModifier
                 .opaque(true)
                 .background(color)
-                .preferredSize(Dimension(CELL_WIDTH, CELL_HEIGHT)),
+                .preferredSize(Dimension(60, 24)),
         horizontalAlignment = SwingConstants.CENTER,
     )
 }

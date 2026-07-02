@@ -9,10 +9,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import javax.swing.BoxLayout
 
-/**
- * Demonstrates [RadioGroup]: a set of mutually exclusive options whose selection is held in a single
- * `selectedIndex` state, so the echo label can only ever name one choice.
- */
+// RadioGroup: a set of mutually exclusive options whose selection is held in a single selectedIndex
+// state, so the echo label can only ever name one choice.
 @Composable
 internal fun RadioGroupSection() {
     SectionColumn {
@@ -22,7 +20,6 @@ internal fun RadioGroupSection() {
     }
 }
 
-/** A vertical group bound to one index; the label proves exactly one option is ever selected. */
 @Composable
 private fun VerticalGroupCard() {
     ExampleCard("RadioGroup (vertical)") {
@@ -35,7 +32,6 @@ private fun VerticalGroupCard() {
     }
 }
 
-/** The same controlled selection laid out horizontally via [BoxLayout.X_AXIS]. */
 @Composable
 private fun HorizontalGroupCard() {
     ExampleCard("RadioGroup (horizontal)") {

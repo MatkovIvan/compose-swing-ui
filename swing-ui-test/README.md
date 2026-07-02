@@ -1,8 +1,10 @@
 # swing-ui-test
 
-The test harness for Compose Swing UI. It runs compositions headlessly and deterministically — never
-realizing an on-screen window, never sleeping — so component behavior can be asserted in plain
-`@Test` methods.
+The test harness for Compose Swing UI. It runs compositions off-screen and deterministically — the
+harness root is never shown, and nothing sleeps — so component behavior can be asserted in plain
+`@Test` methods. Content that composes `Window { }` / `Dialog { }` realizes real top-level peers,
+and the harness finds and asserts on those too (a display is required; tests declare it with a JUnit
+assumption, `Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`).
 
 ## Usage
 
@@ -29,8 +31,9 @@ class CounterTest {
 }
 ```
 
-The harness offers finders (`onNodeWithText`, `onNodeWithTag`, `onNodeOfType<T>()`, …), assertions
-(`assertExists`, `assertIsDisplayed`, `assertTextEquals`, …), actions (`performClick`,
+The harness offers finders (`onNodeWithText`, `onNodeWithTag`, `onNodeOfType<T>()`, …), window
+finders (`onWindow`, `onWindowWithTitle`, `onAllWindows`), assertions (`assertExists`,
+`assertIsDisplayed`, `assertTextEquals`, `assertIsVisible`, …), actions (`performClick`,
 `performTextInput`, …), and golden-image screenshot comparison. See
 [`../docs/TESTING-COMPONENTS.md`](../docs/TESTING-COMPONENTS.md) for the full guide; the API itself
 is documented in KDoc.

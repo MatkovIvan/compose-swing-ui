@@ -36,15 +36,10 @@ import java.awt.Font
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 
-/**
- * A gallery where each [SwingModifier] builder visibly affects a real widget. State is hoisted so the
- * appearance modifiers toggle, the interaction modifiers (`onHover`/`onFocus`/`onPointerEvent`) update
- * a live status label, and the keyboard/raw-listener modifiers fire counters.
- *
- * The cards cover a representative set across the modifier families — appearance, layout, interaction,
- * keyboard, and raw listeners — each builder shown against a live widget. Data-transfer, context-menu,
- * and accessibility modifiers have their own dedicated sections.
- */
+// A gallery where each SwingModifier builder visibly affects a real widget, across the modifier
+// families — appearance, layout, interaction, keyboard, and raw listeners. State is hoisted so the
+// appearance modifiers toggle, the interaction modifiers update a live status label, and the
+// keyboard/raw-listener modifiers fire counters.
 @Composable
 internal fun ModifierGallery() {
     SectionColumn {
@@ -66,7 +61,6 @@ internal fun ModifierGallery() {
     }
 }
 
-/** background + opaque + foreground + font + border, all on one label, toggled live. */
 @Composable
 private fun AppearanceCard() {
     ExampleCard("background / foreground / font / border") {
@@ -78,7 +72,7 @@ private fun AppearanceCard() {
                     .opaque(true)
                     .background(Color(0xFF, 0xF3, 0xE0))
                     .foreground(Color(0xBF, 0x36, 0x0C))
-                    .font(Font(Font.SERIF, Font.BOLD or Font.ITALIC, STYLED_FONT_SIZE))
+                    .font(Font(Font.SERIF, Font.BOLD or Font.ITALIC, 15))
                     .border(BorderFactory.createLineBorder(Color(0xBF, 0x36, 0x0C), 2))
             } else {
                 SwingModifier
@@ -87,7 +81,6 @@ private fun AppearanceCard() {
     }
 }
 
-/** preferredSize on a button, and visible toggling another. */
 @Composable
 private fun SizeAndVisibilityCard() {
     ExampleCard("preferredSize / visible") {
@@ -95,13 +88,11 @@ private fun SizeAndVisibilityCard() {
         CheckBox(text = "Show the second button", checked = shown, onCheckedChange = { shown = it })
         FlowPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
             Button("Wide button", modifier = SwingModifier.preferredSize(Dimension(WIDE_BUTTON, BUTTON_HEIGHT)))
-            // The toggled button lives in a slot whose footprint is reserved by the wrapping panel's
-            // explicit preferredSize. visible(false) hides the button but keeps it attached, so the
-            // row no longer collapses and the checkbox above stays anchored. That is exactly what
-            // visible() is for — unlike conditional composition (`if (shown) Button(...)`), which
-            // would drop the child entirely and let the surrounding FlowLayout reflow.
+            // The slot's footprint is reserved by the wrapping panel's preferredSize, so visible(false)
+            // hides the button but keeps it attached and the row does not collapse — unlike conditional
+            // composition (if (shown) Button(...)), which drops the child and lets the layout reflow.
             FlowPanel(
-                modifier = SwingModifier.preferredSize(Dimension(TOGGLE_SLOT, BUTTON_HEIGHT)),
+                modifier = SwingModifier.preferredSize(Dimension(120, BUTTON_HEIGHT)),
                 hgap = 0,
                 vgap = 0,
             ) {
@@ -111,7 +102,6 @@ private fun SizeAndVisibilityCard() {
     }
 }
 
-/** enabled on a field, controlled by a checkbox. */
 @Composable
 private fun EnabledCard() {
     ExampleCard("enabled") {
@@ -127,7 +117,6 @@ private fun EnabledCard() {
     }
 }
 
-/** cursor swaps the pointer over a target; toolTip attaches hover help text — both toggled live. */
 @Composable
 private fun CursorAndToolTipCard() {
     ExampleCard("cursor / toolTip") {
@@ -139,7 +128,7 @@ private fun CursorAndToolTipCard() {
                 SwingModifier
                     .opaque(true)
                     .background(Color(0xE8, 0xF5, 0xE9))
-                    .preferredSize(Dimension(POINTER_TARGET, POINTER_HEIGHT))
+                    .preferredSize(Dimension(260, 32))
                     .alignmentX(LEFT_ALIGNED)
                     .cursor(Cursor.getPredefinedCursor(if (hand) Cursor.HAND_CURSOR else Cursor.DEFAULT_CURSOR))
                     .toolTip(if (hand) "Click affordance: the hand cursor" else "Plain pointer"),
@@ -147,7 +136,6 @@ private fun CursorAndToolTipCard() {
     }
 }
 
-/** clientProperty stores an arbitrary key/value on the component; here it is set from the buttons. */
 @Composable
 private fun ClientPropertyCard() {
     ExampleCard("clientProperty") {
@@ -163,7 +151,6 @@ private fun ClientPropertyCard() {
     }
 }
 
-/** minimumSize and maximumSize clamp a button between two bounds inside a resizing parent. */
 @Composable
 private fun SizeConstraintsCard() {
     ExampleCard("minimumSize / maximumSize") {
@@ -175,21 +162,18 @@ private fun SizeConstraintsCard() {
             "Clamped button",
             modifier =
                 SwingModifier
-                    .minimumSize(Dimension(CLAMP_MIN, BUTTON_HEIGHT))
-                    .maximumSize(Dimension(CLAMP_MAX, BUTTON_HEIGHT))
+                    .minimumSize(Dimension(120, BUTTON_HEIGHT))
+                    .maximumSize(Dimension(240, BUTTON_HEIGHT))
                     .alignmentX(LEFT_ALIGNED),
         )
     }
 }
 
-/** alignmentX/alignmentY position a child within a layout that honors alignment. */
 @Composable
 private fun AlignmentCard() {
     ExampleCard("alignmentX / alignmentY") {
         var aligned by remember { mutableStateOf(true) }
         CheckBox(text = "Align both rows left", checked = aligned, onCheckedChange = { aligned = it })
-        // A vertical BoxLayout honors alignmentX: 0.0 lines both buttons up on the left edge; 0.5 centers
-        // the narrow one over the wide one, so the offset is visible the moment the box is unchecked.
         BoxPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED), axis = BoxLayout.Y_AXIS) {
             Button(
                 "Wide row button",
@@ -197,19 +181,17 @@ private fun AlignmentCard() {
             )
             Button(
                 "Narrow",
-                modifier = SwingModifier.alignmentX(if (aligned) LEFT_ALIGNED else CENTER_ALIGNED),
+                modifier = SwingModifier.alignmentX(if (aligned) LEFT_ALIGNED else 0.5f),
             )
         }
-        // alignmentY governs how a child lines up against taller siblings in a horizontal BoxLayout.
         FlowPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
-            Label("Tall ↕", modifier = SwingModifier.preferredSize(Dimension(TALL_WIDTH, TALL_HEIGHT)))
-            Label("top", modifier = SwingModifier.alignmentY(TOP_ALIGNED))
-            Label("bottom", modifier = SwingModifier.alignmentY(BOTTOM_ALIGNED))
+            Label("Tall ↕", modifier = SwingModifier.preferredSize(Dimension(60, 40)))
+            Label("top", modifier = SwingModifier.alignmentY(0.0f))
+            Label("bottom", modifier = SwingModifier.alignmentY(1.0f))
         }
     }
 }
 
-/** focusable toggles whether the control accepts keyboard focus at all. */
 @Composable
 private fun FocusableCard() {
     ExampleCard("focusable") {
@@ -221,16 +203,5 @@ private fun FocusableCard() {
     }
 }
 
-private const val STYLED_FONT_SIZE = 15
 private const val WIDE_BUTTON = 200
 private const val BUTTON_HEIGHT = 30
-private const val TOGGLE_SLOT = 120
-private const val POINTER_TARGET = 260
-private const val POINTER_HEIGHT = 32
-private const val CLAMP_MIN = 120
-private const val CLAMP_MAX = 240
-private const val TALL_WIDTH = 60
-private const val TALL_HEIGHT = 40
-private const val CENTER_ALIGNED = 0.5f
-private const val TOP_ALIGNED = 0.0f
-private const val BOTTOM_ALIGNED = 1.0f

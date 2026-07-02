@@ -17,10 +17,9 @@ import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 
-/**
- * Demonstrates the rich-text editors [EditorPane] and [TextPane], each bound to a
- * `remember { mutableStateOf(...) }` value so edits and the echo label stay in lock-step.
- */
+// The rich-text editors EditorPane and TextPane, each bound to a remember { mutableStateOf(...) } value
+// so edits and the echo label stay in lock-step. The EditorPane flips its ContentType between plain text
+// and HTML so the same markup is shown raw, then rendered.
 @Composable
 internal fun RichTextSection() {
     SectionColumn {
@@ -30,10 +29,6 @@ internal fun RichTextSection() {
     }
 }
 
-/**
- * EditorPane bound to one value; a ToggleButton flips [ContentType] between plain text and HTML so the
- * same markup is shown raw, then rendered. A CheckBox drives the editable flag.
- */
 @Composable
 private fun EditorPaneCard() {
     ExampleCard("EditorPane (PlainText / Html)") {
@@ -63,7 +58,6 @@ private fun EditorPaneCard() {
     }
 }
 
-/** TextPane bound to a value; the echo label reports its current length as the user types. */
 @Composable
 private fun TextPaneCard() {
     ExampleCard("TextPane") {

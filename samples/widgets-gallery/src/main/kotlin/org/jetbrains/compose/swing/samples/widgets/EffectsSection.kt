@@ -18,11 +18,9 @@ import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 
-/**
- * Demonstrates Compose effects running over the Swing recomposer: coroutine-backed
- * [LaunchedEffect], lifecycle-aware [DisposableEffect], and snapshot-derived [derivedStateOf].
- * Together they show that the coroutine and snapshot bridges are wired to the Swing frame clock.
- */
+// Compose effects running over the Swing recomposer: coroutine-backed LaunchedEffect, lifecycle-aware
+// DisposableEffect (its onDispose fires when the child leaves composition), and snapshot-derived
+// derivedStateOf — proof that the coroutine and snapshot bridges are wired to the Swing frame clock.
 @Composable
 internal fun EffectsSection() {
     SectionColumn {
@@ -33,7 +31,6 @@ internal fun EffectsSection() {
     }
 }
 
-/** A [LaunchedEffect] ticks a counter on a delay loop, proving coroutines drive recomposition. */
 @Composable
 private fun TickerCard() {
     ExampleCard("LaunchedEffect (delay loop)") {
@@ -57,10 +54,6 @@ private fun TickerCard() {
     }
 }
 
-/**
- * Toggling the child in and out of composition runs its [DisposableEffect] `onDispose`, which
- * appends to a log the parent still owns — observable proof that cleanup fires on leaving.
- */
 @Composable
 private fun DisposableCard() {
     ExampleCard("DisposableEffect (onDispose log)") {
@@ -81,7 +74,6 @@ private fun DisposableCard() {
     }
 }
 
-/** A child whose [DisposableEffect] reports back to the parent when it leaves composition. */
 @Composable
 private fun ManagedChild(onDispose: () -> Unit) {
     DisposableEffect(Unit) {
@@ -90,10 +82,6 @@ private fun ManagedChild(onDispose: () -> Unit) {
     Label("Child is alive.")
 }
 
-/**
- * A [derivedStateOf] value recomputes only from the state it reads, here mapping a slider amount
- * to a label without an explicit observer.
- */
 @Composable
 private fun DerivedStateCard() {
     ExampleCard("derivedStateOf") {

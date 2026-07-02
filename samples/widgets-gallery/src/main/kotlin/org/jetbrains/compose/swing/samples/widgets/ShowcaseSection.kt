@@ -19,27 +19,20 @@ import javax.swing.BoxLayout
 import javax.swing.JScrollPane
 import javax.swing.SwingConstants
 
-/**
- * The left edge alignment (`0.0`) shared by every direct child of an [ExampleCard] column. A vertical
- * `BoxLayout` lines its children up by their `alignmentX`; leaf controls already report `0.0`, while
- * panels default to centered (`0.5`). Mixing the two in one column pushes the left-aligned controls
- * sideways to track the centered panels — and that offset shifts whenever the column's width changes,
- * so a control visibly jumps on toggle. Tagging every panel sibling with [LEFT_ALIGNED] keeps the whole
- * column flush-left and stable. Apply it via `SwingModifier.alignmentX(LEFT_ALIGNED)`.
- */
+// The left-edge alignment shared by every direct child of a card column. A vertical BoxLayout lines its
+// children up by alignmentX; leaf controls already report 0.0 but panels default to centered (0.5), and
+// mixing the two pushes the left-aligned controls sideways to track the centered ones — an offset that
+// shifts whenever the column width changes, so a control visibly jumps on toggle. Tagging every panel
+// sibling with this keeps the column flush-left and stable.
 internal const val LEFT_ALIGNED: Float = Component.LEFT_ALIGNMENT
 
-/**
- * A navigable section of the showcase. Each entry pairs a sidebar [title] with the composable that
- * renders the section's body, so adding a section is a single list entry — the navigation shell and
- * the body switch both read from the same source of truth.
- */
+// A navigable section of the showcase: a sidebar title paired with the composable that renders its body,
+// so adding a section is a single list entry and the navigation shell and the body switch read from one source.
 internal class ShowcaseSection(
     val title: String,
     val body: @Composable () -> Unit,
 )
 
-/** The ordered sections shown in the showcase, in sidebar order. */
 internal val showcaseSections: List<ShowcaseSection> =
     listOf(
         ShowcaseSection("Components") { ComponentsSection() },
@@ -68,17 +61,6 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Modifier gallery") { ModifierGallery() },
     )
 
-private const val HEADING_FONT_SIZE = 16
-private const val HEADING_RGB = 0x2D4B73
-private const val CAPTION_WRAP_WIDTH = 440
-
-/**
- * A captioned card: a titled, bordered region wrapping one example. Used throughout the showcase to
- * keep each demonstrated API visually separated and labelled with the API it exercises.
- *
- * @param title the caption naming the demonstrated API
- * @param content the example composable
- */
 @Composable
 internal fun ExampleCard(
     title: String,
@@ -89,7 +71,7 @@ internal fun ExampleCard(
             SwingModifier.border(
                 BorderFactory.createCompoundBorder(
                     BorderFactory.createTitledBorder(title),
-                    BorderFactory.createEmptyBorder(CARD_INSET, CARD_INSET, CARD_INSET, CARD_INSET),
+                    BorderFactory.createEmptyBorder(6, 6, 6, 6),
                 ),
             ),
     ) {
@@ -101,17 +83,8 @@ internal fun ExampleCard(
     }
 }
 
-private const val CARD_INSET = 6
-
-/**
- * A scrollable vertical column of [ExampleCard]s, the standard body shape for a section that stacks
- * several independent examples taller than the viewport.
- *
- * The column scrolls vertically only: the horizontal scrollbar is disabled so a wide example never
- * forces a sideways scrollbar onto the whole section.
- *
- * @param cards the section's cards
- */
+// The standard body shape for a section: a vertical column of cards that scrolls vertically only, so a
+// wide example never forces a sideways scrollbar onto the whole section.
 @Composable
 internal fun SectionColumn(cards: @Composable () -> Unit) {
     ScrollPane(
@@ -126,7 +99,6 @@ internal fun SectionColumn(cards: @Composable () -> Unit) {
     }
 }
 
-/** A bold heading row, used as the title of a section body. */
 @Composable
 internal fun SectionHeading(text: String) {
     FlowPanel(alignment = SwingConstants.LEADING) {
@@ -134,21 +106,18 @@ internal fun SectionHeading(text: String) {
             text = text,
             modifier =
                 SwingModifier
-                    .font(Font(Font.SANS_SERIF, Font.BOLD, HEADING_FONT_SIZE))
-                    .foreground(Color(HEADING_RGB)),
+                    .font(Font(Font.SANS_SERIF, Font.BOLD, 16))
+                    .foreground(Color(0x2D4B73)),
         )
     }
 }
 
-/**
- * A short paragraph of explanatory text inside a card. The text is wrapped in an HTML body with a
- * bounded width so it flows onto multiple lines instead of forcing the layout wide — long captions
- * never trigger a horizontal scrollbar.
- */
+// Explanatory text inside a card. Wrapping it in an HTML body of bounded width lets a long caption flow
+// onto multiple lines instead of forcing the layout wide and triggering a horizontal scrollbar.
 @Composable
 internal fun WrappedCaption(text: String) {
     Label(
-        text = "<html><body style='width:${CAPTION_WRAP_WIDTH}px'>$text</body></html>",
+        text = "<html><body style='width:440px'>$text</body></html>",
         horizontalAlignment = SwingConstants.LEADING,
     )
 }

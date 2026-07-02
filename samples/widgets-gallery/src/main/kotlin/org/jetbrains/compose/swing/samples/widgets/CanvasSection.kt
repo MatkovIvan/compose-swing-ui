@@ -26,15 +26,10 @@ import java.awt.geom.Ellipse2D
 import java.awt.geom.Path2D
 import javax.swing.BorderFactory
 
-/**
- * Demonstrates [Canvas] custom drawing with the raw [Graphics2D] pipeline: a gradient-shaded
- * background, a ring of rotated translucent petals built from cubic Bézier paths, a stroked progress
- * arc, and a centred readout — none of which is a built-in widget, all of it hand-rendered.
- *
- * Both the petal count and the sweep are read *directly inside* `onDraw`: [Canvas] observes the
- * snapshot state touched while drawing, so moving either slider repaints the surface automatically —
- * no need to hoist the read into the composition or capture a value into the lambda.
- */
+// Canvas custom drawing through the raw Graphics2D pipeline — none of it a built-in widget, all of it
+// hand-rendered. The slider values are read directly inside onDraw: Canvas observes the snapshot state
+// touched while drawing, so moving a slider repaints the surface automatically, with no read hoisted
+// into the composition or captured into the lambda.
 @Composable
 internal fun CanvasSection() {
     SectionColumn {
@@ -63,8 +58,6 @@ internal fun CanvasSection() {
                         .alignmentX(LEFT_ALIGNED)
                         .border(BorderFactory.createLineBorder(Color.GRAY)),
             ) { g, width, height ->
-                // `petals` and `sweep` are read here, at paint time. Canvas observes them, so moving
-                // either slider repaints this surface automatically.
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
                 g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE)
 
@@ -77,7 +70,6 @@ internal fun CanvasSection() {
     }
 }
 
-/** Fills the surface with a two-stop diagonal [GradientPaint] so the petals sit on shaded depth. */
 private fun paintGradientBackdrop(
     g: Graphics2D,
     width: Int,
@@ -87,11 +79,6 @@ private fun paintGradientBackdrop(
     g.fillRect(0, 0, width, height)
 }
 
-/**
- * Draws [count] translucent petals around the centre. Each petal is a closed cubic Bézier path built
- * once at the top of the surface, then rotated into place with the graphics transform — the canonical
- * "one shape, many transforms" custom-drawing pattern.
- */
 private fun paintPetalRing(
     g: Graphics2D,
     width: Int,
@@ -102,8 +89,6 @@ private fun paintPetalRing(
     val centreY = height / 2.0
     val reach = minOf(width, height) / 2.0 * PETAL_REACH_FRACTION
 
-    // Control points as fractions of the petal's reach: a narrow waist near the centre that fans out
-    // to a rounded tip, mirrored across the vertical axis to close the leaf shape.
     val waist = reach * PETAL_WAIST_FRACTION
     val shoulder = reach * PETAL_SHOULDER_FRACTION
     val petal =
@@ -129,13 +114,8 @@ private fun paintPetalRing(
     }
 }
 
-/** A translucent white at the given [alpha], reused for the petals' fill and stroke. */
 private fun whiteAlpha(alpha: Int): Color = Color(WHITE_RGB, WHITE_RGB, WHITE_RGB, alpha)
 
-/**
- * Draws a stroked arc that fills clockwise from the top in proportion to [percent], with a faint full
- * track behind it — a hand-built progress gauge using [Arc2D] and a round-capped [BasicStroke].
- */
 private fun paintArcGauge(
     g: Graphics2D,
     width: Int,
@@ -156,7 +136,6 @@ private fun paintArcGauge(
     g.draw(Arc2D.Double(x, y, size, size, GAUGE_START_ANGLE, extent, Arc2D.OPEN))
 }
 
-/** Paints the percentage as antialiased text inside a small disc at the centre of the gauge. */
 private fun paintCentreReadout(
     g: Graphics2D,
     width: Int,
@@ -178,10 +157,8 @@ private fun paintCentreReadout(
     g.drawString(text, textX, textY)
 }
 
-/** Test tag for the [CanvasSection] drawing surface, used by its behavioral tests to locate it. */
 internal const val CANVAS_TAG = "canvas-section-surface"
 
-// Palette, named once because the painting helpers below are plain functions, not @Composable.
 private val DEEP_BLUE = Color(0x0D, 0x47, 0xA1)
 private val BRIGHT_BLUE = Color(0x42, 0x85, 0xF4)
 private val AMBER = Color(0xFF, 0xC1, 0x07)

@@ -21,9 +21,9 @@ import java.awt.Component
  * Every built-in wrapper (`Button`, `TextField`, `Slider`, …) is built on top of this function — see
  * `docs/CUSTOM-COMPONENTS.md`.
  *
- * A slot-based parent can dictate this node's placement (e.g. a `BorderLayout` region via
- * [LocalSwingConstraint]) or how it is installed into a host with dedicated setters (e.g. a
- * `JScrollPane` region via [SlotNode]), without the child knowing its container.
+ * A slot-based parent can dictate this node's placement (e.g. a `BorderLayout` region declared
+ * through a `BorderPanel` slot) or install it into a host that reaches children through dedicated
+ * setters (e.g. a `JScrollPane` region), without the child knowing its container.
  *
  * The node is recyclable: when it is conditionally shown/hidden across recompositions (e.g. a
  * [androidx.compose.runtime.ReusableContentHost] parked and reactivated, or structurally-identical

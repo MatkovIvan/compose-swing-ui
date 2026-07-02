@@ -8,11 +8,6 @@ import javax.swing.JSlider
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/**
- * Behavioral + screenshot coverage for the Canvas section. The surface reads its slider state at paint
- * time, so moving a slider repaints it. The tests assert the slider echo recomposes and capture the
- * hand-drawn surface to a real bitmap, confirming an unchanged surface re-captures identically.
- */
 class CanvasSectionTest {
     @Test
     fun theSweepSliderEchoRecomposes() =
@@ -21,8 +16,6 @@ class CanvasSectionTest {
 
             onNodeWithText("Sweep: 70%", substring = true).assertExists()
 
-            // The sweep slider is the second slider in the card (after the petal-count slider). Drive it
-            // through its own JSlider; the echo label recomposes from the same hoisted state.
             val sliders = onAllNodesOfType<JSlider>().fetchAll<JSlider>()
             assertTrue(sliders.size >= 2, "the Canvas card exposes a petal slider and a sweep slider")
             sliders[1].value = 30
@@ -35,14 +28,9 @@ class CanvasSectionTest {
         runSwingUiTest {
             openSection("Canvas")
 
-            // Capture the hand-drawn surface as a real bitmap; re-capturing the unchanged surface matches.
             val initial = onNodeWithTag(CANVAS_TAG).captureToImage()
             assertTrue(initial.width > 0 && initial.height > 0, "the captured surface has real size")
 
-            // The surface is hand-painted edge to edge (a gradient backdrop under petals and a gauge), so
-            // it must be substantially filled with many distinct colours. A blank/transparent surface —
-            // e.g. an unwired snapshot observer that skips onDraw — would still "self-match" on
-            // re-capture, so assert real paint coverage here, not just that the surface is stable.
             var painted = 0
             val colours = HashSet<Int>()
             for (y in 0 until initial.height) {

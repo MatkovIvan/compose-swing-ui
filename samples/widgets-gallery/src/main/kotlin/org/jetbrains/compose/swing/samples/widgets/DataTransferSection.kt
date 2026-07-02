@@ -27,11 +27,8 @@ import javax.swing.BorderFactory
 import javax.swing.JComponent
 import javax.swing.TransferHandler
 
-/**
- * Demonstrates the data-transfer modifiers: drag-and-drop between components and system-clipboard
- * copy/paste. Drag the source label onto the drop panel to transfer its text; copy a value to the
- * clipboard and paste it back. All payloads are plain strings carried as a [StringSelection].
- */
+// The data-transfer modifiers: drag-and-drop between components and system-clipboard copy/paste.
+// All payloads are plain strings carried as a StringSelection.
 @Composable
 internal fun DataTransferSection() {
     SectionColumn {
@@ -53,7 +50,6 @@ private fun DragAndDropCard() {
                 modifier =
                     SwingModifier
                         .border(BorderFactory.createDashedBorder(Color.GRAY))
-                        // Export the label's text as a string when a drag begins on it.
                         .draggable(exportedActions = TransferHandler.COPY) { StringSelection(payload) },
             )
         }
@@ -65,7 +61,6 @@ private fun DragAndDropCard() {
                         .border(BorderFactory.createLineBorder(Color.GRAY))
                         .dropTarget(
                             acceptedActions = TransferHandler.COPY,
-                            // Accept the drop only when a string flavor is offered.
                             canImport = { flavors -> DataFlavor.stringFlavor in flavors },
                             onDrop = { transferable ->
                                 dropped = transferable.getTransferData(DataFlavor.stringFlavor) as String
@@ -84,7 +79,6 @@ private fun ClipboardCard() {
     ExampleCard("copyToClipboard + pasteFromClipboard (explicit buttons)") {
         var text by remember { mutableStateOf("Copy me to the system clipboard") }
         var status by remember { mutableStateOf("") }
-        // The clipboard helpers act on the underlying JComponent, captured once the field is shown.
         var field by remember { mutableStateOf<JComponent?>(null) }
 
         FlowPanel {

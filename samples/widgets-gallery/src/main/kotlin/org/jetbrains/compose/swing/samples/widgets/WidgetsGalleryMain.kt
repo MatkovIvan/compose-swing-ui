@@ -10,26 +10,17 @@ import javax.swing.JMenuBar
 import javax.swing.SwingUtilities
 import javax.swing.UIManager
 
-/*
- * The runnable entry point for the gallery — and ONLY the entry point.
- *
- * There is no `@Composable` in this file: window creation, the menu bar, the Look-and-Feel, and the
- * close behaviour are ordinary Swing/AWT plumbing, kept apart from the composable UI (the shell and the
- * sections, which know nothing about frames). That split is the lesson — a Compose-over-Swing app is a
- * thin Swing `main` that hands a `JFrame` to `setContent`, plus a reactive composable tree that is just
- * as happy running inside a headless test with no `main` at all.
- *
- * Two windows-into-Compose appear here:
- *  - The frame's content is composed with `frame.setContent { ... }`.
- *  - The menu bar is its OWN little composition via `menuBar.setContent { ... }`, so a composable menu
- *    can live in the native [JMenuBar].
- * The frame is also published through [LocalWindow], giving the modal dialog section a true owner.
- */
 private const val WINDOW_WIDTH = 960
 private const val WINDOW_HEIGHT = 680
+private const val BUTTON_INSET_V = 4
+private const val BUTTON_INSET_H = 12
 
+// The runnable entry point. There is no @Composable here: window creation, the menu bar, and the
+// Look-and-Feel are plain Swing plumbing, kept apart from the composable UI (the shell and sections,
+// which know nothing about frames). The frame's content and the menu bar are each their own little
+// composition, so a composable menu can live in the native JMenuBar.
 fun main() {
-    // All Swing work happens on the Event Dispatch Thread; both `setContent` calls are made from here.
+    // All Swing work happens on the Event Dispatch Thread; both setContent calls are made from here.
     SwingUtilities.invokeLater {
         installLookAndFeel()
 
@@ -38,17 +29,15 @@ fun main() {
         frame.size = Dimension(WINDOW_WIDTH, WINDOW_HEIGHT)
         frame.setLocationRelativeTo(null)
 
+        // Attach the menu bar to the frame before setting its content: the menu content then resolves
+        // its parent composition by walking up to the owning window immediately, mounting synchronously.
+        // (Content on a detached bar is also supported — it simply defers until the bar is attached.)
         val menuBar = JMenuBar()
-        // Attach the menu bar to the frame BEFORE calling setContent as the preferred ordering: this lets
-        // the menu content resolve its parent composition by walking up to the owning window's recomposer
-        // immediately. Setting content on a detached menu bar is also supported — the bar simply defers
-        // and mounts when it is later attached to the frame — but attaching first keeps the mount
-        // synchronous.
         frame.jMenuBar = menuBar
         menuBar.setContent { ShowcaseMenuBar(onExit = { frame.dispose() }) }
 
-        // Publish the frame so descendants (e.g. the modal dialog section) can resolve a real owner.
         frame.setContent {
+            // Publish the frame so descendants (e.g. the modal dialog section) can resolve a real owner.
             CompositionLocalProvider(LocalWindow provides frame) {
                 ShowcaseShell()
             }
@@ -58,16 +47,10 @@ fun main() {
     }
 }
 
-/*
- * Visual polish is the host Look-and-Feel's job, not the framework's: install the platform's system LaF
- * so the gallery adopts the host's native chrome instead of the cross-platform Metal LaF, plus one
- * neutral tweak for breathing room. Theming beyond this belongs to whatever LaF the host application
- * chooses; the gallery deliberately ships none of its own.
- */
+// Visual polish is the host Look-and-Feel's job, not the framework's: install the platform's system
+// LaF so the gallery adopts native chrome instead of cross-platform Metal. The sample ships no theme
+// of its own.
 private fun installLookAndFeel() {
     runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
     UIManager.put("Button.margin", Insets(BUTTON_INSET_V, BUTTON_INSET_H, BUTTON_INSET_V, BUTTON_INSET_H))
 }
-
-private const val BUTTON_INSET_V = 4
-private const val BUTTON_INSET_H = 12

@@ -20,31 +20,29 @@ import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import java.awt.Dimension
 import javax.swing.BoxLayout
 import javax.swing.SwingConstants
 
-/**
- * A reactive to-do list that shows what Compose-over-Swing buys you on a single, approachable screen.
- *
- * One [SnapshotStateList] of [Task]s is the single source of truth. Adding, removing, and toggling a
- * task mutates that list; every piece of UI that reads it — the live "N of M done" summary, the
- * progress bar, and the rows themselves — recomposes automatically. The summary is a [derivedStateOf]
- * so it recomputes only when the list actually changes, never on unrelated recompositions. Each row is
- * keyed by a stable task id, so adding or completing one task never disturbs the identity (or the
- * in-progress text edit) of any other.
- */
+// A reactive to-do list on one screen. A single SnapshotStateList of tasks is the source of truth:
+// every view that reads it — the "N of M done" summary, the progress bar, the rows — recomposes when
+// it changes. Each row is keyed by a stable task id, so adding or completing one task never disturbs
+// another row's identity or its in-progress edit.
 @Composable
 internal fun ReactiveTaskList() {
     val tasks = remember { initialTasks().toMutableStateList() }
     var nextId by remember { mutableIntStateOf(tasks.size + 1) }
 
-    // Derived, not recomputed by hand: these read `tasks` and refresh only when it changes.
+    // Derived, not recomputed by hand: these refresh only when the list itself changes.
     val total by remember { derivedStateOf { tasks.size } }
     val done by remember { derivedStateOf { tasks.count { it.done } } }
 
-    BorderPanel(modifier = SwingModifier.testTag(TASK_LIST_TAG), hgap = 0, vgap = ROW_GAP) {
+    BorderPanel(hgap = 0, vgap = ROW_GAP) {
         north {
             BoxPanel(axis = BoxLayout.Y_AXIS) {
                 SampleTitle("Reactive task list")
@@ -67,7 +65,6 @@ internal fun ReactiveTaskList() {
     }
 }
 
-/** The live progress summary: a "N of M done" label plus a progress bar, both derived from the list. */
 @Composable
 private fun SummaryRow(
     done: Int,
@@ -75,19 +72,17 @@ private fun SummaryRow(
 ) {
     Card("Progress") {
         FlowPanel(alignment = SwingConstants.LEADING) {
-            // Fixed-width so the bar to its right never shifts as the counts change.
+            // Fixed-width label so the bar to its right never shifts as the counts change.
             ValueLabel(text = "$done of $total done", width = 120)
             ProgressBar(
                 value = done,
                 min = 0,
                 max = total.coerceAtLeast(1),
-                modifier = SwingModifier.testTag(PROGRESS_TAG),
             )
         }
     }
 }
 
-/** The add-a-task row: a text field plus an Add button that is disabled while the field is blank. */
 @Composable
 private fun AddTaskRow(onAdd: (String) -> Unit) {
     Card("Add a task") {
@@ -106,22 +101,17 @@ private fun AddTaskRow(onAdd: (String) -> Unit) {
                 value = draft,
                 onValueChange = { draft = it },
                 columns = 28,
-                modifier = SwingModifier.testTag(ADD_FIELD_TAG),
+                modifier = SwingModifier.accessibleName("New task"),
             )
             Button(
                 text = "Add",
                 onClick = { commit() },
-                modifier = SwingModifier.enabled(canAdd).testTag(ADD_BUTTON_TAG),
+                modifier = SwingModifier.enabled(canAdd),
             )
         }
     }
 }
 
-/**
- * The dynamic list hierarchy. Each task becomes one keyed row; the set of rows grows and shrinks with
- * the list, demonstrating structural recomposition (rows are inserted and removed from the live Swing
- * tree, not merely shown and hidden). An empty list collapses to a single placeholder row.
- */
 @Composable
 private fun TaskRows(
     tasks: List<Task>,
@@ -129,6 +119,8 @@ private fun TaskRows(
     onRename: (Int, String) -> Unit,
     onRemove: (Int) -> Unit,
 ) {
+    // The dynamic list: rows are inserted into and removed from the live Swing tree as the list grows
+    // and shrinks (structural recomposition), not merely shown and hidden.
     ScrollPane {
         content {
             BoxPanel(axis = BoxLayout.Y_AXIS) {
@@ -155,11 +147,6 @@ private fun TaskRows(
     }
 }
 
-/**
- * A single task row: a completion checkbox, an inline-editable title, and a remove button — laid out so
- * toggling completion never changes the row's size or the position of any control. The checkbox sits in
- * a fixed-width west slot, so its label width changing ("Done" vs unchecked) cannot push the title.
- */
 @Composable
 private fun TaskRow(
     task: Task,
@@ -167,9 +154,19 @@ private fun TaskRow(
     onRename: (String) -> Unit,
     onRemove: () -> Unit,
 ) {
-    BorderPanel(modifier = SwingModifier.testTag(taskRowTag(task.id)), hgap = ROW_GAP, vgap = 0) {
+    // A row of a fixed height: preferred + maximum pin the height to 32 so a BoxLayout parent stretches
+    // the row across the full width but never grows it taller. Toggling completion or editing the title
+    // never changes the row's size or the position of any control.
+    BorderPanel(
+        modifier =
+            SwingModifier
+                .testTag(taskRowTag(task.id))
+                .preferredSize(Dimension(0, 32))
+                .maximumSize(Dimension(Int.MAX_VALUE, 32)),
+        hgap = ROW_GAP,
+        vgap = 0,
+    ) {
         west {
-            // Checkbox text is empty and fixed in place, so checking it never reflows the title field.
             CheckBox(
                 text = "",
                 checked = task.done,
@@ -195,7 +192,6 @@ private fun TaskRow(
     }
 }
 
-/** Replaces the single task with [id] by applying [transform] to it; a no-op if no such task exists. */
 private fun SnapshotStateList<Task>.replaceById(
     id: Int,
     transform: (Task) -> Task,
@@ -204,7 +200,6 @@ private fun SnapshotStateList<Task>.replaceById(
     if (index >= 0) this[index] = transform(this[index])
 }
 
-/** An immutable task. State changes produce a fresh copy, so the list's diffing stays value-based. */
 internal data class Task(
     val id: Int,
     val title: String,
@@ -213,18 +208,11 @@ internal data class Task(
 
 private fun initialTasks(): List<Task> =
     listOf(
-        Task(id = 1, title = "Set the system Look-and-Feel", done = true),
-        Task(id = 2, title = "Compose a reactive screen over Swing", done = true),
-        Task(id = 3, title = "Drive the list from a single state source"),
+        Task(id = 1, title = "Compose a reactive screen over Swing", done = true),
+        Task(id = 2, title = "Drive the list from a single state source", done = true),
+        Task(id = 3, title = "Recompose the summary and progress bar"),
         Task(id = 4, title = "Keep the layout still as state changes"),
     )
-
-// Test tags — the consumer test drives and reads the sample through these stable handles, not through
-// brittle text or tree-position queries.
-internal const val TASK_LIST_TAG: String = "reactive-task-list"
-internal const val PROGRESS_TAG: String = "task-progress"
-internal const val ADD_FIELD_TAG: String = "task-add-field"
-internal const val ADD_BUTTON_TAG: String = "task-add-button"
 
 internal fun taskRowTag(id: Int): String = "task-row-$id"
 

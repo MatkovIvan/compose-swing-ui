@@ -16,12 +16,10 @@ import org.jetbrains.compose.swing.window.rememberWindowState
 import java.awt.Dimension
 import javax.swing.SwingConstants
 
-/**
- * Demonstrates the declarative top-level window peers: a secondary [Window] and a modal [Dialog]. Each
- * is conditionally composed behind a boolean, so opening is "compose it" and closing is "stop composing
- * it" — `onCloseRequest` simply flips the state back. The dialog is application-modal and inherits the
- * showcase window as its owner via `LocalWindow`.
- */
+// The declarative top-level window peers: a secondary Window and a modal Dialog. Each is conditionally
+// composed behind a boolean, so opening is "compose it" and closing is "stop composing it" —
+// onCloseRequest simply flips the state back. The dialog is application-modal and inherits the showcase
+// window as its owner via LocalWindow.
 @Composable
 internal fun WindowsSection() {
     SectionColumn {
@@ -31,7 +29,6 @@ internal fun WindowsSection() {
     }
 }
 
-/** A secondary [Window] toggled open/closed by a button and its own close request. */
 @Composable
 private fun SecondaryWindowCard() {
     ExampleCard("Window (secondary top-level frame)") {
@@ -64,7 +61,6 @@ private fun SecondaryWindowCard() {
     }
 }
 
-/** A modal [Dialog] using [java.awt.Dialog.ModalityType.APPLICATION_MODAL], opened from a button. */
 @Composable
 private fun ModalDialogCard() {
     ExampleCard("Dialog (application-modal)") {

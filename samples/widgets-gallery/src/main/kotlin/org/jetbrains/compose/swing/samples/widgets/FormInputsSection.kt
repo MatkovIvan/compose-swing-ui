@@ -25,11 +25,8 @@ import javax.swing.text.DocumentFilter
 import javax.swing.text.MaskFormatter
 import javax.swing.text.NumberFormatter
 
-/**
- * Demonstrates the form-input controls — [Spinner], [ToggleButton], and [FormattedTextField] — plus the
- * [SwingModifier.documentFilter] seam. Every card binds its control to live state echoed by an adjacent
- * [Label].
- */
+// The form-input controls — Spinner, ToggleButton, FormattedTextField — plus the documentFilter seam.
+// Every card binds its control to live state echoed by an adjacent Label.
 @Composable
 internal fun FormInputsSection() {
     SectionColumn {
@@ -44,7 +41,6 @@ internal fun FormInputsSection() {
     }
 }
 
-/** The Int Spinner steps a controlled count between bounds; the echo follows. */
 @Composable
 private fun IntSpinnerCard() {
     ExampleCard("Spinner (Int)") {
@@ -57,7 +53,6 @@ private fun IntSpinnerCard() {
     }
 }
 
-/** The Double Spinner steps by a fractional amount, echoing the committed value. */
 @Composable
 private fun DoubleSpinnerCard() {
     ExampleCard("Spinner (Double)") {
@@ -70,8 +65,8 @@ private fun DoubleSpinnerCard() {
                 min = 0.0,
                 max = 5.0,
                 step = 0.5,
-                // The default editor is sized for short integers and clips a fractional value to "1.";
-                // a wider preferred width lets the whole "1.5" show.
+                // The default editor is sized for short integers and would clip "1.5" to "1."; a wider
+                // preferred width lets the whole fractional value show.
                 modifier = SwingModifier.preferredSize(Dimension(80, 28)),
             )
         }
@@ -79,7 +74,6 @@ private fun DoubleSpinnerCard() {
     }
 }
 
-/** The list Spinner cycles a fixed set of items by index. */
 @Composable
 private fun ListSpinnerCard() {
     ExampleCard("Spinner (list)") {
@@ -93,7 +87,6 @@ private fun ListSpinnerCard() {
     }
 }
 
-/** ToggleButton holds a controlled pressed state echoed below. */
 @Composable
 private fun ToggleButtonCard() {
     ExampleCard("ToggleButton") {
@@ -103,7 +96,6 @@ private fun ToggleButtonCard() {
     }
 }
 
-/** A FormattedTextField backed by a NumberFormatter parses validated integer input. */
 @Composable
 private fun NumberFieldCard() {
     ExampleCard("FormattedTextField (NumberFormatter)") {
@@ -129,7 +121,6 @@ private fun NumberFieldCard() {
     }
 }
 
-/** A FormattedTextField backed by a MaskFormatter constrains input to a phone-number mask. */
 @Composable
 private fun MaskFieldCard() {
     ExampleCard("FormattedTextField (MaskFormatter)") {
@@ -154,7 +145,6 @@ private fun MaskFieldCard() {
     }
 }
 
-/** A plain TextField gated to digits-only through the documentFilter seam. */
 @Composable
 private fun DigitsOnlyCard() {
     ExampleCard("TextField + documentFilter (digits only)") {
@@ -172,7 +162,6 @@ private fun DigitsOnlyCard() {
     }
 }
 
-/** Rejects any inserted or replaced text that contains a non-digit character. */
 private object DigitsOnlyFilter : DocumentFilter() {
     override fun insertString(
         fb: FilterBypass,

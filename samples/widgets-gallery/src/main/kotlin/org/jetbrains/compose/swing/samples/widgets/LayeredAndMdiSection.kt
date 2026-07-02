@@ -23,10 +23,9 @@ import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JLayeredPane
 
-/**
- * Demonstrates the layered/MDI surfaces: [LayeredPane] stacks self-positioned children on depth
- * layers, and [DesktopPane] floats internal frames whose controlled close routes through `onClose`.
- */
+// The layered/MDI surfaces: LayeredPane stacks self-positioned children on depth layers (it does not
+// lay them out, so each child sets its own bounds; overlapping tints make the paint order visible), and
+// DesktopPane floats internal frames whose controlled close routes through onClose.
 @Composable
 internal fun LayeredAndMdiSection() {
     SectionColumn {
@@ -36,11 +35,6 @@ internal fun LayeredAndMdiSection() {
     }
 }
 
-/**
- * Three children stacked on increasing depth layers. A layered pane does not lay its children out, so
- * each child positions itself with `bounds(...)`; the overlapping tints make the paint order visible —
- * higher layers cover lower ones.
- */
 @Composable
 private fun LayeredPaneCard() {
     ExampleCard("LayeredPane (depth layers)") {
@@ -82,11 +76,6 @@ private fun LayeredPaneCard() {
     }
 }
 
-/**
- * Two floating internal frames plus a state-driven third one. The "Add"/"Remove" button adds or drops
- * the extra frame's declaration; its close control is controlled, so closing it routes through `onClose`
- * which clears the same state — closing and the button stay in sync.
- */
 @Composable
 private fun DesktopPaneCard() {
     ExampleCard("DesktopPane (internal frames)") {

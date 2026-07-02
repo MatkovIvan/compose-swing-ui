@@ -16,11 +16,9 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 import javax.swing.JTabbedPane
 
-/**
- * Demonstrates [TabbedPane]: a controlled [TabPlacement], a controlled selected index synced with
- * external buttons, an optionally-disabled tab, and dynamically added/removed tabs — each `tab(...)`
- * appearing or disappearing drives the matching insert/remove through the slot mechanism.
- */
+// TabbedPane: a controlled selected index synced with external buttons, an optionally-disabled tab,
+// and a dynamically added/removed tab — each tab(...) appearing or disappearing drives the matching
+// insert/remove through the slot mechanism.
 @Composable
 internal fun TabsSection() {
     SectionColumn {

@@ -24,10 +24,8 @@ import javax.swing.BorderFactory
 import javax.swing.JSplitPane
 import javax.swing.SwingConstants
 
-/**
- * Demonstrates [SplitPane] and [ToolBar]: a resizable divider whose location is hoisted into state,
- * and a tool bar of buttons whose orientation and floatability flip live.
- */
+// SplitPane and ToolBar: a resizable divider whose location is hoisted into state, and a tool bar of
+// buttons whose orientation and floatability flip live.
 @Composable
 internal fun SplitToolBarSection() {
     SectionColumn {
@@ -38,7 +36,6 @@ internal fun SplitToolBarSection() {
     }
 }
 
-/** A horizontal split with a controlled divider; the echo label and a Button both drive its location. */
 @Composable
 private fun ControlledSplitCard() {
     ExampleCard("SplitPane (controlled divider)") {
@@ -60,11 +57,8 @@ private fun ControlledSplitCard() {
     }
 }
 
-/**
- * A filled, bordered, centered pane body. A bare [Label] is non-opaque, so the two sides and the
- * divider between them read as one flat surface; a distinct background plus an edge border on each
- * side makes the split — and the draggable divider that separates them — plainly visible.
- */
+// A bare Label is non-opaque, so the two sides would read as one flat surface; a distinct background
+// plus an edge border on each side makes the split — and the draggable divider — plainly visible.
 @Composable
 private fun SplitPaneSide(
     text: String,
@@ -81,7 +75,6 @@ private fun SplitPaneSide(
     )
 }
 
-/** A vertical split that lets Swing place the divider, giving the top side the extra space via weight. */
 @Composable
 private fun WeightedSplitCard() {
     ExampleCard("SplitPane (vertical, resizeWeight)") {
@@ -96,7 +89,6 @@ private fun WeightedSplitCard() {
     }
 }
 
-/** A tool bar whose orientation and floatability flip live, hosting Buttons and a ToggleButton. */
 @Composable
 private fun ToolBarCard() {
     ExampleCard("ToolBar") {

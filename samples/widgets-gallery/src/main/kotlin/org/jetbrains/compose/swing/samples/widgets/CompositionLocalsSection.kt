@@ -14,14 +14,12 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import java.awt.Color
 
-/** The accent colour flowing down the composition; consumed several layers deep to style labels. */
+// The accent colour flowing down the composition; consumed several layers deep to style labels.
 private val LocalAccent = staticCompositionLocalOf { Color.BLUE }
 
-/**
- * Demonstrates Compose [staticCompositionLocalOf] driving Swing components. A picker stores the
- * chosen accent in state and provides it through [CompositionLocalProvider]; nested helpers read
- * `LocalAccent.current` to colour their labels, so changing the selection repaints the whole subtree.
- */
+// A staticCompositionLocalOf driving Swing components: a picker provides the chosen accent near the top,
+// and helpers nested several layers deep read LocalAccent.current to colour their labels — so changing
+// the selection repaints the whole subtree without threading the value through every level.
 @Composable
 internal fun CompositionLocalsSection() {
     SectionColumn {
@@ -43,7 +41,6 @@ internal fun CompositionLocalsSection() {
                     onSelectionChange = { accentIndex = it },
                 )
             }
-            // Provide the chosen accent once, near the top; everything below reads it implicitly.
             CompositionLocalProvider(LocalAccent provides choices[accentIndex].second) {
                 OuterPanel()
             }
@@ -51,7 +48,6 @@ internal fun CompositionLocalsSection() {
     }
 }
 
-/** First nesting level: forwards the subtree without ever touching the local. */
 @Composable
 private fun OuterPanel() {
     FlowPanel {
@@ -60,7 +56,6 @@ private fun OuterPanel() {
     MiddlePanel()
 }
 
-/** Second nesting level: again only structural, proving the value flows past unaware ancestors. */
 @Composable
 private fun MiddlePanel() {
     FlowPanel {
@@ -69,7 +64,6 @@ private fun MiddlePanel() {
     InnerPanel()
 }
 
-/** Third nesting level: the deepest consumer, several layers from where the local was provided. */
 @Composable
 private fun InnerPanel() {
     FlowPanel {
@@ -77,7 +71,6 @@ private fun InnerPanel() {
     }
 }
 
-/** Leaf consumer: reads `LocalAccent.current` and styles its [Label] with it. */
 @Composable
 private fun AccentedLabel(text: String) {
     val accent = LocalAccent.current

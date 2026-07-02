@@ -17,29 +17,29 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.swing.core.GlobalSnapshotManager
 import org.jetbrains.compose.swing.core.SwingFrameClock
-import kotlin.coroutines.coroutineContext
 import kotlin.system.exitProcess
 
 /**
  * An entry point for the Compose application. See [awaitApplication] for more information.
  *
- * Usually this entry point is used inside `main()` function:
+ * Usually this entry point is used inside the `main()` function:
  * ```
  * fun main() = application {
  *
  * }
  * ```
  *
- * After all windows are closed and all operations are completed, the application will end.
- * Set [exitProcessOnExit] to `false`, if you need to execute some code after [application] block,
- * otherwise the code after it won't be executed, as [application] will exit the process.
+ * After all windows are closed and all operations are completed, the application ends.
+ * Set [exitProcessOnExit] to `false` if you need to execute some code after the [application]
+ * block; otherwise that code won't be executed, as [application] exits the process.
  *
- * This entry point is a blocking operation (it blocks the current thread until application
- * finishes) and can't be called inside UI thread. To launch new application from UI thread (for
- * example, from some event listener), use `GlobalScope.launchApplication` instead.
+ * This entry point is a blocking operation (it blocks the current thread until the application
+ * finishes) and can't be called on the UI thread. To launch a new application from the UI thread
+ * (for example, from some event listener), use [launchApplication] instead.
  *
- * Application can launch background tasks using [LaunchedEffect]
- * or create [Window], [DialogWindow], or [Tray] in a declarative Compose way:
+ * The application can launch background tasks using [androidx.compose.runtime.LaunchedEffect]
+ * or create [Window], [Dialog], or [org.jetbrains.compose.swing.components.Tray] in a declarative
+ * Compose way:
  *
  * ```
  * fun main() = application {
@@ -58,14 +58,15 @@ import kotlin.system.exitProcess
  * }
  * ```
  *
- * When there is no any active compositions, this function will end.
- * Active composition is a composition that have active coroutine (for example, launched in
- * [LaunchedEffect]) or that have child composition created inside [Window], [DialogWindow], or [Tray].
+ * When there are no active compositions left, this function ends.
+ * An active composition is one that has an active coroutine (for example, launched in
+ * [androidx.compose.runtime.LaunchedEffect]) or a child composition created inside [Window],
+ * [Dialog], or [org.jetbrains.compose.swing.components.Tray].
  *
- * @param exitProcessOnExit should `exitProcess(0)` be called after the application is closed.
- * exitProcess speedup process exit (instant instead of 1-4sec).
- * If `false`, the execution of the function will be unblocked after application is exited
- * (when the last window is closed, and all [LaunchedEffect] are complete).
+ * @param exitProcessOnExit whether `exitProcess(0)` is called after the application is closed.
+ * The explicit exit ends the process immediately instead of waiting for background threads to wind
+ * down. If `false`, the execution of the function is unblocked after the application exits
+ * (when the last window is closed, and all [androidx.compose.runtime.LaunchedEffect]s are complete).
  * @see [awaitApplication]
  */
 public fun application(
@@ -84,9 +85,9 @@ public fun application(
 }
 
 /**
- * Short variant of launching application inside [CoroutineScope].
+ * Short variant of launching an application inside a [CoroutineScope].
  *
- * This function is equivalent of:
+ * This function is equivalent to:
  * ```
  * CoroutineScope.launch {
  *     awaitApplication {
@@ -95,9 +96,9 @@ public fun application(
  * }
  * ```
  *
- * Don't use `GlobalScope.launchApplication {}` to launch application inside `main()` function
- * without waiting it to end: it does not block the main thread, so the application process may stop
- * before any window appears.
+ * Don't use `GlobalScope.launchApplication {}` to launch an application inside the `main()`
+ * function without waiting for it to end: it does not block the main thread, so the application
+ * process may stop before any window appears.
  *
  * @see [awaitApplication]
  */
@@ -109,8 +110,9 @@ public fun CoroutineScope.launchApplication(content: @Composable ApplicationScop
 /**
  * An entry point for the Compose application.
  *
- * Application can launch background tasks using [LaunchedEffect]
- * or create [Window], [DialogWindow], or [Tray] in a declarative Compose way:
+ * The application can launch background tasks using [androidx.compose.runtime.LaunchedEffect]
+ * or create [Window], [Dialog], or [org.jetbrains.compose.swing.components.Tray] in a declarative
+ * Compose way:
  *
  * ```
  * fun main() = runBlocking {
@@ -131,16 +133,16 @@ public fun CoroutineScope.launchApplication(content: @Composable ApplicationScop
  * }
  * ```
  *
- * When there is no any active compositions, this function will end.
- * Active composition is a composition that have active coroutine (for example, launched in
- * [LaunchedEffect]) or that have child composition created inside [Window], [DialogWindow], or [Tray].
+ * When there are no active compositions left, this function ends.
+ * An active composition is one that has an active coroutine (for example, launched in
+ * [androidx.compose.runtime.LaunchedEffect]) or a child composition created inside [Window],
+ * [Dialog], or [org.jetbrains.compose.swing.components.Tray].
  *
- * Don't run animations directly in this function
- * (for example, [withFrameNanos] or [androidx.compose.animation.core.animateFloatAsState]):
- * outside a window, frames are produced as fast as possible rather than at a display refresh rate.
- *
- * All animation's should be created inside Composable content of the
- * [Window] / [DialogWindow] / [ComposePanel].
+ * Animations driven in this composition (for example via [androidx.compose.runtime.withFrameNanos]
+ * or `org.jetbrains.compose.swing.animation.core.animateFloatAsState`) advance on the application's
+ * frame clock, which ticks at a fixed nominal rate. For animation paced to a display's refresh
+ * rate, drive it in a composition mounted with [org.jetbrains.compose.swing.setContent], whose
+ * frame clock follows the hosting window's display.
  *
  * [Window] and [Dialog] created inside [content] run as part of this application composition:
  * application-scope state and any [androidx.compose.runtime.CompositionLocal] provided in [content]
@@ -196,7 +198,8 @@ public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> 
 public interface ApplicationScope {
     /**
      * Close all windows created inside the application and cancel all launched effects
-     * (they launch via [LaunchedEffect] and [rememberCoroutineScope]).
+     * (they launch via [androidx.compose.runtime.LaunchedEffect] and
+     * [androidx.compose.runtime.rememberCoroutineScope]).
      */
     public fun exitApplication()
 }

@@ -1,8 +1,9 @@
 # Testing components with the swing-ui-test harness
 
-The `:swing-ui-test` harness runs a composition headlessly and deterministically, then lets you find
-components, assert their state, and drive interactions through them. This guide shows how to write
-behavioral tests — tests that exercise state → recomposition → visible change through the public API.
+The `:swing-ui-test` harness runs a composition off-screen and deterministically, then lets you find
+components — and the top-level windows the composition realizes — assert their state, and drive
+interactions through them. This guide shows how to write behavioral tests — tests that exercise
+state → recomposition → visible change through the public API.
 
 ## Setup
 
@@ -59,8 +60,14 @@ Multi-node finders return a `SwingNodeInteractionCollection`:
 
 - `onAllNodesWithText(text)`, `onAllNodesWithTag(tag)`, `onAllNodesOfType<T>()`, `onAllNodes(matcher)`.
 
-Narrow a collection to a subtree with `within(ancestor)`, and assert its size with
-`assertCountEquals(n)`.
+Narrow a collection to a subtree with `within(ancestor)`, assert its size with
+`assertCountEquals(n)`, and target one match with `[index]`, `onFirst()`, or `onLast()` — each
+returns a `SwingNodeInteraction` that re-resolves against the live tree on every use:
+
+```kotlin
+onAllNodesWithText("row")[1].assertIsEnabled()
+onAllNodesWithTag("item").onLast().assertTextEquals("newest")
+```
 
 ### Test tags
 
@@ -117,6 +124,47 @@ Actions are available on a `SwingNodeInteraction`:
 onNodeWithTag("amount").performTextReplacement("42")
 onNodeWithText("Save").performClick()
 ```
+
+## Testing windows and dialogs
+
+Content that composes `Window { }` or `Dialog { }` realizes a real top-level peer, which needs a
+display: start such a test with a JUnit assumption,
+`Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`, so it reports SKIPPED on headless CI
+and runs everywhere else.
+
+Window finders resolve the windows realized by the composition under test — other windows in the
+process are never matched:
+
+- `onWindow()` — the single realized window.
+- `onWindowWithTitle(title)` — match by window title.
+- `onWindow(matcher)` / `onAllWindows(matcher)` — match with a `SwingMatcher` (e.g. `hasTitle`).
+
+A `SwingWindowInteraction` offers `assertExists()` / `assertDoesNotExist()`, `assertIsVisible()` /
+`assertIsNotVisible()`, the typed `fetch<T>()` for the realized `JFrame`/`JDialog`, and the node
+finders scoped to that window's content pane:
+
+```kotlin
+import org.jetbrains.compose.swing.test.onWindowWithTitle
+import org.jetbrains.compose.swing.window.Window
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.GraphicsEnvironment
+
+@Test
+fun settingsWindowShowsItsContent() = runSwingUiTest {
+    assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+    setContent {
+        Window(onCloseRequest = {}, title = "Settings") {
+            Button(text = "Apply", onClick = { })
+        }
+    }
+    val window = onWindowWithTitle("Settings")
+    window.assertIsVisible()
+    window.onNodeWithText("Apply").assertIsEnabled()
+}
+```
+
+A dialog show is applied on its own event-dispatch turn; the idle gate drains it, so after a state
+change plus `awaitIdle()` the realized dialog already reflects the declared visibility.
 
 ## Waiting on external timing
 

@@ -412,16 +412,10 @@ public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {
 public final class org/jetbrains/compose/swing/modifier/accessibility/AccessibilityModifiersKt {
 	public static final fun accessibleDescription (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun accessibleName (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun accessibleRole (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/accessibility/AccessibleRole;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun labelFor (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/accessibility/LabelTarget;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun labelTarget (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/accessibility/LabelTarget;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun mnemonic (Lorg/jetbrains/compose/swing/modifier/SwingModifier;C)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun rememberLabelTarget (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/modifier/accessibility/LabelTarget;
-}
-
-public abstract interface class org/jetbrains/compose/swing/modifier/accessibility/AccessibleRoleProvider {
-	public abstract fun getAccessibleRoleOverride ()Ljavax/accessibility/AccessibleRole;
-	public abstract fun setAccessibleRoleOverride (Ljavax/accessibility/AccessibleRole;)V
 }
 
 public final class org/jetbrains/compose/swing/modifier/accessibility/LabelTarget {

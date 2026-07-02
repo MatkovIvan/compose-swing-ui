@@ -16,10 +16,8 @@ import java.awt.Color
 import java.awt.Image
 import java.awt.image.BufferedImage
 
-/**
- * Demonstrates [Tray]: a system-tray icon mounted only while a toggle is on. The icon's activation and
- * menu callbacks write back into composition state, so the status labels echo the latest interaction.
- */
+// Tray: a system-tray icon mounted only while a toggle is on, so the section has no tray side effect on
+// entry. The icon's activation and menu callbacks write back into composition state that status labels echo.
 @Composable
 internal fun TraySection() {
     SectionColumn {
@@ -28,10 +26,6 @@ internal fun TraySection() {
     }
 }
 
-/**
- * A "Show tray icon" toggle gates the [Tray]. The icon is emitted only while the toggle is on, so the
- * section has no tray side effect on entry. Its [Tray.onAction] and a menu checkbox feed status labels.
- */
 @Composable
 private fun TrayToggleCard() {
     ExampleCard("Tray (button-gated)") {
@@ -44,6 +38,10 @@ private fun TrayToggleCard() {
             pressed = showTray,
             onPressedChange = { showTray = it },
         )
+        WrappedCaption(
+            "The tray icon is present only while this section is open: the Tray lives in the section's " +
+                "composition and is removed when you switch away.",
+        )
         FlowPanel {
             Label("Tray icon: ${if (showTray) "shown" else "hidden"}")
         }
@@ -51,6 +49,7 @@ private fun TrayToggleCard() {
         Label("Notifications: ${if (notificationsOn) "on" else "off"}")
 
         if (showTray) {
+            // Composition-scoped: the icon is added on enter and removed when this leaves the composition.
             Tray(
                 image = trayImage(),
                 tooltip = "Compose Swing showcase",
@@ -73,7 +72,6 @@ private const val TRAY_ICON_SIZE = 16
 private const val TRAY_ICON_CORNER = 6
 private val TrayIconColor = Color(0x2D, 0x4B, 0x73)
 
-/** A small solid-color icon generated for the tray; avoids shipping an image asset for the demo. */
 private fun trayImage(): Image {
     val image = BufferedImage(TRAY_ICON_SIZE, TRAY_ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
     val graphics = image.createGraphics()

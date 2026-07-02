@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.Canvas
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BoxPanel
@@ -15,37 +14,23 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleRole
 import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
-import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
 import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import java.awt.Color
-import java.awt.Dimension
-import javax.accessibility.AccessibleRole
-import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 
-internal const val ACCESSIBLE_NAME_FIELD_TAG: String = "a11y-named-field"
-internal const val ACCESSIBLE_ROLE_CANVAS_TAG: String = "a11y-role-canvas"
-
-/**
- * Demonstrates the accessibility SwingModifiers: assistive-technology metadata
- * (accessibleName/accessibleDescription), label association (labelFor), keyboard affordances
- * (mnemonic, defaultButton), and composition-order focus traversal.
- */
+// The accessibility modifiers: assistive-technology metadata (accessibleName/Description), label
+// association (labelFor), keyboard affordances (mnemonic, defaultButton), and composition-order
+// focus traversal.
 @Composable
 internal fun AccessibilitySection() {
     SectionColumn {
         SectionHeading("Accessibility")
         AccessibleMetadataCard()
-        AccessibleRoleCard()
         LabelForCard()
         MnemonicCard()
         DefaultButtonCard()
@@ -53,7 +38,6 @@ internal fun AccessibilitySection() {
     }
 }
 
-/** accessibleName and accessibleDescription advertise assistive-technology metadata on a field. */
 @Composable
 private fun AccessibleMetadataCard() {
     ExampleCard("accessibleName & accessibleDescription") {
@@ -63,7 +47,6 @@ private fun AccessibleMetadataCard() {
             value = value,
             modifier =
                 SwingModifier
-                    .testTag(ACCESSIBLE_NAME_FIELD_TAG)
                     .accessibleName("Search query")
                     .accessibleDescription("Type a term to filter the results list."),
             onValueChange = { value = it },
@@ -72,26 +55,6 @@ private fun AccessibleMetadataCard() {
     }
 }
 
-/** accessibleRole overrides the role a custom drawing surface reports to assistive technologies. */
-@Composable
-private fun AccessibleRoleCard() {
-    ExampleCard("accessibleRole (Canvas reports as a slider)") {
-        WrappedCaption("This drawing surface advertises the SLIDER role to assistive technologies.")
-        Canvas(
-            modifier =
-                SwingModifier
-                    .testTag(ACCESSIBLE_ROLE_CANVAS_TAG)
-                    .preferredSize(Dimension(180, 40))
-                    .border(BorderFactory.createLineBorder(Color.GRAY))
-                    .accessibleRole(AccessibleRole.SLIDER),
-        ) { g, width, height ->
-            g.color = Color(0x42, 0x85, 0xF4)
-            g.fillRect(0, height / 2 - 2, width / 2, 4)
-        }
-    }
-}
-
-/** labelFor wires a caption to its target field, so its mnemonic moves focus to the target. */
 @Composable
 private fun LabelForCard() {
     ExampleCard("labelFor (label captions a field)") {
@@ -112,7 +75,6 @@ private fun LabelForCard() {
     }
 }
 
-/** mnemonic underlines a letter that activates the button with the platform menu modifier. */
 @Composable
 private fun MnemonicCard() {
     ExampleCard("mnemonic (Alt+S activates Save)") {
@@ -128,7 +90,6 @@ private fun MnemonicCard() {
     }
 }
 
-/** defaultButton makes a button the one Enter activates anywhere in the window. */
 @Composable
 private fun DefaultButtonCard() {
     ExampleCard("defaultButton (Enter activates Submit)") {
@@ -144,7 +105,6 @@ private fun DefaultButtonCard() {
     }
 }
 
-/** orderedFocusTraversal plus focusTraversalIndex tab through the form by composition-assigned order. */
 @Composable
 private fun FocusTraversalCard() {
     ExampleCard("focusTraversalIndex + orderedFocusTraversal (Tab order)") {

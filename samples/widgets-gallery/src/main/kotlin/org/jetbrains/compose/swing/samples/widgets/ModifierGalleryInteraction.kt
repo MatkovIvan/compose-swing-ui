@@ -30,13 +30,9 @@ import java.awt.event.ActionListener
 import java.awt.event.KeyEvent
 import javax.swing.event.ChangeListener
 
-/*
- * The interaction half of the modifier gallery: the input-listener, keyboard, and raw-listener cards.
- * Split from the appearance/layout cards in ModifierGallery.kt so each file stays focused on one
- * modifier family.
- */
+// The interaction half of the modifier gallery: the input-listener, keyboard, and raw-listener cards,
+// split from the appearance/layout cards so each file stays focused on one modifier family.
 
-/** onHover and onFocus both feeding one status label. */
 @Composable
 internal fun HoverFocusCard() {
     ExampleCard("onHover / onFocus") {
@@ -59,7 +55,6 @@ internal fun HoverFocusCard() {
     }
 }
 
-/** onPointerEvent reporting the button and click count of raw mouse events on a label. */
 @Composable
 internal fun PointerCard() {
     ExampleCard("onPointerEvent") {
@@ -70,7 +65,7 @@ internal fun PointerCard() {
                 SwingModifier
                     .opaque(true)
                     .background(Color(0xE3, 0xF2, 0xFD))
-                    .preferredSize(Dimension(POINTER_TARGET, POINTER_HEIGHT))
+                    .preferredSize(Dimension(260, 32))
                     .alignmentX(LEFT_ALIGNED)
                     .onPointerEvent(
                         onPress = { e -> lastEvent = "pressed button ${e.button}" },
@@ -81,7 +76,6 @@ internal fun PointerCard() {
     }
 }
 
-/** onKeyStroke binding Ctrl/Cmd+S on a focused field to bump a counter. */
 @Composable
 internal fun KeyStrokeCard() {
     ExampleCard("onKeyStroke") {
@@ -97,10 +91,6 @@ internal fun KeyStrokeCard() {
     }
 }
 
-/**
- * onKeyEvent forwards every key event from a focused field; returning `true` consumes it, so toggling
- * the consume flag visibly swallows typed characters.
- */
 @Composable
 internal fun KeyEventCard() {
     ExampleCard("onKeyEvent") {
@@ -122,16 +112,12 @@ internal fun KeyEventCard() {
     }
 }
 
-/**
- * actionListener attaching an existing [ActionListener] **instance** to a button, in addition to the
- * wrapper's own `onClick` — both fire, since Swing listeners are additive. The instance is
- * `remember {}`-ed so it stays stable across recompositions (a fresh instance each time would detach
- * the old and attach the new); no component is exposed in the call.
- */
 @Composable
 internal fun SwingListenerCard() {
     ExampleCard("actionListener (raw ActionListener)") {
         var rawClicks by remember { mutableIntStateOf(0) }
+        // remember the listener instance: Swing listeners are additive, so a fresh instance each
+        // recomposition would detach the old and attach the new. The wrapper's onClick still fires too.
         val listener = remember { ActionListener { rawClicks++ } }
         Button(
             "Click (raw listener)",
@@ -141,10 +127,6 @@ internal fun SwingListenerCard() {
     }
 }
 
-/**
- * changeListener attaches a raw [ChangeListener] **instance** to a Slider, in addition to the wrapper's
- * own callback. The instance is `remember {}`-ed so it stays stable across recompositions.
- */
 @Composable
 internal fun ChangeListenerCard() {
     ExampleCard("changeListener (raw ChangeListener)") {
@@ -164,6 +146,3 @@ internal fun ChangeListenerCard() {
         Label("Raw change listener fired $changes time(s)")
     }
 }
-
-private const val POINTER_TARGET = 260
-private const val POINTER_HEIGHT = 32

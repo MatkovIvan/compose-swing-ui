@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.AccessibleRoleProvider
 import org.jetbrains.compose.swing.modifier.applyModifier
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -70,9 +69,7 @@ public fun Canvas(
  * snapshot state read inside [onDraw] at paint time is tracked and a later change to it repaints this
  * surface and re-invokes the same lambda.
  */
-private class CanvasComponent :
-    JComponent(),
-    AccessibleRoleProvider {
+private class CanvasComponent : JComponent() {
     var onDraw: (Graphics2D, Int, Int) -> Unit = { _, _, _ -> }
 
     /**
@@ -82,10 +79,6 @@ private class CanvasComponent :
      * painted, so it is always set when [paintComponent] runs (which fails loudly otherwise).
      */
     var snapshotObserver: SnapshotStateObserver? = null
-
-    // The accessible role advertised to assistive technologies; null reports the intrinsic CANVAS role.
-    // Set by the accessibleRole modifier and read by the accessible context below.
-    override var accessibleRoleOverride: AccessibleRole? = null
 
     init {
         // A canvas is a transparent overlay by convention: it must not paint a default background,
@@ -114,14 +107,15 @@ private class CanvasComponent :
     }
 
     /**
-     * Reports [accessibleRoleOverride] when set (so the [accessibleRole] modifier can present this
-     * surface as, say, an image or a slider), otherwise the intrinsic [AccessibleRole.CANVAS].
+     * Reports the intrinsic [AccessibleRole.CANVAS] to assistive technologies. A plain [JComponent]
+     * would otherwise report the generic [AccessibleRole.SWING_COMPONENT], which understates a drawing
+     * surface.
      */
     override fun getAccessibleContext(): AccessibleContext {
         if (accessibleContext == null) {
             accessibleContext =
                 object : AccessibleJComponent() {
-                    override fun getAccessibleRole(): AccessibleRole = accessibleRoleOverride ?: AccessibleRole.CANVAS
+                    override fun getAccessibleRole(): AccessibleRole = AccessibleRole.CANVAS
                 }
         }
         return accessibleContext

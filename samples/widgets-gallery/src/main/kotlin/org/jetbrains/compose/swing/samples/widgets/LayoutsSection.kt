@@ -29,10 +29,9 @@ import java.awt.Dimension
 import javax.swing.BoxLayout
 import javax.swing.SwingConstants
 
-/**
- * Demonstrates every layout wrapper, including both [BorderPanel] region families (absolute compass
- * and orientation-aware) and a [CardPanel] whose visible card is driven by state.
- */
+// Every layout wrapper, including both BorderPanel region families — the absolute compass
+// (north/south/...) and the orientation-aware one (lineStart/lineEnd) — plus a CardPanel whose visible
+// card is driven by state.
 @Composable
 internal fun LayoutsSection() {
     SectionColumn {
@@ -48,7 +47,6 @@ internal fun LayoutsSection() {
     }
 }
 
-/** Panel with an explicit AWT [BorderLayout] passed through the generic [Panel] wrapper. */
 @Composable
 private fun PanelCard() {
     ExampleCard("Panel (explicit LayoutManager)") {
@@ -58,7 +56,6 @@ private fun PanelCard() {
     }
 }
 
-/** FlowPanel with a leading alignment and custom gaps. */
 @Composable
 private fun FlowPanelCard() {
     ExampleCard("FlowPanel") {
@@ -70,7 +67,6 @@ private fun FlowPanelCard() {
     }
 }
 
-/** BorderPanel using the absolute compass family. */
 @Composable
 private fun BorderCompassCard() {
     ExampleCard("BorderPanel (compass regions)") {
@@ -84,12 +80,8 @@ private fun BorderCompassCard() {
     }
 }
 
-/**
- * BorderPanel using the orientation-aware family, with a state-driven RTL toggle. Flipping the
- * checkbox swaps the component orientation, which moves the `lineStart`/`lineEnd` children between
- * the leading and trailing edges live — `lineStart` resolves to the right edge under RTL and the
- * left edge under LTR.
- */
+// Flipping the orientation swaps where lineStart/lineEnd resolve: lineStart is the left edge under LTR
+// and the right edge under RTL, so the two edge children move live between the leading and trailing sides.
 @Composable
 private fun BorderOrientationCard() {
     ExampleCard("BorderPanel (orientation-aware)") {
@@ -119,7 +111,6 @@ private fun BorderOrientationCard() {
     }
 }
 
-/** BoxPanel stacking children along the Y axis. */
 @Composable
 private fun BoxPanelCard() {
     ExampleCard("BoxPanel (Y axis)") {
@@ -131,7 +122,6 @@ private fun BoxPanelCard() {
     }
 }
 
-/** GridPanel laying buttons into a fixed grid. */
 @Composable
 private fun GridPanelCard() {
     ExampleCard("GridPanel (2x3)") {
@@ -141,7 +131,6 @@ private fun GridPanelCard() {
     }
 }
 
-/** GridBagPanel with children placed through AWT's GridBagConstraints (the BorderLayout default cell). */
 @Composable
 private fun GridBagPanelCard() {
     ExampleCard("GridBagPanel") {
@@ -151,7 +140,6 @@ private fun GridBagPanelCard() {
     }
 }
 
-/** CardPanel showing one of several stacked cards; the index is controlled by state. */
 @Composable
 private fun CardPanelCard() {
     ExampleCard("CardPanel") {
@@ -171,11 +159,9 @@ private fun CardPanelCard() {
     }
 }
 
-/**
- * A filled, centered label used to make each layout region visible. The [width] sets the preferred
- * width: regions sized by their parent's full width (north/south/center) leave it at `0`, while the
- * horizontal-edge regions (west/east, lineStart/lineEnd) need a real width to claim space.
- */
+// A filled, centered label that makes each region visible. width sets the preferred width: regions
+// stretched to their parent's full width (north/south/center) leave it at 0, while the horizontal-edge
+// regions (west/east, lineStart/lineEnd) need a real width to claim space.
 @Composable
 private fun RegionLabel(
     text: String,
@@ -188,10 +174,9 @@ private fun RegionLabel(
             SwingModifier
                 .opaque(true)
                 .background(color)
-                .preferredSize(Dimension(width, REGION_HEIGHT)),
+                .preferredSize(Dimension(width, 28)),
         horizontalAlignment = SwingConstants.CENTER,
     )
 }
 
-private const val REGION_HEIGHT = 28
 private const val EDGE_WIDTH = 120

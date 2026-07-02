@@ -58,14 +58,15 @@ it. Prefer one family per edge.
 ## Mounting into existing Swing (`setContent`)
 
 You can also drive composition into any container without the `application`/`Window` entry points.
-`setContent` is an extension on `java.awt.Container`, with `JFrame.setContent` and `JMenuBar.setContent`
-provided too. A single `import org.jetbrains.compose.swing.setContent` resolves all of them:
+`setContent` is an extension on `java.awt.Container`, with `java.awt.Window.setContent` (covering
+`JFrame`, `JDialog`, and `JWindow`) and `JMenuBar.setContent` provided too. A single
+`import org.jetbrains.compose.swing.setContent` resolves all of them:
 
 ```kotlin
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.setContent // Container/JFrame/JMenuBar.setContent
+import org.jetbrains.compose.swing.setContent // Container/Window/JMenuBar.setContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -177,7 +178,7 @@ animation is in flight. See [`swing-ui-animation/README.md`](swing-ui-animation/
 ## Testing
 
 Add `:swing-ui-test` and write plain `@Test` methods — the harness is synchronous and deterministic
-(headless, never sleeps):
+(off-screen, never sleeps):
 
 ```kotlin
 import org.jetbrains.compose.swing.test.runSwingUiTest
@@ -227,10 +228,15 @@ Full quality-gate command (what CI runs):
 - `swing-ui-test` — the test harness. See [`swing-ui-test/README.md`](swing-ui-test/README.md).
 - `samples/todo-app`, `samples/widgets-gallery` — runnable showcases.
 
+## Stability
+
+Pre-1.0: breaking API changes may land in any minor release. Kotlin 2.1 or newer is required to
+consume the libraries.
+
 ## License
 
-Provided as-is for educational and development purposes.
+Licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE).
 
 `swing-ui-animation` additionally redistributes source code from the Android Open Source Project's
-Jetpack Compose `animation-core` under the Apache License, Version 2.0; see that module's
-`META-INF/NOTICE` and the per-file headers for attribution.
+Jetpack Compose `animation-core` under the same license; see that module's `META-INF/NOTICE` and the
+per-file headers for attribution.

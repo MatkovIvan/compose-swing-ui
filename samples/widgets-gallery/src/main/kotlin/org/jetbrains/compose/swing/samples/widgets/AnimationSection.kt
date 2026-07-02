@@ -27,7 +27,6 @@ import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -37,13 +36,9 @@ import java.awt.RenderingHints
 import java.awt.geom.Ellipse2D
 import javax.swing.BorderFactory
 
-/**
- * Demonstrates the `:swing-ui-animation` engine driving real Swing rendering over the window's frame
- * clock. Three cards cover the breadth of the API: [animateIntAsState] easing a [ProgressBar] toward a
- * preset, [animateFloatAsState] with a physical [spring] settling a hand-drawn marker, and a
- * [rememberInfiniteTransition] looping a value forever to pulse a [Canvas]. In every case the target is
- * plain hoisted Compose state and the animation interpolates toward it — no timers, no manual frames.
- */
+// The animation engine driving real Swing rendering over the window's frame clock: an eased
+// animateIntAsState, a physical spring, and an infinite looping transition. In every case the target
+// is plain hoisted Compose state and the animation interpolates toward it — no timers, no manual frames.
 @Composable
 internal fun AnimationSection() {
     SectionColumn {
@@ -54,7 +49,6 @@ internal fun AnimationSection() {
     }
 }
 
-/** A progress bar whose value is eased toward the chosen preset by [animateIntAsState]. */
 @Composable
 private fun AnimatedProgressCard() {
     ExampleCard("animateIntAsState (eased ProgressBar)") {
@@ -68,33 +62,24 @@ private fun AnimatedProgressCard() {
         WrappedCaption(
             "animateIntAsState eases a Swing ProgressBar toward the chosen target across the frame clock.",
         )
-        // Constrain the bar's width: a JProgressBar reports an unbounded maximum size, so in a vertical
-        // BoxLayout it would stretch to the full column width and run past the visible frame. Capping the
-        // maximum size keeps it inside the card.
         ProgressBar(
             value = animated,
             min = 0,
-            max = FULL,
+            max = 100,
             modifier =
                 SwingModifier
-                    .testTag(ANIMATED_PROGRESS_TAG)
-                    .maximumSize(Dimension(PROGRESS_WIDTH, PROGRESS_HEIGHT))
+                    .maximumSize(Dimension(360, 22))
                     .alignmentX(LEFT_ALIGNED),
         )
         FlowPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
             Label("Target: $target")
             Button("0%", onClick = { target = 0 })
-            Button("50%", onClick = { target = MID })
-            Button("100%", onClick = { target = FULL })
+            Button("50%", onClick = { target = 50 })
+            Button("100%", onClick = { target = 100 })
         }
     }
 }
 
-/**
- * A hand-drawn marker whose horizontal position is driven by a physical [spring]: toggling the target
- * sends it to the other end and it settles with bounce, demonstrating non-linear spring dynamics rather
- * than a fixed-duration tween. The animated fraction is read into the [Canvas] at paint time.
- */
 @Composable
 private fun SpringMarkerCard() {
     ExampleCard("animateFloatAsState (spring physics)") {
@@ -124,9 +109,9 @@ private fun SpringMarkerCard() {
             g.color = Color(0xE3, 0xF2, 0xFD)
             g.fillRect(0, 0, width, height)
 
-            val radius = height / 2.0 - MARKER_MARGIN
-            val travel = width - 2 * (radius + MARKER_MARGIN)
-            val cx = radius + MARKER_MARGIN + travel * fraction
+            val radius = height / 2.0 - 4.0
+            val travel = width - 2 * (radius + 4.0)
+            val cx = radius + 4.0 + travel * fraction
             val cy = height / 2.0
             g.color = Color(0x42, 0x85, 0xF4)
             g.fill(Ellipse2D.Double(cx - radius, cy - radius, radius * 2, radius * 2))
@@ -137,12 +122,6 @@ private fun SpringMarkerCard() {
     }
 }
 
-/**
- * A [rememberInfiniteTransition] loops a float between two values forever with a reversing
- * [infiniteRepeatable] spec, breathing the radius of a hand-drawn disc. The transition is composed
- * only while the toggle is on, so when it is off the section settles to a stable frame and the disc
- * holds at its resting size — the running animation is opt-in.
- */
 @Composable
 private fun InfinitePulseCard() {
     ExampleCard("rememberInfiniteTransition (looping pulse)") {
@@ -152,8 +131,8 @@ private fun InfinitePulseCard() {
             "An infinite transition reverses a value between two bounds forever, with no end state — " +
                 "here it breathes the disc's radius. Toggle it off and the section rests at a stable frame.",
         )
-        // Compose the transition only while running: an always-on infinite animation would never let the
-        // frame clock go idle. Off, the disc paints at its resting size with no pending work.
+        // Compose the transition only while running: an always-on infinite animation would never let
+        // the frame clock go idle. Off, the disc paints at its resting size with no pending work.
         if (running) {
             PulsingDisc()
         } else {
@@ -165,12 +144,11 @@ private fun InfinitePulseCard() {
     }
 }
 
-/** The disc breathing under an infinite, reversing transition; composed only while the pulse is on. */
 @Composable
 private fun PulsingDisc() {
     val transition = rememberInfiniteTransition(label = "pulse")
     val scale by transition.animateFloat(
-        initialValue = PULSE_MIN,
+        initialValue = 0.45f,
         targetValue = PULSE_MAX,
         animationSpec =
             infiniteRepeatable(
@@ -182,13 +160,11 @@ private fun PulsingDisc() {
     Disc(scale)
 }
 
-/** The disc at its resting size, painted when the pulse is off so the section reaches a stable frame. */
 @Composable
 private fun StaticDisc() {
     Disc(PULSE_MAX)
 }
 
-/** A hand-drawn disc filling [scale] of the surface; the radius is read into the Canvas at paint time. */
 @Composable
 private fun Disc(scale: Float) {
     Canvas(
@@ -205,13 +181,4 @@ private fun Disc(scale: Float) {
     }
 }
 
-/** Test tag for the animated progress bar, used by the section's behavioral test. */
-internal const val ANIMATED_PROGRESS_TAG: String = "animated-progress"
-
-private const val MID = 50
-private const val FULL = 100
-private const val PROGRESS_WIDTH = 360
-private const val PROGRESS_HEIGHT = 22
-private const val MARKER_MARGIN = 4.0
-private const val PULSE_MIN = 0.45f
 private const val PULSE_MAX = 0.92f

@@ -17,11 +17,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.visible
 
-/**
- * Demonstrates a state-driven dynamic hierarchy: a toggle conditionally composes an entire panel
- * subtree, so flipping it inserts or removes that subtree from the component tree — contrasted with
- * the `visible()` modifier, which keeps the slot in place and merely hides it.
- */
+// State-driven dynamic hierarchy: conditional composition (if{}) inserts or removes a whole subtree
+// from the component tree, taking its state with it — contrasted with visible(), which keeps the slot
+// in place and merely hides it.
 @Composable
 internal fun DynamicHierarchySection() {
     SectionColumn {
@@ -31,11 +29,6 @@ internal fun DynamicHierarchySection() {
     }
 }
 
-/**
- * The toggled `BorderPanel { ... }` is guarded by an `if`, so toggling the CheckBox composes or
- * disposes the whole subtree (a heading, an editable field, and a slider) rather than hiding it.
- * When unchecked, those nested controls and their state leave the tree entirely.
- */
 @Composable
 private fun StructuralToggleCard() {
     ExampleCard("Structural add/remove (conditional composition)") {
@@ -71,10 +64,6 @@ private fun StructuralToggleCard() {
     }
 }
 
-/**
- * The counterpart to the structural toggle: the same panel always stays composed, and `visible()`
- * only flips its visibility. The subtree — and any state it holds — survives across toggles.
- */
 @Composable
 private fun VisibleContrastCard() {
     ExampleCard("Contrast: visible() keeps the slot") {

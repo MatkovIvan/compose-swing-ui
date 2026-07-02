@@ -13,17 +13,15 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 import javax.swing.ListSelectionModel
 
-/** One row of the people table; [age] is mutated through the editable Age column. */
 private data class Person(
     val name: String,
     val role: String,
     val age: Int,
 )
 
-/**
- * Demonstrates [Table]: typed rows projected through declared columns, controlled single-row
- * selection echoed into a [Label], and an editable column that commits edits back into state.
- */
+// Table: typed rows projected through declared columns, with controlled single-row selection echoed
+// into a Label. The Age column is editable — a committed edit flows through onCellEdit back into the
+// backing list, so the next composition shows the new value.
 @Composable
 internal fun TableSection() {
     SectionColumn {
@@ -32,11 +30,6 @@ internal fun TableSection() {
     }
 }
 
-/**
- * A people table wrapped in a [ScrollPane] (JTable is not self-scrolling). Selecting a row updates
- * the echo label, and the Age column is editable: a committed edit flows through `onCellEdit` into
- * the backing list, so the next composition shows the new value.
- */
 @Composable
 private fun SelectableTableCard() {
     ExampleCard("Table with selection & editable column") {

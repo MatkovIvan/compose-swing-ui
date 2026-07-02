@@ -10,7 +10,6 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleRole
 import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
@@ -110,32 +109,23 @@ class AccessibilityModifierTest {
     }
 
     @Test
-    fun accessibleRoleOverridesCanvasIntrinsicRole() = runSwingUiTest {
-        var asImage by mutableStateOf(true)
+    fun canvasReportsIntrinsicCanvasRole() = runSwingUiTest {
         setContent {
             Canvas(
                 modifier =
                     SwingModifier
                         .testTag("surface")
-                        .preferredSize(Dimension(40, 40))
-                        .let { if (asImage) it.accessibleRole(AccessibleRole.ICON) else it },
+                        .preferredSize(Dimension(40, 40)),
             ) { _, _, _ -> }
         }
-        assertEquals(
-            AccessibleRole.ICON,
-            onNodeWithTag("surface").fetch<Component>().accessibleContext.accessibleRole,
-            "the role override should replace the canvas intrinsic role",
-        )
-        onNode(SwingMatcher.hasAccessibleRole(AccessibleRole.ICON)).assertExists()
-
-        asImage = false
-        awaitIdle()
-        // With no override the canvas reports its intrinsic CANVAS role.
+        // A drawing surface reports CANVAS by construction; a plain JComponent would report the generic
+        // SWING_COMPONENT role instead.
         assertEquals(
             AccessibleRole.CANVAS,
             onNodeWithTag("surface").fetch<Component>().accessibleContext.accessibleRole,
-            "removing the override should restore the intrinsic CANVAS role",
+            "the canvas should report its intrinsic CANVAS role",
         )
+        onNode(SwingMatcher.hasAccessibleRole(AccessibleRole.CANVAS)).assertExists()
     }
 
     @Test

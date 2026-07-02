@@ -1,19 +1,28 @@
 package org.jetbrains.compose.swing.samples.todo
 
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runSwingUiTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageMatches
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import javax.swing.JButton
+import javax.swing.JPanel
 import javax.swing.JProgressBar
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /**
- * Behavioral coverage for [ReactiveTaskList], driven entirely through the public test harness and the
- * sample's stable test tags. Each test exercises a user gesture where it really lands (a `doClick`, a
- * text replacement) and reads the live Swing tree the recomposition produced — never a private field or
- * composition slot.
+ * Behavioral coverage for [ReactiveTaskList], driven entirely through the public test harness. Each
+ * test exercises a user gesture where it really lands (a click, a text replacement) and reads the live
+ * Swing tree the recomposition produced — never a private field or composition slot.
+ *
+ * Components are located the way a user would identify them — by visible text, by type, or by
+ * accessible name — except a specific keyed row, which is addressed by its per-row test tag because
+ * rows otherwise look alike.
  *
  * The starting fixture has four tasks, two of them already done, so "2 of 4 done" is the initial state.
  */
@@ -24,7 +33,7 @@ class ReactiveTaskListTest {
             setContent { ReactiveTaskList() }
 
             onNodeWithText("2 of 4 done").assertExists()
-            val progress = onNodeWithTag(PROGRESS_TAG).fetch<JProgressBar>()
+            val progress = onNodeOfType<JProgressBar>().fetch<JProgressBar>()
             assertEquals(2, progress.value, "the progress bar mirrors the done count")
             assertEquals(4, progress.maximum, "the progress bar maximum mirrors the total count")
         }
@@ -40,7 +49,7 @@ class ReactiveTaskListTest {
 
             onNodeWithText("3 of 4 done").assertExists()
             onNodeWithText("2 of 4 done").assertDoesNotExist()
-            assertEquals(3, onNodeWithTag(PROGRESS_TAG).fetch<JProgressBar>().value)
+            assertEquals(3, onNodeOfType<JProgressBar>().fetch<JProgressBar>().value)
         }
 
     @Test
@@ -48,10 +57,10 @@ class ReactiveTaskListTest {
         runSwingUiTest {
             setContent { ReactiveTaskList() }
 
-            onNodeWithTag(ADD_BUTTON_TAG).assertIsNotEnabled()
+            onAddButton().assertIsNotEnabled()
 
-            onNodeWithTag(ADD_FIELD_TAG).performTextReplacement("Write docs")
-            onNodeWithTag(ADD_BUTTON_TAG).assertIsEnabled()
+            onAddField().performTextReplacement("Write docs")
+            onAddButton().assertIsEnabled()
         }
 
     @Test
@@ -63,8 +72,8 @@ class ReactiveTaskListTest {
             // the derived total grows from 4 to 5.
             onNodeWithTag(taskRowTag(5)).assertDoesNotExist()
 
-            onNodeWithTag(ADD_FIELD_TAG).performTextReplacement("Ship the sample")
-            onNodeWithTag(ADD_BUTTON_TAG).performClick()
+            onAddField().performTextReplacement("Ship the sample")
+            onAddButton().performClick()
 
             onNodeWithTag(taskRowTag(5)).assertExists()
             assertEquals(
@@ -106,8 +115,35 @@ class ReactiveTaskListTest {
             // A genuinely different element (a whole different-sized subtree) does NOT match it — the
             // comparison rejects it on the size mismatch alone, so the assertion throws.
             assertFailsWith<AssertionError> {
-                onNodeWithTag(PROGRESS_TAG).assertImageMatches(expected = row)
+                onNodeOfType<JProgressBar>().assertImageMatches(expected = row)
             }
+        }
+
+    @Test
+    fun aTaskRowKeepsAFixedHeightRegardlessOfTaskCount() =
+        runSwingUiTest {
+            setContent { ReactiveTaskList() }
+
+            // A fixed-height row pins its maximum height to its preferred height, so a vertical
+            // layout cannot stretch it toward an unbounded maximum when few tasks leave surplus space.
+            val rowWithFourTasks = onNodeWithTag(taskRowTag(3)).fetch<JPanel>()
+            assertEquals(
+                rowWithFourTasks.preferredSize.height,
+                rowWithFourTasks.maximumSize.height,
+                "a row cannot stretch beyond its preferred height",
+            )
+            val heightWithFourTasks = rowWithFourTasks.height
+            assertTrue(heightWithFourTasks > 0, "the row must have a real, laid-out height")
+
+            // Removing a task leaves the layout surplus vertical space, yet the surviving row's
+            // laid-out height stays exactly what it was with the fuller list.
+            onNodeWithTag(taskRemoveTag(2)).performClick()
+
+            assertEquals(
+                heightWithFourTasks,
+                onNodeWithTag(taskRowTag(3)).fetch<JPanel>().height,
+                "a row's laid-out height does not depend on the task count",
+            )
         }
 
     @Test
@@ -131,3 +167,9 @@ class ReactiveTaskListTest {
             )
         }
 }
+
+/** The add-a-task text field, located by its accessible name rather than a test tag. */
+private fun SwingUiTest.onAddField() = onNode(SwingMatcher.hasAccessibleName("New task"))
+
+/** The add button, located by its visible label and button type rather than a test tag. */
+private fun SwingUiTest.onAddButton() = onNode(SwingMatcher.hasText("Add") and SwingMatcher.isOfType<JButton>())

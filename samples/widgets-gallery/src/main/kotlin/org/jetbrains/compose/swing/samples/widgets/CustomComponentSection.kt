@@ -26,17 +26,10 @@ import java.awt.event.MouseEvent
 import javax.swing.JComponent
 import javax.swing.SwingConstants
 
-/**
- * The extensibility lesson: the library ships built-in wrappers (Button, Slider, …), but the SAME
- * primitive that builds them — [SwingNode] — lets you fold *your own* Swing component into the composable
- * tree as a first-class citizen.
- *
- * Here [StarRating] is a hand-written `JComponent` that the library has never heard of. We wrap it with
- * one [SwingNode] call: [SwingNode.factory] constructs it, [SwingNode.update] pushes the current rating
- * onto it whenever the composable state changes, and a [mouseListener] modifier reports clicks back out.
- * From the composition's point of view it behaves exactly like a built-in widget — it sits in a panel,
- * reacts to state, and drives sibling composables (the live "N / 5" echo and the Clear button below).
- */
+// The extensibility lesson: the same primitive that builds the library's wrappers — SwingNode — folds
+// your own Swing component into the composition as a first-class citizen. factory constructs it, update
+// pushes state onto it, and a mouseListener modifier reports input back out; from the composition's
+// point of view it behaves exactly like a built-in widget.
 @Composable
 internal fun CustomComponentSection() {
     SectionColumn {
@@ -48,7 +41,6 @@ internal fun CustomComponentSection() {
                     "clicks flow out through a mouseListener, and it drives the composables around it.",
             )
 
-            // The single source of truth lives in the composition, exactly as for a built-in wrapper.
             var rating by remember { mutableIntStateOf(3) }
 
             FlowPanel(alignment = SwingConstants.LEADING) {
@@ -57,28 +49,17 @@ internal fun CustomComponentSection() {
                     onRatingChange = { rating = it },
                     modifier = SwingModifier.testTag(STAR_RATING_TAG),
                 )
-                // A sibling composable that simply reads the same state — it recomposes on every change.
                 Label("$rating / $MAX_STARS")
             }
 
             Button(
                 text = "Clear",
                 onClick = { rating = 0 },
-                modifier = SwingModifier.testTag(STAR_CLEAR_TAG),
             )
         }
     }
 }
 
-/**
- * Wraps the custom [StarRatingComponent] as a composable. This is all it takes to make any Swing
- * component composable: a [SwingNode] whose `factory` builds it, whose `update` maps state onto it, and
- * whose listener (attached via a [mouseListener] modifier) reports user input back to the caller.
- *
- * @param rating the number of filled stars, driven by the composition
- * @param onRatingChange invoked with the star the user clicked (1-based)
- * @param modifier the [SwingModifier] applied to the underlying component
- */
 @Composable
 private fun StarRating(
     rating: Int,
@@ -99,7 +80,6 @@ private fun StarRating(
     SwingNode(
         factory = { StarRatingComponent() },
         update = {
-            // `set` runs on first composition and on every change of `rating`, pushing it onto the widget.
             set(rating) { this.rating = it }
             applyModifier(
                 SwingModifier
@@ -113,17 +93,8 @@ private fun StarRating(
 private const val MAX_STARS = 5
 private const val STAR_BOX = 32
 
-/** Test tag for the custom star-rating widget, used by the section's behavioral test. */
 internal const val STAR_RATING_TAG: String = "custom-star-rating"
 
-/** Test tag for the Clear button that resets the rating to zero. */
-internal const val STAR_CLEAR_TAG: String = "custom-star-clear"
-
-/**
- * A minimal custom Swing widget: a row of [MAX_STARS] stars, [rating] of them filled. It is an ordinary
- * `JComponent` with custom painting and a `rating` property — the library knows nothing about it; the
- * SwingNode wrapper above is what makes it composable.
- */
 private class StarRatingComponent : JComponent() {
     var rating: Int = 0
         set(value) {

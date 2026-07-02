@@ -16,20 +16,16 @@ import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 import javax.swing.BorderFactory
 import javax.swing.ListSelectionModel
 import javax.swing.SwingConstants
 
-private const val BODY_INSET = 12
-
-/**
- * The composable menu bar: a File menu, an Edit menu, and a View menu exercising
- * [CheckBoxMenuItem] and a [RadioButtonMenuItem] group, all driven by hoisted state.
- */
+// The composable menu bar: File, Edit, and a View menu exercising CheckBoxMenuItem and a
+// RadioButtonMenuItem group, all driven by hoisted state.
 @Composable
 internal fun ShowcaseMenuBar(onExit: () -> Unit) {
     var wrapText by remember { mutableStateOf(true) }
@@ -53,21 +49,15 @@ internal fun ShowcaseMenuBar(onExit: () -> Unit) {
     }
 }
 
-/**
- * The sidebar + detail shell. The sidebar selection chooses which section body fills the center. A
- * uniform body inset wraps the whole shell so the content breathes inside the window.
- */
+// The sidebar + detail shell: the sidebar selection chooses which section body fills the center.
 @Composable
 internal fun ShowcaseShell() {
     var selected by remember { mutableIntStateOf(0) }
     BorderPanel(
-        modifier =
-            SwingModifier
-                .testTag(SHOWCASE_SHELL_TAG)
-                .border(BorderFactory.createEmptyBorder(BODY_INSET, BODY_INSET, BODY_INSET, BODY_INSET)),
+        modifier = SwingModifier.border(BorderFactory.createEmptyBorder(12, 12, 12, 12)),
     ) {
         west {
-            ScrollPane(modifier = SwingModifier.preferredSize(Dimension(SIDEBAR_WIDTH, 0))) {
+            ScrollPane(modifier = SwingModifier.preferredSize(Dimension(180, 0))) {
                 content {
                     ListBox(
                         items = showcaseSections.map { it.title },
@@ -75,7 +65,7 @@ internal fun ShowcaseShell() {
                         onSelectionChange = { indices -> indices.firstOrNull()?.let { selected = it } },
                         selectionMode = ListSelectionModel.SINGLE_SELECTION,
                         visibleRowCount = showcaseSections.size,
-                        modifier = SwingModifier.testTag(SECTION_LIST_TAG),
+                        modifier = SwingModifier.accessibleName("Sections"),
                     )
                 }
             }
@@ -91,11 +81,3 @@ internal fun ShowcaseShell() {
         }
     }
 }
-
-/** Test tag for the showcase shell's root, used by the behavioral tests to scope queries. */
-internal const val SHOWCASE_SHELL_TAG: String = "showcase-shell"
-
-/** Test tag for the section-selector list, used by the behavioral tests to switch sections. */
-internal const val SECTION_LIST_TAG: String = "showcase-section-list"
-
-private const val SIDEBAR_WIDTH = 180

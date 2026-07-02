@@ -19,11 +19,9 @@ import org.jetbrains.compose.swing.dialogs.showOpenDialog
 import org.jetbrains.compose.swing.window.LocalWindow
 import javax.swing.JOptionPane
 
-/**
- * Demonstrates the standard dialog helpers — message, confirm, input, file chooser, and colour chooser.
- * Each button launches a coroutine from [rememberCoroutineScope] that calls a suspend dialog function,
- * anchoring it to the owning [LocalWindow], then writes the awaited result into a Label.
- */
+// The standard dialog helpers — message, confirm, input, file chooser, colour chooser. Each button
+// launches a coroutine from rememberCoroutineScope that awaits a suspend dialog function anchored to
+// the owning LocalWindow, then writes the result into a Label.
 @Composable
 internal fun DialogsSection() {
     SectionColumn {
@@ -36,7 +34,6 @@ internal fun DialogsSection() {
     }
 }
 
-/** A plain message dialog; the Label confirms once the user dismisses it. */
 @Composable
 private fun MessageDialogCard() {
     ExampleCard("Message dialog") {
@@ -55,7 +52,6 @@ private fun MessageDialogCard() {
     }
 }
 
-/** A Yes/No/Cancel confirm dialog; the Label echoes which button was chosen. */
 @Composable
 private fun ConfirmDialogCard() {
     ExampleCard("Confirm dialog") {
@@ -80,7 +76,6 @@ private fun ConfirmDialogCard() {
     }
 }
 
-/** A text-input dialog; the Label shows the entered text, or notes a cancellation. */
 @Composable
 private fun InputDialogCard() {
     ExampleCard("Input dialog") {
@@ -105,7 +100,6 @@ private fun InputDialogCard() {
     }
 }
 
-/** A JFileChooser open dialog; the Label reports the chosen path or a cancellation. */
 @Composable
 private fun FileChooserCard() {
     ExampleCard("File chooser") {
@@ -127,7 +121,6 @@ private fun FileChooserCard() {
     }
 }
 
-/** A JColorChooser dialog; the Label reports the chosen color's RGB, or a cancellation. */
 @Composable
 private fun ColorChooserCard() {
     ExampleCard("Color chooser") {
