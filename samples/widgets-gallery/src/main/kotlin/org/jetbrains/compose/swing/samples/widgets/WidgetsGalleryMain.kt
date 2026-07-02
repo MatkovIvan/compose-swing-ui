@@ -34,7 +34,7 @@ fun main() {
         // (Content on a detached bar is also supported — it simply defers until the bar is attached.)
         val menuBar = JMenuBar()
         frame.jMenuBar = menuBar
-        menuBar.setContent { ShowcaseMenuBar(onExit = { frame.dispose() }) }
+        menuBar.setContent { ShowcaseMenuBar(owner = frame, onExit = { frame.dispose() }) }
 
         frame.setContent {
             // Publish the frame so descendants (e.g. the modal dialog section) can resolve a real owner.

@@ -37,6 +37,10 @@ import javax.swing.JFormattedTextField.AbstractFormatterFactory
  * )
  * ```
  *
+ * For incremental editing of the field's characters over a shared `Document`, undo/redo, or observing the
+ * text as a flow, drive the field with the [DocumentState] overload ([FormattedTextField]) and a
+ * [DocumentState] from `rememberDocumentState`.
+ *
  * @param value the committed, typed value
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param formatterFactory the factory producing the field's formatter, or `null` for the default
@@ -44,6 +48,7 @@ import javax.swing.JFormattedTextField.AbstractFormatterFactory
  * @param focusLostBehavior what to do with a partial edit when the field loses focus (a
  *   [FocusLostBehavior] `JFormattedTextField` constant)
  * @param columns the preferred width in columns; `0` sizes to the content
+ * @see FormattedTextField the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
 public fun FormattedTextField(
@@ -72,6 +77,10 @@ public fun FormattedTextField(
  * instead of an `onValueChange` lambda. The listener is attached as-is and removed on the same
  * instance; pass a stable instance (e.g. `remember {}`) to avoid churn.
  *
+ * For incremental editing of the field's characters over a shared `Document`, undo/redo, or observing the
+ * text as a flow, drive the field with the [DocumentState] overload ([FormattedTextField]) and a
+ * [DocumentState] from `rememberDocumentState`.
+ *
  * @param value the committed, typed value
  * @param valuePropertyChangeListener the listener notified when the committed `value` changes
  * @param modifier the [SwingModifier] applied to the underlying component
@@ -79,6 +88,7 @@ public fun FormattedTextField(
  * @param focusLostBehavior what to do with a partial edit when the field loses focus (a
  *   [FocusLostBehavior] `JFormattedTextField` constant)
  * @param columns the preferred width in columns; `0` sizes to the content
+ * @see FormattedTextField the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
 public fun FormattedTextField(
@@ -100,5 +110,52 @@ public fun FormattedTextField(
                 SwingModifier.propertyChangeListener("value", valuePropertyChangeListener) then modifier,
             )
         },
+    )
+}
+
+/**
+ * A [FormattedTextField] driven by a [DocumentState]. The field renders the state's own document,
+ * so the text the user types and the edits made through the state are the same content, and the caret is
+ * kept two-way with [DocumentState.selection]. The state is the single source of truth for the
+ * field's characters.
+ *
+ * The [formatterFactory] still governs how that text is parsed and formatted (e.g. a `NumberFormatter`,
+ * a `DateFormatter`, or a `MaskFormatter`). The committed, typed value produced by the formatter is
+ * read from the field itself (`JFormattedTextField.getValue`) at the moments the field commits — it is
+ * not surfaced through this state, which models the character content rather than the parsed value.
+ *
+ * ```
+ * val state = rememberDocumentState()
+ * FormattedTextField(
+ *     state = state,
+ *     formatterFactory = DefaultFormatterFactory(NumberFormatter()),
+ * )
+ * ```
+ *
+ * @param state the hoistable text state the field renders and drives
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param formatterFactory the factory producing the field's formatter, or `null` for the default
+ * @param focusLostBehavior what to do with a partial edit when the field loses focus (a
+ *   [FocusLostBehavior] `JFormattedTextField` constant)
+ * @param columns the preferred width in columns; `0` sizes to the content
+ */
+@Composable
+public fun FormattedTextField(
+    state: DocumentState,
+    modifier: SwingModifier = SwingModifier,
+    formatterFactory: AbstractFormatterFactory? = null,
+    @FocusLostBehavior focusLostBehavior: Int = JFormattedTextField.COMMIT_OR_REVERT,
+    columns: Int = 0,
+) {
+    SwingNode(
+        factory = { JFormattedTextField() },
+        update = {
+            set(columns) { this.columns = it }
+            set(focusLostBehavior) { this.focusLostBehavior = it }
+            set(formatterFactory) { this.setFormatterFactory(it) }
+            set(state) { state.bind(this) }
+            applyModifier(modifier)
+        },
+        onRelease = { state.unbind(this) },
     )
 }

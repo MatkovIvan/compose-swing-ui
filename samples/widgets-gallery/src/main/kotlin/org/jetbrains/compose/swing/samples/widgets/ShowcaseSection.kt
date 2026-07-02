@@ -39,6 +39,7 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Form inputs") { FormInputsSection() },
         ShowcaseSection("RadioGroup") { RadioGroupSection() },
         ShowcaseSection("Rich text") { RichTextSection() },
+        ShowcaseSection("Editor") { EditorSection() },
         ShowcaseSection("Accessibility") { AccessibilitySection() },
         ShowcaseSection("Table") { TableSection() },
         ShowcaseSection("Tree") { TreeSection() },

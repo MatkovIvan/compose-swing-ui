@@ -18,11 +18,15 @@ import javax.swing.event.DocumentListener
 /**
  * A composable wrapper for JTextArea.
  *
+ * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
+ * area with the [DocumentState] overload ([TextArea]) and a [DocumentState] from `rememberDocumentState`.
+ *
  * @param value the current text value
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param onValueChange callback invoked when the text changes
  * @param rows the number of rows
  * @param columns the number of columns
+ * @see TextArea the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
 public fun TextArea(
@@ -43,11 +47,15 @@ public fun TextArea(
  * lambda. The [documentListener] is attached to the area's document as-is and removed on the same
  * instance; pass a stable instance (e.g. `remember {}`) to avoid churn.
  *
+ * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
+ * area with the [DocumentState] overload ([TextArea]) and a [DocumentState] from `rememberDocumentState`.
+ *
  * @param value the current text value
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param rows the number of rows
  * @param columns the number of columns
+ * @see TextArea the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
 public fun TextArea(
@@ -63,5 +71,33 @@ public fun TextArea(
             set(value) { setTextPreservingCaret(it) }
             applyModifier(SwingModifier.documentListener(documentListener) then modifier)
         },
+    )
+}
+
+/**
+ * A composable wrapper for JTextArea driven by a [DocumentState]. The area renders the state's own
+ * document, so text typed into the area and edits made through the state are the same content, and the
+ * caret is kept two-way with [DocumentState.selection]. The state is the single source of truth;
+ * there is no `onValueChange`.
+ *
+ * @param state the hoistable text state the area renders and drives.
+ * @param modifier the [SwingModifier] applied to the underlying component.
+ * @param rows the number of rows.
+ * @param columns the number of columns.
+ */
+@Composable
+public fun TextArea(
+    state: DocumentState,
+    modifier: SwingModifier = SwingModifier,
+    rows: Int = 0,
+    columns: Int = 0,
+) {
+    SwingNode(
+        factory = { JTextArea(rows, columns) },
+        update = {
+            set(state) { state.bind(this) }
+            applyModifier(modifier)
+        },
+        onRelease = { state.unbind(this) },
     )
 }

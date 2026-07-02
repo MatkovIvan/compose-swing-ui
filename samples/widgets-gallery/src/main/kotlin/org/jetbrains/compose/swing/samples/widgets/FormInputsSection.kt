@@ -7,13 +7,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Spinner
+import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.rememberSpinnerState
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.documentFilter
+import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 import java.text.NumberFormat
@@ -37,6 +40,7 @@ internal fun FormInputsSection() {
         NumberFieldCard()
         MaskFieldCard()
         DigitsOnlyCard()
+        DocumentStateCard()
     }
 }
 
@@ -154,6 +158,21 @@ private fun DigitsOnlyCard() {
             )
         }
         Label("PIN is $pin")
+    }
+}
+
+@Composable
+private fun DocumentStateCard() {
+    ExampleCard("TextField (DocumentState)") {
+        // The state and the field share one document, so there is no value to hoist: the Label's
+        // length readout and the Undo button both read straight from the state the field edits.
+        val state = rememberDocumentState("hello")
+        FlowPanel {
+            Label("Text:")
+            TextField(state = state, columns = 16)
+            Button("Undo", modifier = SwingModifier.enabled(state.canUndo), onClick = state::undo)
+        }
+        Label("Length is ${state.text.length}")
     }
 }
 

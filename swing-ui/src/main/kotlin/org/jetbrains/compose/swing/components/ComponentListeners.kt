@@ -8,6 +8,7 @@ import javax.swing.ListSelectionModel
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.event.ListSelectionListener
+import javax.swing.text.AbstractDocument
 import javax.swing.text.Document
 import javax.swing.text.JTextComponent
 
@@ -72,6 +73,29 @@ private class SwappableDocumentInstaller(
 
 /** Reads the full text of [this] document. */
 internal fun Document.fullText(): String = getText(0, length)
+
+/**
+ * Replaces the `[offset, offset + length)` region of [this] document with [text]. When the document is
+ * an [AbstractDocument] (as `PlainDocument` and the default text-component documents are) the change is
+ * applied through its atomic `replace`, so any installed `DocumentFilter` sees one replace; otherwise
+ * it falls back to a `remove` followed by an `insertString`.
+ */
+internal fun Document.replaceSpan(
+    offset: Int,
+    length: Int,
+    text: String,
+) {
+    when (this) {
+        is AbstractDocument -> {
+            replace(offset, length, text, null)
+        }
+
+        else -> {
+            if (length > 0) remove(offset, length)
+            if (text.isNotEmpty()) insertString(offset, text, null)
+        }
+    }
+}
 
 /**
  * Collects the selected indices of [this] selection model, in ascending order — the same set
