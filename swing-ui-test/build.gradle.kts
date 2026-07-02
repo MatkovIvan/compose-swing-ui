@@ -3,16 +3,13 @@ import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 plugins {
     id("buildsrc.convention.kotlin-jvm")
     id("buildsrc.convention.kotlin-quality")
-    // Publish this module to Maven Local / GitHub Packages.
     id("buildsrc.convention.publishing")
-    // Per-module test coverage (self-contained; no cross-module aggregation).
     jacoco
 }
 
 kotlin {
     explicitApi()
 
-    // Lock the public ABI with the Kotlin Gradle plugin's built-in validation.
     @OptIn(ExperimentalAbiValidation::class)
     abiValidation {
         enabled.set(true)
@@ -36,7 +33,6 @@ dependencies {
     api(libs.kotlinxCoroutinesSwing)
 }
 
-// Generate XML + HTML coverage reports and run them as part of the test lifecycle.
 tasks.named<JacocoReport>("jacocoTestReport") {
     dependsOn(tasks.named("test"))
     reports {

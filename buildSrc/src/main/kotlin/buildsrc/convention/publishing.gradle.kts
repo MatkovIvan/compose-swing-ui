@@ -1,18 +1,7 @@
-// Convention plugin that publishes a single JVM library to Maven Local and GitHub Packages.
-// Apply it alongside `kotlin-jvm` in a module build script, then set the publication name/description
-// for that module. Coordinate and credential resolution lives in PublishingCoordinates.kt.
-//
-// group/version are wired here so every module that publishes picks up the same coordinates:
-//   group   defaults to `dev.matkov.compose.swing`, overridable with -Pgroup=...
-//   version defaults to `0.1.0-SNAPSHOT`, overridable with -Pversion=X.Y.Z; pass -PversionSuffix=...
-//           (for example alpha.1, beta.2, rc.1) to append a pre-release suffix.
-//
-// publishToMavenLocal works with no GitHub credentials: the GitHubPackages repository block reads
-// credentials as nullable providers, which maven-publish only validates when a remote publish task
-// actually executes.
 package buildsrc.convention
 
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 
 plugins {
     `maven-publish`
@@ -21,6 +10,8 @@ plugins {
 private val publishGroup: String =
     providers.gradleProperty("group").orNull?.takeIf { it.isNotBlank() }
         ?: "dev.matkov.compose.swing"
+// Defaults to 0.1.0-SNAPSHOT, overridable with -Pversion=X.Y.Z; -PversionSuffix=... (for example
+// alpha.1, rc.1) appends a pre-release suffix.
 private val publishVersion: String =
     run {
         val base = providers.gradleProperty("version").orNull?.takeIf { it.isNotBlank() } ?: "0.1.0-SNAPSHOT"
@@ -35,8 +26,6 @@ private val coordinates = resolveRepositoryCoordinates()
 private val publishUsername = publishUsername()
 private val publishToken = publishToken()
 
-// kotlin-jvm applies the Java plugin, which provides this extension; the sources/javadoc jars it adds
-// here are wired into the `java` software component picked up by the MavenPublication below.
 extensions.configure<JavaPluginExtension> {
     withSourcesJar()
     withJavadocJar()
@@ -61,6 +50,7 @@ publishing {
                 developers {
                     developer {
                         id.set(coordinates.owner)
+                        name.set(coordinates.owner)
                     }
                 }
 
@@ -80,10 +70,27 @@ publishing {
         maven {
             name = "GitHubPackages"
             url = uri(coordinates.packagesUrl)
+            // Nullable on purpose: maven-publish validates credentials only when a remote publish task
+            // actually executes, so publishToMavenLocal works with no GitHub credentials configured.
             credentials {
                 username = publishUsername.orNull
                 password = publishToken.orNull
             }
+        }
+    }
+}
+
+// The fallback `<name>/<name>` slug exists only so publishToMavenLocal works with no GitHub
+// environment configured; a remote publish would bake its synthesized POM urls into the published
+// artifact, so remote publish tasks demand an explicitly configured slug.
+tasks.withType<PublishToMavenRepository>().configureEach {
+    doFirst {
+        if (!coordinates.isExplicit) {
+            throw GradleException(
+                "Publishing to the ${repository.name} repository requires explicit repository " +
+                    "coordinates: set -PrepositorySlug=<owner>/<repo> or the GITHUB_REPOSITORY " +
+                    "environment variable.",
+            )
         }
     }
 }

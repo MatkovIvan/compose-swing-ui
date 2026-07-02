@@ -1,5 +1,3 @@
-// Convention plugin applying the shared code-quality gates (ktlint + detekt) to a module.
-// Apply it alongside `kotlin-jvm` in module build scripts.
 package buildsrc.convention
 
 import dev.detekt.gradle.Detekt
@@ -35,7 +33,6 @@ detekt {
     parallel.set(true)
 }
 
-// Analyze against the same JVM target the project compiles to.
 tasks.withType<Detekt>().configureEach {
     jvmTarget.set("21")
 }
@@ -47,10 +44,8 @@ tasks.named("check") {
     dependsOn(tasks.named("detektMain"), tasks.named("detektTest"))
 }
 
-// Run the Compose lint checks as part of `check`, and surface them as errors (no quiet warnings).
 lint {
     warningsAsErrors = true
-    // Lint configuration (which Compose checks are enabled and at what severity) lives in lint.xml.
     lintConfig = rootProject.file("config/lint/lint.xml")
 }
 

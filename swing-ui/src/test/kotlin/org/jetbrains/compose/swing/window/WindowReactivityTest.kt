@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Frame
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
@@ -75,7 +76,7 @@ private fun windowTest(
     initialVisible: Boolean = true,
     body: suspend WindowTestScope.(WindowState) -> Unit,
 ) {
-    if (GraphicsEnvironment.isHeadless()) return
+    assumeFalse(GraphicsEnvironment.isHeadless(), "Realizing a real Window requires a display")
 
     val state =
         WindowState(

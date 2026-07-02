@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runSwingUiTest
+import java.awt.GraphicsEnvironment
 import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
@@ -391,7 +392,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun clipboardMenuHelpersAreSafeWithoutASystemClipboard() = runSwingUiTest {
+    fun clipboardMenuHelpersDegradeGracefully() = runSwingUiTest {
         setContent {
             TextField(
                 value = "",
@@ -405,14 +406,16 @@ class DataTransferModifierTest {
             )
         }
         val component = onNodeWithName("clip").fetch<JComponent>()
-        // The system clipboard is unavailable under the headless harness; the menu helpers must
-        // degrade gracefully (no throw) rather than fail.
+        // The menu helpers must run cleanly whether or not a system clipboard is reachable: where one
+        // is absent (no display) paste reports failure; where one is present the round-trip is imported.
         copyToClipboard(component)
         cutFromClipboard(component)
-        assertFalse(
-            pasteFromClipboard(component),
-            "paste reports failure when no system clipboard is available",
-        )
+        val pasted = pasteFromClipboard(component)
+        if (GraphicsEnvironment.isHeadless()) {
+            assertFalse(pasted, "paste reports failure when no system clipboard is reachable")
+        } else {
+            assertTrue(pasted, "paste imports the round-tripped value when a system clipboard is present")
+        }
     }
 
     @Test

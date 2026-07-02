@@ -21,6 +21,14 @@ jobs:
         with:
           java-version: 21
 
+      # A virtual framebuffer gives the headless runner a display so tests that realize a real
+      # top-level window run instead of skipping. Gradle is launched under xvfb-run below.
+      - shell: bash
+        name: Install Virtual Framebuffer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
       # buildSrc is an included build, so the root gates below do not reach it. Run its
       # ktlint/detekt explicitly first so a convention-plugin regression fails fast.
       - shell: bash
@@ -33,11 +41,12 @@ jobs:
       # Compose checks, test, and swing-ui's jacocoTestCoverageVerification) plus `assemble`.
       # Driving it generically gates new modules automatically without enumerating them.
       # `checkKotlinAbi` validates the committed api/*.api dumps and is not part of `check`, so it
-      # is requested explicitly. `--continue` reports every failure in a single run.
+      # is requested explicitly. `--continue` reports every failure in a single run. Run under
+      # xvfb-run so window tests have a display and exercise real top-level peers.
       - shell: bash
         name: Build & Run Gates
         run: |
-          ./gradlew --no-daemon --stacktrace --continue \
+          xvfb-run --auto-servernum ./gradlew --no-daemon --stacktrace --continue \
             build checkKotlinAbi
 
       # Sanity-check that the publishing configuration resolves and produces artifacts.

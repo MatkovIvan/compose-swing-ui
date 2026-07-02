@@ -37,12 +37,6 @@ public abstract interface class org/jetbrains/compose/swing/test/SwingUiTest {
 	public static synthetic fun waitUntil$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
-public final class org/jetbrains/compose/swing/test/SwingUiTest$DefaultImpls {
-	public static synthetic fun onAllNodesWithText$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
-	public static synthetic fun onNodeWithText$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public static synthetic fun waitUntil$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-}
-
 public final class org/jetbrains/compose/swing/test/SwingUiTestKt {
 	public static final fun runSwingUiTest (Lkotlin/jvm/functions/Function2;)V
 }

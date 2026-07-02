@@ -94,11 +94,6 @@ public abstract interface class org/jetbrains/compose/swing/components/desktop/D
 	public static synthetic fun internalFrame$default (Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Ljava/lang/String;Ljava/awt/Rectangle;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 }
 
-public final class org/jetbrains/compose/swing/components/desktop/DesktopPaneScope$DefaultImpls {
-	public static synthetic fun internalFrame$default (Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Ljava/lang/String;Ljava/awt/Rectangle;Ljavax/swing/event/InternalFrameListener;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
-	public static synthetic fun internalFrame$default (Lorg/jetbrains/compose/swing/components/desktop/DesktopPaneScope;Ljava/lang/String;Ljava/awt/Rectangle;Lorg/jetbrains/compose/swing/components/desktop/InternalFrameControls;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
-}
-
 public final class org/jetbrains/compose/swing/components/desktop/InternalFrameControls {
 	public static final field $stable I
 	public fun <init> ()V
@@ -201,16 +196,8 @@ public abstract interface class org/jetbrains/compose/swing/components/layout/Ta
 	public static synthetic fun tab$default (Lorg/jetbrains/compose/swing/components/layout/TabbedPaneScope;Ljava/lang/String;Ljavax/swing/Icon;Ljava/lang/String;ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 }
 
-public final class org/jetbrains/compose/swing/components/layout/TabbedPaneScope$DefaultImpls {
-	public static synthetic fun tab$default (Lorg/jetbrains/compose/swing/components/layout/TabbedPaneScope;Ljava/lang/String;Ljavax/swing/Icon;Ljava/lang/String;ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
-}
-
 public abstract interface class org/jetbrains/compose/swing/components/selection/RadioGroupScope {
 	public abstract fun option (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)V
-	public static synthetic fun option$default (Lorg/jetbrains/compose/swing/components/selection/RadioGroupScope;Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILjava/lang/Object;)V
-}
-
-public final class org/jetbrains/compose/swing/components/selection/RadioGroupScope$DefaultImpls {
 	public static synthetic fun option$default (Lorg/jetbrains/compose/swing/components/selection/RadioGroupScope;Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILjava/lang/Object;)V
 }
 
@@ -226,10 +213,6 @@ public final class org/jetbrains/compose/swing/components/selection/SelectionCom
 
 public abstract interface class org/jetbrains/compose/swing/components/selection/TableScope {
 	public abstract fun column (Ljava/lang/String;ZLkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function1;)V
-	public static synthetic fun column$default (Lorg/jetbrains/compose/swing/components/selection/TableScope;Ljava/lang/String;ZLkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
-}
-
-public final class org/jetbrains/compose/swing/components/selection/TableScope$DefaultImpls {
 	public static synthetic fun column$default (Lorg/jetbrains/compose/swing/components/selection/TableScope;Ljava/lang/String;ZLkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
@@ -392,10 +375,6 @@ public final class org/jetbrains/compose/swing/modifier/SwingModifier$Companion 
 	public fun then (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
-public final class org/jetbrains/compose/swing/modifier/SwingModifier$DefaultImpls {
-	public static fun then (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-}
-
 public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier$Element : org/jetbrains/compose/swing/modifier/SwingModifier {
 	public abstract fun create ()Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;
 	public fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
@@ -403,13 +382,6 @@ public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifi
 	public fun getKey ()Ljava/lang/Object;
 	public abstract fun getTargetType ()Ljava/lang/Class;
 	public abstract fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)V
-}
-
-public final class org/jetbrains/compose/swing/modifier/SwingModifier$Element$DefaultImpls {
-	public static fun foldIn (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Element;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
-	public static fun getAdditive (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Element;)Z
-	public static fun getKey (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Element;)Ljava/lang/Object;
-	public static fun then (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Element;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public class org/jetbrains/compose/swing/modifier/SwingModifier$Node {

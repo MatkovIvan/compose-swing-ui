@@ -22,6 +22,12 @@ public data class GitHubRepositoryCoordinates(
     val name: String,
     val webUrl: String,
     val host: String,
+    /**
+     * Whether owner/name came from an explicitly configured slug (gradle property or environment)
+     * rather than the local-only `<name>/<name>` fallback. Remote publishing requires an explicit
+     * slug so a fallback-derived POM never leaves the machine.
+     */
+    val isExplicit: Boolean,
 ) {
     val packagesUrl: String
         get() = "https://maven.pkg.github.com/$owner/$name"
@@ -42,13 +48,14 @@ public fun Project.publishToken(): Provider<String> =
 /**
  * Resolves owner/repo, web url, and host from the GitHub Actions environment, with a
  * `-PrepositorySlug=<owner>/<repo>` override. Never reads credentials, so it is safe to call during
- * configuration with no environment present (local `publishToMavenLocal`).
+ * configuration with no environment present (local `publishToMavenLocal`); in that case the slug
+ * falls back to `<name>/<name>` and the result is marked non-[explicit][GitHubRepositoryCoordinates.isExplicit].
  */
 public fun Project.resolveRepositoryCoordinates(): GitHubRepositoryCoordinates {
-    val slug =
+    val explicitSlug =
         providers.gradleProperty(REPOSITORY_SLUG_PROPERTY).orNull
             ?: providers.environmentVariable("GITHUB_REPOSITORY").orNull
-            ?: rootProject.name.let { "$it/$it" }
+    val slug = explicitSlug ?: rootProject.name.let { "$it/$it" }
     val normalizedSlug = slug.trim().removePrefix("/").removeSuffix("/")
     val ownerAndName = normalizedSlug.split("/", limit = 2)
     if (ownerAndName.size != 2 || ownerAndName.any { it.isBlank() }) {
@@ -74,5 +81,6 @@ public fun Project.resolveRepositoryCoordinates(): GitHubRepositoryCoordinates {
         name = ownerAndName[1],
         webUrl = "$normalizedServerUrl/${ownerAndName[0]}/${ownerAndName[1]}",
         host = host,
+        isExplicit = explicitSlug != null,
     )
 }
