@@ -30,6 +30,9 @@ import kotlin.math.abs
  * the component (already typed [JComponent]) and returns the data to transfer, or `null` to start no
  * drag.
  *
+ * The outcome of every export — the completed action, including a `MOVE` whose data the source
+ * should remove — is reported through [onExportDone].
+ *
  * Requires a [JComponent] target. Composes with [dropTarget] and [clipboard] on the same component:
  * all three configure one underlying transfer handler, so a component can be a drag source, a drop
  * target, and clipboard-enabled at once. [transferable] and [exportedActions] are read on each drag,
@@ -63,12 +66,12 @@ public fun SwingModifier.dropTarget(
  * Enables system-clipboard copy/cut export and paste import on the component, over the same transfer
  * handler [draggable] and [dropTarget] use.
  *
- * Copy and cut export the value [transferable] produces to the system clipboard; the difference is the
- * operation reported to [transferable]'s caller via the standard export contract
- * (`TransferHandler.COPY` versus `TransferHandler.MOVE`). Paste reads the system clipboard and, when
- * [canImport] accepts the
- * available flavors, hands the clipboard [Transferable] to [onPaste], which returns whether the import
- * succeeded. [canImport] defaults to accepting any flavor.
+ * Copy and cut export the value [transferable] produces to the system clipboard; copy completes as a
+ * `TransferHandler.COPY` and cut as a `TransferHandler.MOVE`, the action reported through
+ * [onExportDone], where a source implementing cut semantics removes the moved data. Paste reads the
+ * system clipboard and, when [canImport] accepts the available flavors, hands the clipboard
+ * [Transferable] to [onPaste], which returns whether the import succeeded. [canImport] defaults to
+ * accepting any flavor.
  *
  * When [bindKeys] is `true` (the default), the platform copy/cut/paste keystrokes (the menu-shortcut
  * modifier with `C`/`X`/`V`) are bound on the component so the standard shortcuts trigger these
@@ -88,6 +91,25 @@ public fun SwingModifier.clipboard(
     bindKeys: Boolean = true,
     handle: ClipboardHandle? = null,
 ): SwingModifier = this then ClipboardElement(transferable, onPaste, canImport, bindKeys, handle)
+
+/**
+ * Registers a callback told the outcome of every data-transfer export that starts on the component:
+ * once a drag ends or a clipboard copy/cut completes, [onExportDone] receives the component, the
+ * exported data, and the [TransferAction] that occurred — `TransferHandler.COPY`,
+ * `TransferHandler.MOVE`, or `TransferHandler.NONE` (with `null` data) when nothing was transferred.
+ * A source offering `MOVE` implements move semantics here: on a reported `MOVE` it removes the moved
+ * data. With no callback registered a completed export removes nothing, like
+ * `TransferHandler.exportDone` itself.
+ *
+ * Requires a [JComponent] target. Composes with [draggable] and [clipboard] on the same component:
+ * the component's data-transfer modifiers configure one underlying transfer handler with a single
+ * export-completion seam, so the callback observes every export regardless of which modifier
+ * initiated it. [onExportDone] is read on each export, so passing a fresh value across recompositions
+ * takes effect immediately.
+ */
+public fun SwingModifier.onExportDone(
+    onExportDone: (component: JComponent, data: Transferable?, action: Int) -> Unit,
+): SwingModifier = this then ExportDoneElement(onExportDone)
 
 /**
  * A programmatic trigger for the clipboard copy/cut/paste of the component a [clipboard] modifier binds
@@ -114,7 +136,8 @@ public class ClipboardHandle internal constructor() {
 
     /**
      * Cuts to the system clipboard: exports the value the bound component's [clipboard] modifier
-     * produces as a `TransferHandler.MOVE`. A no-op while the handle is unbound.
+     * produces as a `TransferHandler.MOVE`, reported through the component's [onExportDone] so the
+     * source can remove the moved data. A no-op while the handle is unbound.
      */
     public fun cut() {
         component?.let { exportToClipboard(it, TransferHandler.MOVE) }
@@ -185,10 +208,10 @@ private class DraggableElement(
         fun apply() {
             val config = config ?: return
             val handler = installedHandler(component)
-            // Claim the slice once under a stable token, then refresh the config under it: the config is
+            // Claim the slot once under a stable token, then refresh the config under it: the config is
             // a fresh value each recomposition, so it is not a stable ownership key — the token is.
-            if (!handler.setSource(sourceToken, config)) {
-                sourceToken = handler.installSource(config)
+            if (!handler.source.set(sourceToken, config)) {
+                sourceToken = handler.source.install(config)
             }
         }
 
@@ -198,7 +221,7 @@ private class DraggableElement(
                 component.removeMouseMotionListener(it)
             }
             gesture = null
-            clearSourceIfOwned(component, sourceToken)
+            clearSlotIfOwned(component, sourceToken) { it.source }
             sourceToken = null
             uninstallIfEmpty(component)
         }
@@ -258,14 +281,14 @@ private class DropTargetElement(
         fun apply() {
             val config = config ?: return
             val handler = installedHandler(component)
-            // Claim the slice once under a stable token, then refresh the config under it.
-            if (!handler.setDrop(dropToken, config)) {
-                dropToken = handler.installDrop(config)
+            // Claim the slot once under a stable token, then refresh the config under it.
+            if (!handler.drop.set(dropToken, config)) {
+                dropToken = handler.drop.install(config)
             }
         }
 
         override fun onDetach() {
-            clearDropIfOwned(component, dropToken)
+            clearSlotIfOwned(component, dropToken) { it.drop }
             dropToken = null
             uninstallIfEmpty(component)
         }
@@ -317,19 +340,17 @@ private class ClipboardElement(
             val component = component
             val handler = installedHandler(component)
             // Clipboard export reuses the drag source's exporter (copy/cut both produce the same
-            // value); declaring COPY_OR_MOVE lets exportToClipboard run for either action. Only own the
-            // source slice when no drag source already holds it, so a sibling draggable's export is left
-            // intact.
+            // value); declaring COPY_OR_MOVE lets exportToClipboard run for either action.
             val sourceConfig = SourceConfig(TransferHandler.COPY_OR_MOVE) { transferable(it) }
             // Refresh under our token if we still own it; otherwise claim it only while it is free, so a
             // sibling draggable's export is left intact.
-            if (!handler.setSource(sourceToken, sourceConfig) && handler.source == null) {
-                sourceToken = handler.installSource(sourceConfig)
+            if (!handler.source.set(sourceToken, sourceConfig) && handler.source.value == null) {
+                sourceToken = handler.source.install(sourceConfig)
             }
             val dropConfig =
                 DropConfig(TransferHandler.COPY_OR_MOVE, { onPaste(it) }, { canImport(it) })
-            if (!handler.setDrop(dropToken, dropConfig)) {
-                dropToken = handler.installDrop(dropConfig)
+            if (!handler.drop.set(dropToken, dropConfig)) {
+                dropToken = handler.drop.install(dropConfig)
             }
             if (bindKeys && !keysBound) {
                 bindClipboardKeys(component)
@@ -341,12 +362,47 @@ private class ClipboardElement(
             val component = component
             // Clearing the handle runs its setter, which unbinds this component from the bound handle.
             handle = null
-            clearSourceIfOwned(component, sourceToken)
-            clearDropIfOwned(component, dropToken)
+            clearSlotIfOwned(component, sourceToken) { it.source }
+            clearSlotIfOwned(component, dropToken) { it.drop }
             sourceToken = null
             dropToken = null
             if (keysBound) unbindClipboardKeys(component)
             keysBound = false
+            uninstallIfEmpty(component)
+        }
+    }
+}
+
+private class ExportDoneElement(
+    private val onExportDone: (JComponent, Transferable?, Int) -> Unit,
+) : SwingModifier.Element<JComponent, ExportDoneElement.Node> {
+    override val targetType: Class<JComponent> get() = JComponent::class.java
+
+    override fun create(): Node = Node()
+
+    override fun update(node: Node) {
+        node.onExportDone = onExportDone
+        node.apply()
+    }
+
+    class Node : SwingModifier.Node<JComponent>() {
+        var onExportDone: ((JComponent, Transferable?, Int) -> Unit)? = null
+        private var token: SliceToken? = null
+
+        fun apply() {
+            val onExportDone = onExportDone ?: return
+            val handler = installedHandler(component)
+            // Claim the seam once under a stable token, then refresh the callback under it: the
+            // callback is a fresh value each recomposition, so it is not a stable ownership key —
+            // the token is.
+            if (!handler.onExportDone.set(token, onExportDone)) {
+                token = handler.onExportDone.install(onExportDone)
+            }
+        }
+
+        override fun onDetach() {
+            clearSlotIfOwned(component, token) { it.onExportDone }
+            token = null
             uninstallIfEmpty(component)
         }
     }
@@ -395,112 +451,96 @@ internal class DropConfig(
 
 /**
  * The one `TransferHandler` every data-transfer modifier on a component configures. It holds a
- * nullable [source] (drag/clipboard export) and [drop] (drop/clipboard import) slice and routes the
- * `TransferHandler` callbacks to whichever slices are present, so drag, drop, and clipboard coexist on
- * a single component. [original] is the handler the component had before this one was installed, so it
- * can be restored once every slice is gone.
- *
- * Each slice is owned by exactly one node. Ownership is tracked by an opaque [SliceToken] issued when a
- * node installs the slice (via [installSource]/[installDrop]) and remembered by that node, rather than
- * by the identity of the [SourceConfig]/[DropConfig] value itself: a node refreshes its config on every
- * recomposition (a fresh value each time), so config identity is not a stable ownership key, whereas
- * the token is minted once per install and stays put. A node clears its slice through
- * [clearSourceIfOwned]/[clearDropIfOwned], which release the slice only when the live token still
- * matches the one the node holds — so a slice another node has since taken over is never cleared.
+ * [source] (drag/clipboard export) slot, a [drop] (drop/clipboard import) slot, and the
+ * [onExportDone] export-completion seam, and routes the `TransferHandler` callbacks to whichever are
+ * occupied, so drag, drop, and clipboard coexist on a single component. [original] is the handler the
+ * component had before this one was installed, so it can be restored once every slot is empty.
  */
 internal class SharedTransferHandler : TransferHandler() {
     var original: TransferHandler? = null
 
-    var source: SourceConfig? = null
-        private set
-    var drop: DropConfig? = null
-        private set
+    val source = SliceSlot<SourceConfig>()
+    val drop = SliceSlot<DropConfig>()
+    val onExportDone = SliceSlot<(JComponent, Transferable?, Int) -> Unit>()
 
-    private var sourceToken: SliceToken? = null
-    private var dropToken: SliceToken? = null
+    override fun getSourceActions(c: JComponent?): Int = source.value?.exportedActions ?: NONE
 
-    /**
-     * Sets [config] as the source slice and takes ownership under a freshly minted [SliceToken], which
-     * is returned. Use this to claim the slice; refresh the config under the same token with
-     * [setSource].
-     */
-    fun installSource(config: SourceConfig): SliceToken {
-        source = config
-        return SliceToken().also { sourceToken = it }
+    override fun createTransferable(c: JComponent): Transferable? = source.value?.transferable?.invoke(c)
+
+    // Every export path (drag end, clipboard export, failed export) terminates here; data is null
+    // when the action is NONE. The seam is where the component implements MOVE cleanup, so route
+    // the completed action to it.
+    override fun exportDone(
+        source: JComponent,
+        data: Transferable?,
+        action: Int,
+    ) {
+        onExportDone.value?.invoke(source, data, action)
     }
-
-    /**
-     * Sets [config] as the drop slice and takes ownership under a freshly minted [SliceToken], which is
-     * returned. Use this to claim the slice; refresh the config under the same token with [setDrop].
-     */
-    fun installDrop(config: DropConfig): SliceToken {
-        drop = config
-        return SliceToken().also { dropToken = it }
-    }
-
-    /**
-     * Refreshes the source config under the existing owning [token] without minting a new one. Returns
-     * whether [token] still owns the slice (and the config was applied); a caller that gets `false` must
-     * re-[installSource] to reclaim it.
-     */
-    fun setSource(
-        token: SliceToken?,
-        config: SourceConfig,
-    ): Boolean {
-        if (token == null || sourceToken !== token) return false
-        source = config
-        return true
-    }
-
-    /**
-     * Refreshes the drop config under the existing owning [token] without minting a new one. Returns
-     * whether [token] still owns the slice (and the config was applied); a caller that gets `false` must
-     * re-[installDrop] to reclaim it.
-     */
-    fun setDrop(
-        token: SliceToken?,
-        config: DropConfig,
-    ): Boolean {
-        if (token == null || dropToken !== token) return false
-        drop = config
-        return true
-    }
-
-    /** Clears the source slice only if [token] still owns it; returns whether it was cleared. */
-    fun clearSource(token: SliceToken): Boolean {
-        if (sourceToken !== token) return false
-        source = null
-        sourceToken = null
-        return true
-    }
-
-    /** Clears the drop slice only if [token] still owns it; returns whether it was cleared. */
-    fun clearDrop(token: SliceToken): Boolean {
-        if (dropToken !== token) return false
-        drop = null
-        dropToken = null
-        return true
-    }
-
-    override fun getSourceActions(c: JComponent?): Int = source?.exportedActions ?: NONE
-
-    override fun createTransferable(c: JComponent): Transferable? = source?.transferable?.invoke(c)
 
     override fun canImport(support: TransferSupport): Boolean {
-        val config = drop ?: return false
+        val config = drop.value ?: return false
         val actionAccepted = !support.isDrop || (config.acceptedActions and support.dropAction) != 0
         return actionAccepted && config.canImport(support.dataFlavors.asList())
     }
 
     override fun importData(support: TransferSupport): Boolean {
-        val config = drop ?: return false
+        val config = drop.value ?: return false
         return canImport(support) && config.onImport(support.transferable)
     }
 }
 
 /**
- * An opaque per-install capability token for one slice of a [SharedTransferHandler]. Minted by
- * [SharedTransferHandler.installSource]/[SharedTransferHandler.installDrop] and held by the installing
- * node so it — and only it — can later release the slice it installed.
+ * One capability slot of a [SharedTransferHandler], owned by exactly one node. Ownership is tracked
+ * by an opaque [SliceToken] minted when a node installs the slot's value (via [install]) and
+ * remembered by that node, rather than by the identity of the value itself: a node refreshes its
+ * value on every recomposition (a fresh value each time), so value identity is not a stable
+ * ownership key, whereas the token is minted once per install and stays put. A node refreshes under
+ * its token with [set] and releases through [clear], which empties the slot only while the live
+ * token still matches the one the node holds — so a slot another node has since taken over is never
+ * cleared.
+ */
+internal class SliceSlot<T : Any> {
+    var value: T? = null
+        private set
+
+    private var token: SliceToken? = null
+
+    /**
+     * Sets [value] and takes ownership under a freshly minted [SliceToken], which is returned. Use
+     * this to claim the slot; refresh the value under the same token with [set].
+     */
+    fun install(value: T): SliceToken {
+        this.value = value
+        return SliceToken().also { token = it }
+    }
+
+    /**
+     * Refreshes the value under the existing owning [token] without minting a new one. Returns
+     * whether [token] still owns the slot (and the value was applied); a caller that gets `false`
+     * must re-[install] to reclaim it.
+     */
+    fun set(
+        token: SliceToken?,
+        value: T,
+    ): Boolean {
+        if (token == null || this.token !== token) return false
+        this.value = value
+        return true
+    }
+
+    /** Empties the slot only if [token] still owns it; returns whether it was cleared. */
+    fun clear(token: SliceToken): Boolean {
+        if (this.token !== token) return false
+        value = null
+        this.token = null
+        return true
+    }
+}
+
+/**
+ * An opaque per-install capability token for one [SliceSlot] of a [SharedTransferHandler]. Minted by
+ * [SliceSlot.install] and held by the installing node so it — and only it — can later release the
+ * slot it installed.
  */
 internal class SliceToken

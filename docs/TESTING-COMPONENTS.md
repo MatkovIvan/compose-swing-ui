@@ -132,8 +132,8 @@ display: start such a test with a JUnit assumption,
 `Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`, so it reports SKIPPED on headless CI
 and runs everywhere else.
 
-Window finders resolve the windows realized by the composition under test — other windows in the
-process are never matched:
+Window finders resolve against every window currently realized in the test JVM, whether or not it
+is shown:
 
 - `onWindow()` — the single realized window.
 - `onWindowWithTitle(title)` — match by window title.

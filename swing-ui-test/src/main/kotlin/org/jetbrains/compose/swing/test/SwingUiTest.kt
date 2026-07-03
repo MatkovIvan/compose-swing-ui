@@ -72,7 +72,7 @@ public interface SwingUiTest {
      *
      * If the composition never settles within a generous frame cap, this fails with an
      * [AssertionError] whose message names the outstanding work and includes a readable dump of the
-     * current AWT tree (including composition-owned windows), rather than hanging until the
+     * current AWT tree (including realized windows), rather than hanging until the
      * surrounding test framework times out.
      */
     public suspend fun awaitIdle()
@@ -148,11 +148,11 @@ public interface SwingUiTest {
     public fun onRoot(): SwingNodeInteraction
 
     /**
-     * Finds the single window matching [matcher] realized by the composition — a top-level window
-     * realized by a [org.jetbrains.compose.swing.window.Window] or
-     * [org.jetbrains.compose.swing.window.Dialog] composable that is currently in the composition,
-     * whether or not it is shown. A top-level window from any other source, or a disposed peer that
-     * left the composition, is never matched. The match is resolved lazily when the returned
+     * Finds the single window matching [matcher] among every window currently realized in the test
+     * JVM, whether or not it is shown. A window realized by a
+     * [org.jetbrains.compose.swing.window.Window] or [org.jetbrains.compose.swing.window.Dialog]
+     * composable stays realized while that composable is in the composition and leaves the match set
+     * once it is disposed on leaving the composition. The match is resolved lazily when the returned
      * interaction is first used.
      *
      * ```
@@ -163,8 +163,7 @@ public interface SwingUiTest {
     public fun onWindow(matcher: SwingMatcher): SwingWindowInteraction
 
     /**
-     * Finds all composition-owned windows matching [matcher] (see [onWindow] for what
-     * composition-owned means).
+     * Finds all currently realized windows matching [matcher] (see [onWindow] for the match set).
      */
     public fun onAllWindows(matcher: SwingMatcher): SwingWindowInteractionCollection
 }
@@ -182,7 +181,7 @@ public inline fun <reified T : Component> SwingUiTest.onAllNodesOfType(): SwingN
     onAllNodes(SwingMatcher.isOfType<T>())
 
 /**
- * Finds the single composition-owned window (see [SwingUiTest.onWindow]). Convenience for the
+ * Finds the single realized window (see [SwingUiTest.onWindow]). Convenience for the
  * common one-window composition:
  *
  * ```
@@ -193,13 +192,13 @@ public inline fun <reified T : Component> SwingUiTest.onAllNodesOfType(): SwingN
 public fun SwingUiTest.onWindow(): SwingWindowInteraction = onWindow(SwingMatcher.any())
 
 /**
- * Finds the single composition-owned window titled [title]. Convenience for
+ * Finds the single realized window titled [title]. Convenience for
  * `onWindow(SwingMatcher.hasTitle(title))`.
  */
 public fun SwingUiTest.onWindowWithTitle(title: String): SwingWindowInteraction = onWindow(SwingMatcher.hasTitle(title))
 
 /**
- * Finds all composition-owned windows (see [SwingUiTest.onWindow]).
+ * Finds all realized windows (see [SwingUiTest.onWindow]).
  */
 public fun SwingUiTest.onAllWindows(): SwingWindowInteractionCollection = onAllWindows(SwingMatcher.any())
 

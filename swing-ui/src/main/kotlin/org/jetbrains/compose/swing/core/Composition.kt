@@ -105,9 +105,15 @@ internal class SwingCompositionMount private constructor(
      * re-runs it — without it, only the parent recomposer would eventually pick the write up, and this
      * synchronous recompose would see nothing to do.
      *
+     * Once the mount is [dispose]d a stamp is a no-op: a Swing widget keeps invoking a renderer it
+     * captured (focus and layout passes dispatch against a widget while its window is torn down), so
+     * this call stays safe on a disposed island instead of recomposing it. [writeState] is skipped
+     * too — recording reads and writes against a disposed composition is dead work.
+     *
      * Must be called on the Event Dispatch Thread.
      */
     fun recomposeSynchronously(writeState: () -> Unit) {
+        if (composition.isDisposed) return
         val controlled = composition as? ControlledComposition
         if (controlled == null) {
             writeState()

@@ -189,10 +189,12 @@ class DialogGeometryTest {
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-no-feedback-loop") {} }
         val dialog = onWindow().fetch<JDialog>()
         dialog.size = Dimension(640, 480)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.size == Dimension(640, 480) }
-        // The write-back updated both the state and the applied geometry, so the next apply is a no-op
-        // and the user's size survives instead of being reverted to the initial declared value.
-        awaitIdle()
+        // The native resize settles asynchronously, and a stale resize event can momentarily echo the
+        // prior size back into the state before the resize completes; wait for the dialog AND the state
+        // to both reach the assigned size rather than catch that transient.
+        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) {
+            dialog.size == Dimension(640, 480) && state.size == Dimension(640, 480)
+        }
         assertEquals(Dimension(640, 480), dialog.size)
         assertEquals(Dimension(640, 480), state.size)
     }

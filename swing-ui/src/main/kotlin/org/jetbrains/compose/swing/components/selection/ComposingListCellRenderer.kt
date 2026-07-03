@@ -30,7 +30,10 @@ import javax.swing.ListCellRenderer
  * that row is selected, [cellHasFocus] whether it currently draws the focus decoration.
  */
 public sealed interface ListItemScope {
-    /** The row index being rendered. */
+    /**
+     * The row index being rendered; `-1` when a `JComboBox` renders its selected-value display area,
+     * per Swing's own `ListCellRenderer` convention.
+     */
     public val index: Int
 
     /** Whether the row being rendered is selected. */
@@ -122,7 +125,11 @@ internal class ComposingListCellRenderer<T>(
         return host
     }
 
-    /** Disposes the reused island composition and its observer. */
+    /**
+     * Disposes the reused island composition and its observer. The renderer stays safe to invoke
+     * afterwards — the widget that captured it outlives the composition — and a stamp on the disposed
+     * island returns the host unchanged.
+     */
     fun dispose(): Unit = mount.dispose()
 }
 

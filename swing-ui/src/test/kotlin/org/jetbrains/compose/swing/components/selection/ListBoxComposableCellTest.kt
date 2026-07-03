@@ -16,6 +16,7 @@ import javax.swing.JList
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -127,6 +128,34 @@ class ListBoxComposableCellTest {
             "second",
             stampRow(list, index = 1).firstLabelText(),
             "a composable cell inside a ScrollPane should realize its row content, not leak the viewport slot",
+        )
+    }
+
+    @Test
+    fun aStampAfterTheRendererLeavesTheCompositionIsSafe() = runSwingUiTest {
+        var showList by mutableStateOf(true)
+        setContent {
+            if (showList) {
+                ListBox(items = listOf("alpha", "beta")) { item ->
+                    Label(item)
+                }
+            }
+        }
+
+        val list = onNodeOfType<JList<String>>().fetch<JList<String>>()
+        val cellBefore = stampRow(list, index = 0)
+
+        // The JList outlives its composition: nothing resets the renderer the widget captured, and
+        // Swing keeps dispatching queued focus/layout events against the widget while its window is
+        // torn down, re-invoking that renderer after the cell island is disposed.
+        showList = false
+        awaitIdle()
+
+        val cellAfter = stampRow(list, index = 1)
+        assertSame(
+            cellBefore,
+            cellAfter,
+            "a stamp on a disposed cell island must be a no-op returning the reused host",
         )
     }
 

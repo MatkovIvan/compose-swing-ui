@@ -15,6 +15,7 @@ import javax.swing.JList
 import javax.swing.ListCellRenderer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -52,6 +53,34 @@ class ComboBoxComposableCellTest {
         items = listOf("new")
         awaitIdle()
         assertEquals("new", stampItem(combo, index = 0).firstLabelText(), "changing the item should restamp the cell")
+    }
+
+    @Test
+    fun aStampAfterTheRendererLeavesTheCompositionIsSafe() = runSwingUiTest {
+        var showCombo by mutableStateOf(true)
+        setContent {
+            if (showCombo) {
+                ComboBox(items = listOf("red", "green"), selectedIndex = 0) { item ->
+                    Label(item)
+                }
+            }
+        }
+
+        val combo = onNodeOfType<JComboBox<String>>().fetch<JComboBox<String>>()
+        val cellBefore = stampItem(combo, index = 0)
+
+        // The JComboBox outlives its composition: its popup list keeps the renderer the widget
+        // captured and Swing keeps dispatching queued focus/layout events against the widget while
+        // its window is torn down, re-invoking that renderer after the cell island is disposed.
+        showCombo = false
+        awaitIdle()
+
+        val cellAfter = stampItem(combo, index = 1)
+        assertSame(
+            cellBefore,
+            cellAfter,
+            "a stamp on a disposed cell island must be a no-op returning the reused host",
+        )
     }
 
     @Test

@@ -81,25 +81,17 @@ internal fun installedHandler(component: JComponent): SharedTransferHandler {
 /** Drops [component]'s [SharedTransferHandler] once no capability remains, restoring its original. */
 internal fun uninstallIfEmpty(component: JComponent) {
     val handler = component.transferHandler as? SharedTransferHandler ?: return
-    if (handler.source == null && handler.drop == null) {
+    if (handler.source.value == null && handler.drop.value == null && handler.onExportDone.value == null) {
         component.transferHandler = handler.original
     }
 }
 
-/** Clears the handler's source slice only if [token] still owns it — never another element's. */
-internal fun clearSourceIfOwned(
+/** Clears the handler slot [slot] selects only if [token] still owns it — never another element's. */
+internal fun clearSlotIfOwned(
     component: JComponent,
     token: SliceToken?,
+    slot: (SharedTransferHandler) -> SliceSlot<*>,
 ) {
     val handler = component.transferHandler as? SharedTransferHandler ?: return
-    if (token != null) handler.clearSource(token)
-}
-
-/** Clears the handler's drop slice only if [token] still owns it — never another element's. */
-internal fun clearDropIfOwned(
-    component: JComponent,
-    token: SliceToken?,
-) {
-    val handler = component.transferHandler as? SharedTransferHandler ?: return
-    if (token != null) handler.clearDrop(token)
+    if (token != null) slot(handler).clear(token)
 }
