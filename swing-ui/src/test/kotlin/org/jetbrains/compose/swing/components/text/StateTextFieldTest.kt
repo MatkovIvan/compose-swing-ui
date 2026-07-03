@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.text
 
+import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -248,5 +249,55 @@ class StateTextFieldTest {
         field.select(6, 11)
         awaitIdle()
         assertEquals(TextRange(0, 5), state.selection, "an unmounted field must not drive the state")
+    }
+
+    @Test
+    fun aParkedFieldDoesNotDriveASurvivingStateUntilReactivated() = runSwingUiTest {
+        // The state is held at a longer-lived scope than the field: constructed outside the composition, it
+        // is never forgotten when the field parks, standing in for a state hoisted above a collapsible or
+        // reused region. Parking the field (ReusableContentHost deactivated) must detach the binding with the
+        // node's modifiers so the parked field stops driving the surviving state; reactivating rebinds and
+        // restores the state's selection.
+        val document = PlainDocument().apply { insertString(0, "parked text", null) }
+        val state = DocumentState(document)
+        var active by mutableStateOf(true)
+        setContent {
+            ReusableContentHost(active = active) {
+                TextField(state = state)
+            }
+        }
+
+        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        field.select(0, 6)
+        awaitIdle()
+        assertEquals(TextRange(0, 6), state.selection)
+
+        // Snapshot the document's listener census while the field is bound: the state's own document
+        // listener is part of it, so an unchanged census across the park proves the state survived.
+        val documentListenersWhileBound = document.documentListeners.size
+
+        active = false
+        awaitIdle()
+
+        // The state genuinely survives the park (it was never remembered, so it is not forgotten): its own
+        // document listener is still attached. This is what makes the red exercise the binding's detach
+        // rather than a full state teardown.
+        assertEquals(
+            documentListenersWhileBound,
+            document.documentListeners.size,
+            "the directly-constructed state is not forgotten by the park",
+        )
+
+        // The parked field's caret must not reach the surviving state.
+        field.select(1, 3)
+        awaitIdle()
+        assertEquals(TextRange(0, 6), state.selection, "a parked field's caret does not drive the state")
+
+        active = true
+        awaitIdle()
+
+        val reattached = onNodeOfType<JTextField>().fetch<JTextField>()
+        assertSame(state.document, reattached.document, "reactivating restores the binding")
+        assertEquals(TextRange(0, 6), state.selection, "the state's selection survives parking")
     }
 }

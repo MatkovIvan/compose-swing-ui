@@ -95,9 +95,7 @@ public fun TextArea(
     SwingNode(
         factory = { JTextArea(rows, columns) },
         update = {
-            set(state) { state.bind(this) }
-            applyModifier(modifier)
+            applyModifier(documentStateBinding(state) then modifier)
         },
-        onRelease = { state.unbind(this) },
     )
 }

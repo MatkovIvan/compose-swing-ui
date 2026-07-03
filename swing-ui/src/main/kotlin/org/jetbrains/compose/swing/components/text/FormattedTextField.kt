@@ -153,9 +153,7 @@ public fun FormattedTextField(
             set(columns) { this.columns = it }
             set(focusLostBehavior) { this.focusLostBehavior = it }
             set(formatterFactory) { this.setFormatterFactory(it) }
-            set(state) { state.bind(this) }
-            applyModifier(modifier)
+            applyModifier(documentStateBinding(state) then modifier)
         },
-        onRelease = { state.unbind(this) },
     )
 }

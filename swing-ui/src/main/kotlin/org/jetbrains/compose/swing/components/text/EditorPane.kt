@@ -141,15 +141,12 @@ public fun EditorPane(
             // Install the editor kit that renders the state's document before binding it: JEditorPane
             // couples the rendered content type to the kit, and each kit expects its own document type,
             // so an HTMLDocument needs the HTMLEditorKit whose views can read it. A plain document keeps
-            // the pane's factory-default kit, which already provides plain-text views.
-            set(state) {
-                htmlEditorKitFor(state.document)?.let { kit -> editorKit = kit }
-                state.bind(this)
-            }
+            // the pane's factory-default kit, which already provides plain-text views. Update blocks run
+            // in recorded order, so the kit is in place before the binding element installs the document.
+            set(state) { htmlEditorKitFor(state.document)?.let { kit -> editorKit = kit } }
             set(editable) { this.isEditable = it }
-            applyModifier(modifier)
+            applyModifier(documentStateBinding(state) then modifier)
         },
-        onRelease = { state.unbind(this) },
     )
 }
 
@@ -258,10 +255,8 @@ public fun TextPane(
     SwingNode(
         factory = { JTextPane() },
         update = {
-            set(state) { state.bind(this) }
             set(editable) { this.isEditable = it }
-            applyModifier(modifier)
+            applyModifier(documentStateBinding(state) then modifier)
         },
-        onRelease = { state.unbind(this) },
     )
 }

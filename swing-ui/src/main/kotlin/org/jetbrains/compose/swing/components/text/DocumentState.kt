@@ -14,6 +14,7 @@ import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.swing.components.documentChangeListener
 import org.jetbrains.compose.swing.components.replaceSpan
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import javax.swing.event.CaretListener
 import javax.swing.event.DocumentListener
 import javax.swing.event.UndoableEditEvent
@@ -205,19 +206,17 @@ public class DocumentState internal constructor(
     /**
      * Installs this state's document into [target] and wires the two-way selection sync, so the state
      * and the component share one model until [unbind]. The caret's initial selection is set from the
-     * state's stored value.
+     * state's stored value. If this state already drives a different component, that component is
+     * unbound first, so a state renders at most one component.
      *
-     * A component is owned by at most one [DocumentState]: if a different state currently owns [target]
-     * — because the `state` argument changed or the field was recycled onto a new state — that state is
-     * unbound from [target] first, so its caret listener is removed and it stops mutating its selection
-     * from a component it no longer renders.
+     * A component is likewise owned by at most one [DocumentState]; handing that ownership from one
+     * state to another is the binding element's job — its node unbinds the previous owner before
+     * binding the new — so [bind] does not itself evict a different state from [target].
      */
     internal fun bind(target: JTextComponent) {
         if (component === target) return
-        (target.getClientProperty(BOUND_STATE_KEY) as? DocumentState)?.takeIf { it !== this }?.unbind(target)
         component?.let { unbind(it) }
         component = target
-        target.putClientProperty(BOUND_STATE_KEY, this)
         target.document = document
         target.applySelection(selectionState)
         appliedSelection = selectionState
@@ -227,7 +226,6 @@ public class DocumentState internal constructor(
     /** Detaches the selection sync from [target], leaving the shared document in place. */
     internal fun unbind(target: JTextComponent) {
         target.removeCaretListener(caretListener)
-        if (target.getClientProperty(BOUND_STATE_KEY) === this) target.putClientProperty(BOUND_STATE_KEY, null)
         if (component === target) component = null
     }
 
@@ -249,9 +247,41 @@ public class DocumentState internal constructor(
     override fun onAbandoned(): Unit = onForgotten()
 }
 
-// Client-property key under which a bound component records the single DocumentState that owns it, so a
-// later bind of a different state to the same component can unbind the previous owner and reclaim it.
-private const val BOUND_STATE_KEY = "org.jetbrains.compose.swing.text.documentState"
+/**
+ * Binds [state] to the composable's text component through the modifier chain, so ownership follows
+ * the modifier node's lifecycle: a state swap on recomposition unbinds the previous owner before
+ * binding the new one, and the node detaching (the component leaving the composition, being recycled
+ * for reuse, or parking while deactivated) unbinds outright.
+ */
+internal fun documentStateBinding(state: DocumentState): SwingModifier = DocumentStateElement(state)
+
+private class DocumentStateElement(
+    private val state: DocumentState,
+) : SwingModifier.Element<JTextComponent, DocumentStateElement.Node> {
+    override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
+
+    override fun create(): Node = Node()
+
+    override fun update(node: Node) {
+        node.state = state
+    }
+
+    class Node : SwingModifier.Node<JTextComponent>() {
+        // The currently bound state, held so a swap unbinds exactly the previous owner — the one
+        // thing the composable's update block cannot know. Same shape as ClipboardElement.Node.handle.
+        var state: DocumentState? = null
+            set(value) {
+                if (value === field) return
+                field?.unbind(component)
+                field = value
+                value?.bind(component)
+            }
+
+        override fun onDetach() {
+            state = null
+        }
+    }
+}
 
 /** A [Flow] that emits the current text and then every subsequent edit. */
 public fun DocumentState.textAsFlow(): Flow<CharSequence> = snapshotFlow { text.toString() }

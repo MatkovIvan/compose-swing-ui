@@ -126,16 +126,14 @@ public fun PasswordField(
         echoChar = echoChar,
         columns = columns,
         update = {
-            set(state) { state.bind(this) }
-            applyModifier(modifier)
+            applyModifier(documentStateBinding(state) then modifier)
         },
-        onRelease = { state.unbind(this) },
     )
 }
 
 /**
  * Shared scaffolding for the [PasswordField] overloads: constructs the field with [columns], keeps
- * [echoChar] applied, and threads each overload's own binding through [update] and [onRelease].
+ * [echoChar] applied, and threads each overload's own binding through [update].
  *
  * The look-and-feel installs a default echo character on a freshly constructed field; capture it so that
  * re-applying a null [echoChar] reverts to that default rather than leaving a stale custom mask.
@@ -145,7 +143,6 @@ private fun PasswordFieldImpl(
     echoChar: Char?,
     columns: Int,
     update: SwingNodeUpdater<JPasswordField>.() -> Unit,
-    onRelease: (JPasswordField.() -> Unit)? = null,
 ) {
     val defaultEchoChar = remember { CharArray(1) }
     SwingNode(
@@ -154,7 +151,6 @@ private fun PasswordFieldImpl(
             set(echoChar) { this.echoChar = it ?: defaultEchoChar[0] }
             update()
         },
-        onRelease = onRelease,
     )
 }
 
