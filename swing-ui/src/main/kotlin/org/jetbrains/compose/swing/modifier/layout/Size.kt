@@ -3,6 +3,8 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.PropertyInterference
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
@@ -143,6 +145,7 @@ public fun SwingModifier.size(size: Dimension): SwingModifier =
             value = size,
             read = { it.size },
             write = { component, value -> component.size = value },
+            interference = PropertyInterference.AlsoOverwrites(WidthProperty, HeightProperty),
         )
 
 /**
@@ -160,8 +163,8 @@ public fun SwingModifier.width(width: Int): SwingModifier =
         propertyElement<Component, Int>(
             name = "width",
             value = width,
-            read = { it.width },
-            write = { component, value -> component.setSize(value, component.height) },
+            read = WidthProperty.read,
+            write = WidthProperty.write,
         )
 
 /**
@@ -179,6 +182,24 @@ public fun SwingModifier.height(height: Int): SwingModifier =
         propertyElement<Component, Int>(
             name = "height",
             value = height,
-            read = { it.height },
-            write = { component, value -> component.setSize(component.width, value) },
+            read = HeightProperty.read,
+            write = HeightProperty.write,
         )
+
+/**
+ * The width axis's own accessors, so the width declaration and every coarser write that covers the
+ * axis - a whole size, a whole geometry - name one property. The height written with it is the one the
+ * component holds, which leaves that axis where it stands.
+ */
+internal val WidthProperty =
+    PropertyAccessors<Component, Int>(
+        read = { it.width },
+        write = { component, value -> component.setSize(value, component.height) },
+    )
+
+/** The height axis's own accessors, as [WidthProperty] is the width's. */
+internal val HeightProperty =
+    PropertyAccessors<Component, Int>(
+        read = { it.height },
+        write = { component, value -> component.setSize(component.width, value) },
+    )

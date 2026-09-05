@@ -17,7 +17,9 @@ import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
+import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -30,6 +32,7 @@ import javax.swing.JLabel
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
@@ -88,6 +91,127 @@ class AccessibilityModifierTest {
         assertNull(
             button.fetch().accessibleContext.accessibleDescription,
             "removing the modifier should restore the null accessible description",
+        )
+    }
+
+    @Test
+    fun droppingTheAccessibleNameLetsTheButtonAnswerWithItsOwnText() = runComposeSwingTest {
+        var named by mutableStateOf(true)
+        var text by mutableStateOf("Save")
+        setContent {
+            Button(
+                text,
+                onClick = { },
+                modifier = if (named) SwingModifier.accessibleName("Persist the document") else SwingModifier,
+            )
+        }
+        val button = onNodeOfType<JButton>()
+        assertEquals(
+            "Persist the document",
+            button.fetch().accessibleContext.accessibleName,
+            "the accessible name should apply while the modifier is present",
+        )
+
+        // A button answers with its text while it holds no name of its own, so a name pinned on removal
+        // would go on being announced after the text moved on.
+        named = false
+        text = "Store"
+        awaitIdle()
+        assertEquals(
+            "Store",
+            button.fetch().accessibleContext.accessibleName,
+            "removing the modifier should hand the name back to the button's own text",
+        )
+    }
+
+    @Test
+    fun droppingTheAccessibleNamePutsBackTheOneTheWidgetWasBuiltCarrying() = runComposeSwingTest {
+        var named by mutableStateOf(true)
+        setContent {
+            SwingNode(
+                factory = { JLabel("label text").apply { accessibleContext.accessibleName = WIDGET_NAME } },
+                modifier = if (named) SwingModifier.accessibleName("Named by the declaration") else SwingModifier,
+            )
+        }
+        val label = onNodeOfType<JLabel>()
+        assertEquals(
+            "Named by the declaration",
+            label.fetch().accessibleContext.accessibleName,
+            "the declared name should apply while the modifier is present",
+        )
+
+        // A context answers a name it was set and, where it was set none, one it derives - and cannot be
+        // asked which. A name the widget was built carrying is the widget's own, so it is put back rather
+        // than handed over to the derivation the widget never stood on.
+        named = false
+        awaitIdle()
+        assertEquals(
+            WIDGET_NAME,
+            label.fetch().accessibleContext.accessibleName,
+            "removing the modifier should put back the name the widget carried",
+        )
+    }
+
+    @Test
+    fun droppingTheAccessibleDescriptionPutsBackTheOneTheWidgetWasBuiltCarrying() = runComposeSwingTest {
+        var described by mutableStateOf(true)
+        setContent {
+            SwingNode(
+                factory = {
+                    JLabel("label text").apply { accessibleContext.accessibleDescription = WIDGET_DESCRIPTION }
+                },
+                modifier =
+                    if (described) {
+                        SwingModifier.accessibleDescription("Described by the declaration")
+                    } else {
+                        SwingModifier
+                    },
+            )
+        }
+        val label = onNodeOfType<JLabel>()
+        assertEquals(
+            "Described by the declaration",
+            label.fetch().accessibleContext.accessibleDescription,
+            "the declared description should apply while the modifier is present",
+        )
+
+        described = false
+        awaitIdle()
+        assertEquals(
+            WIDGET_DESCRIPTION,
+            label.fetch().accessibleContext.accessibleDescription,
+            "removing the modifier should put back the description the widget carried",
+        )
+    }
+
+    @Test
+    fun droppingTheAccessibleDescriptionLetsTheFieldAnswerWithItsTooltip() = runComposeSwingTest {
+        var described by mutableStateOf(true)
+        var tip by mutableStateOf("Where you live")
+        setContent {
+            TextField(
+                "",
+                onValueChange = {},
+                modifier =
+                    SwingModifier.toolTip(tip).let {
+                        if (described) it.accessibleDescription("The address to deliver to") else it
+                    },
+            )
+        }
+        val field = onNodeOfType<JTextField>()
+        assertEquals(
+            "The address to deliver to",
+            field.fetch().accessibleContext.accessibleDescription,
+            "the accessible description should apply while the modifier is present",
+        )
+
+        described = false
+        tip = "Where you work"
+        awaitIdle()
+        assertEquals(
+            "Where you work",
+            field.fetch().accessibleContext.accessibleDescription,
+            "removing the modifier should hand the description back to the field's own tooltip",
         )
     }
 
@@ -301,6 +425,104 @@ class AccessibilityModifierTest {
     }
 
     @Test
+    fun theDisplayedIndexStandsWhenTheTextChangesUnderIt() = runComposeSwingTest {
+        var text by mutableStateOf("Save As")
+        setContent {
+            Button(text, onClick = { }, modifier = SwingModifier.mnemonic('A').displayedMnemonicIndex(5))
+        }
+        val button = onNodeOfType<JButton>()
+        assertEquals(5, button.fetch().displayedMnemonicIndex, "the declared index names the second occurrence")
+
+        // Writing the text makes the button derive the index again - "Save Any" would underline the 'a'
+        // of "Save" - while the declared index has not changed and so declares nothing new.
+        text = "Save Any"
+        awaitIdle()
+        assertEquals(
+            5,
+            button.fetch().displayedMnemonicIndex,
+            "the declared index should still name the second occurrence after the text changed",
+        )
+    }
+
+    @Test
+    fun theDisplayedIndexStandsWhenTheMnemonicChangesUnderIt() = runComposeSwingTest {
+        var key by mutableStateOf('A')
+        setContent {
+            Button("Save As", onClick = { }, modifier = SwingModifier.mnemonic(key).displayedMnemonicIndex(5))
+        }
+        val button = onNodeOfType<JButton>()
+        assertEquals(5, button.fetch().displayedMnemonicIndex, "the declared index names the second occurrence")
+
+        // Writing the mnemonic makes the button derive the index again - 'S' would underline the 'S' of
+        // "Save" - and the index is declared after the mnemonic, so it is written back over it.
+        key = 'S'
+        awaitIdle()
+        assertEquals(
+            5,
+            button.fetch().displayedMnemonicIndex,
+            "the declared index should still name the second occurrence after the mnemonic changed",
+        )
+    }
+
+    @Test
+    fun theDisplayedIndexStandsWhenALabelsTextChangesUnderIt() = runComposeSwingTest {
+        var text by mutableStateOf("Save As")
+        setContent {
+            Label(text, modifier = SwingModifier.mnemonic('A').displayedMnemonicIndex(5))
+        }
+        val label = onNodeOfType<JLabel>()
+        assertEquals(5, label.fetch().displayedMnemonicIndex, "the declared index names the second occurrence")
+
+        text = "Save Any"
+        awaitIdle()
+        assertEquals(
+            5,
+            label.fetch().displayedMnemonicIndex,
+            "the declared index should still name the second occurrence after the label's text changed",
+        )
+    }
+
+    @Test
+    fun aDisplayedIndexBeyondTheTextIsRefused() = runComposeSwingTest {
+        // Swing refuses an index the text has no character at, and the declaration is written where the
+        // caller learns of it rather than being clamped to something nobody declared.
+        assertFailsWith<IllegalArgumentException> {
+            setContent {
+                Button("Ok", onClick = { }, modifier = SwingModifier.mnemonic('O').displayedMnemonicIndex(5))
+            }
+        }
+    }
+
+    @Test
+    fun droppingTheDisplayedIndexUnderlinesWhatTheTextThatStandsCarries() = runComposeSwingTest {
+        var chosen by mutableStateOf(true)
+        var text by mutableStateOf("Save As")
+        setContent {
+            Button(
+                text,
+                onClick = { },
+                modifier =
+                    SwingModifier.mnemonic('A').let {
+                        if (chosen) it.displayedMnemonicIndex(5) else it
+                    },
+            )
+        }
+        val button = onNodeOfType<JButton>()
+        assertEquals(5, button.fetch().displayedMnemonicIndex, "the declared index names the second occurrence")
+
+        // The index Swing derived when the modifier attached was derived for the text of the time, and
+        // underlines a letter this one does not carry: "Ok" has no occurrence of the mnemonic at all.
+        text = "Ok"
+        chosen = false
+        awaitIdle()
+        assertEquals(
+            -1,
+            button.fetch().displayedMnemonicIndex,
+            "removing the modifier should leave the underline Swing derives for the text that stands",
+        )
+    }
+
+    @Test
     fun everyAccessibilityBuilderAppendsToTheChainWithoutRepeatingIt() {
         assertDeclaredChainCarriedOnce { accessibleName(null) }
         assertDeclaredChainCarriedOnce { accessibleDescription(null) }
@@ -311,3 +533,8 @@ class AccessibilityModifierTest {
         assertDeclaredChainCarriedOnce { displayedMnemonicIndex(0) }
     }
 }
+
+/** A name the widget is built carrying, so a restore has something of the widget's own to put back. */
+private const val WIDGET_NAME = "carried by the widget"
+
+private const val WIDGET_DESCRIPTION = "described by the widget"

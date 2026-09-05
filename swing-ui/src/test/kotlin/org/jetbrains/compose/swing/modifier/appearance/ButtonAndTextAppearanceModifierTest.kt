@@ -11,11 +11,14 @@ import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.underMetal
 import java.awt.Color
 import java.awt.Insets
+import java.awt.event.KeyEvent
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JMenuItem
@@ -39,6 +42,10 @@ import kotlin.test.assertTrue
  * built on a button takes from the look and feel only until something writes it. Declaring the value the
  * component already carries writes nothing, so a look and feel installed next still answers for the
  * property; declaring any other value writes it, and that value survives the change. Both are pinned.
+ *
+ * A Synth look and feel is one built on [javax.swing.plaf.synth.SynthLookAndFeel], which takes widget
+ * values from a style of its own instead of publishing them under `UIManager` keys. Nimbus is the one
+ * these cases install.
  */
 class ButtonAndTextAppearanceModifierTest {
     @Test
@@ -75,6 +82,177 @@ class ButtonAndTextAppearanceModifierTest {
         awaitIdle()
 
         assertTrue(button.isBorderPainted, "dropping it restores the button's own painting")
+    }
+
+    @Test
+    fun aDeclaredOpaqueFlagStandsWhenTheFillTheLookAndFeelReadsItFromChanges() = runComposeSwingTest {
+        underMetal {
+            var filled by mutableStateOf(true)
+            setContent {
+                Button("Save", onClick = { }, modifier = SwingModifier.opaque(true).contentAreaFilled(filled))
+            }
+
+            val button = onNodeOfType<JButton>().fetch()
+            assertTrue(button.isOpaque, "the declared flag is what the button carries")
+
+            filled = false
+            awaitIdle()
+
+            // A look and feel's button listener writes the opaque flag from the fill every time the fill
+            // changes. Only the fill is declared anew on this pass, so nothing rewrites the flag unless
+            // the declaration answers the button's own change.
+            assertTrue(button.isOpaque, "the declared flag stands after the look and feel answers the new fill")
+        }
+    }
+
+    @Test
+    fun droppingTheOpaqueFlagLeavesAButtonAtTheFillThatStands() = runComposeSwingTest {
+        underMetal {
+            var declared by mutableStateOf(true)
+            setContent {
+                Button(
+                    "Save",
+                    onClick = { },
+                    modifier =
+                        SwingModifier
+                            .let { if (declared) it.opaque(true) else it }
+                            .contentAreaFilled(false),
+                )
+            }
+
+            val button = onNodeOfType<JButton>().fetch()
+            assertTrue(button.isOpaque, "the declared flag is what the button carries")
+
+            declared = false
+            awaitIdle()
+
+            // A look and feel keeps the flag in step with the fill, so the flag a button holds while
+            // they agree is that rule's and not its own to hand back.
+            assertFalse(button.isOpaque, "dropping the flag leaves the button at the fill it declares")
+        }
+    }
+
+    @Test
+    fun droppingTheContentFillLeavesTheButtonAtTheOpacityItCarried() = runComposeSwingTest {
+        underMetal {
+            var declared by mutableStateOf(true)
+            setContent {
+                SwingNode(
+                    // A look and feel is free to leave a button transparent over content it fills, which
+                    // is what makes the flag the fill writes distinguishable from the fill itself.
+                    factory = { JButton("Save").apply { isOpaque = false } },
+                    modifier = if (declared) SwingModifier.contentAreaFilled(false) else SwingModifier,
+                )
+            }
+
+            val button = onNodeOfType<JButton>().fetch()
+            assertFalse(button.isContentAreaFilled, "the declared fill is what the button carries")
+            assertFalse(button.isOpaque, "the button is left at the flag it carried")
+
+            declared = false
+            awaitIdle()
+
+            assertTrue(button.isContentAreaFilled, "dropping the fill restores the one the button had")
+            // Putting the fill back writes the flag kept in step with it, so the flag is put back
+            // after it.
+            assertFalse(button.isOpaque, "the flag nothing declares is left where the button carried it")
+        }
+    }
+
+    @Test
+    fun twoPropertiesLeavingTogetherEachPutBackTheirOwn() = runComposeSwingTest {
+        // Each property a modifier writes is captured under its own slot. Two properties reached through
+        // one pair of accessors - which every property named for more than one kind of widget is - are
+        // still two, and a pass dropping both has to put each back through its own.
+        var declared by mutableStateOf(false)
+        val declaredMargin = Insets(9, 9, 9, 9)
+        setContent {
+            Button(
+                "Save",
+                onClick = { },
+                modifier =
+                    if (declared) SwingModifier.mnemonic('S').margin(declaredMargin) else SwingModifier,
+            )
+        }
+
+        val button = onNodeOfType<JButton>().fetch()
+        val carried = button.margin
+
+        declared = true
+        awaitIdle()
+        assertEquals(KeyEvent.VK_S, button.mnemonic, "the declared mnemonic is what the button carries")
+        assertEquals(declaredMargin, button.margin, "the declared margin is what the button carries")
+
+        declared = false
+        awaitIdle()
+
+        assertEquals(0, button.mnemonic, "dropping the mnemonic leaves the button without one")
+        assertEquals(carried, button.margin, "and dropping the margin puts back the one it came with")
+    }
+
+    @Test
+    fun aFillDeclaredUnderAStandingFlagPutsBackTheOneTheButtonCameWith() = runComposeSwingTest {
+        underMetal {
+            var flag by mutableStateOf(false)
+            var fill by mutableStateOf(false)
+            setContent {
+                SwingNode(
+                    // A look and feel is free to leave a button transparent over content it fills.
+                    factory = { JButton("Save").apply { isOpaque = false } },
+                    modifier =
+                        SwingModifier
+                            .let { if (fill) it.contentAreaFilled(false) else it }
+                            .let { if (flag) it.opaque(true) else it },
+                )
+            }
+
+            val button = onNodeOfType<JButton>().fetch()
+            assertTrue(button.isContentAreaFilled, "the button starts filled")
+            assertFalse(button.isOpaque, "and transparent, which is not the flag the fill implies")
+
+            // The flag is declared first, so the fill joins the modifier over a flag that already stands
+            // written. What the fill puts back has to be the flag the button came with, not that one.
+            flag = true
+            awaitIdle()
+            fill = true
+            awaitIdle()
+            flag = false
+            awaitIdle()
+            fill = false
+            awaitIdle()
+
+            assertTrue(button.isContentAreaFilled, "dropping the fill restores the one the button had")
+            assertFalse(button.isOpaque, "and the flag it came with rather than the one that fill implies")
+        }
+    }
+
+    @Test
+    fun droppingTheOpaqueFlagLeavesAMenuItemCarryingItsOwn() = runComposeSwingTest {
+        var declared by mutableStateOf(true)
+        val popup =
+            composeMenu {
+                MenuItem(
+                    "Open",
+                    onClick = { },
+                    modifier =
+                        SwingModifier
+                            .let { if (declared) it.opaque(false) else it }
+                            .contentAreaFilled(false),
+                )
+            }
+        val item = popup.getComponent(0) as JMenuItem
+        assertFalse(item.isOpaque, "the declared flag is what the menu item carries")
+
+        declared = false
+        awaitIdle()
+
+        // Nothing ties a menu item's opaque flag to the fill the way a look and feel ties a button's, so
+        // what a menu item carries is its own and is what dropping the declaration puts back.
+        assertEquals(
+            JMenuItem("Open").isOpaque,
+            item.isOpaque,
+            "dropping the flag leaves the menu item where one carrying no declaration stands",
+        )
     }
 
     @Test
@@ -128,7 +306,7 @@ class ButtonAndTextAppearanceModifierTest {
 
     @Test
     fun droppingACaretColorRestoresTheLookAndFeelsOwn() = runComposeSwingTest {
-        var recolored by mutableStateOf(true)
+        var recolored by mutableStateOf(false)
         setContent {
             TextField(
                 value = "",
@@ -139,13 +317,16 @@ class ButtonAndTextAppearanceModifierTest {
 
         val field = onNodeOfType<JTextField>().fetch()
         val installed = field.caretColor
-        assertEquals(Color.RED, installed, "the color applies while declared")
+
+        recolored = true
+        awaitIdle()
+        assertEquals(Color.RED, field.caretColor, "the color applies while declared")
 
         recolored = false
         awaitIdle()
 
         // The element captured the look and feel's own color before writing, so that is what returns.
-        assertTrue(field.caretColor != Color.RED, "dropping it restores the look and feel's color")
+        assertEquals(installed, field.caretColor, "dropping it restores the look and feel's color")
     }
 
     @Test

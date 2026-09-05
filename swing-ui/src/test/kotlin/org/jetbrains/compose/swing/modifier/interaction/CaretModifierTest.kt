@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextField
+import javax.swing.SwingUtilities
 import javax.swing.text.DefaultCaret
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -85,6 +86,29 @@ class CaretModifierTest {
     }
 
     @Test
+    fun droppingADeclaredCaretLeavesTheSelectionTheUserMade() = runComposeSwingTest {
+        val caret = DefaultCaret()
+        var declared by mutableStateOf(true)
+        setContent {
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier = if (declared) SwingModifier.caret(caret) else SwingModifier,
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        field.select(SELECTION_START, SELECTION_END)
+
+        // Putting the field's own caret back installs it, which puts a caret at offset 0 and drops the
+        // selection. What the user selected belongs to the text, not to the caret being taken off.
+        declared = false
+        awaitIdle()
+
+        assertNotSame(caret, field.caret, "the declared caret should be off the field")
+        assertEquals(SELECTION_START, field.selectionStart, "the selection the user made should survive")
+        assertEquals(SELECTION_END, field.selectionEnd, "the selection the user made should survive")
+    }
+
+    @Test
     fun aDeclaredBlinkRateReachesTheCaretAndIsPutBackOnRemoval() = runComposeSwingTest {
         var declared by mutableStateOf(false)
         setContent {
@@ -121,6 +145,235 @@ class CaretModifierTest {
         assertEquals(0, silent.blinkRate, "a look and feel's blink rate reaches only the caret it created itself")
         assertEquals(BLINK_RATE, blinking.blinkRate, "the rate declared with the caret reaches it")
     }
+
+    @Test
+    fun aCaretReplacingAnotherUnderTheSameRateBlinksAtIt() = runComposeSwingTest {
+        val first = DefaultCaret()
+        val second = DefaultCaret()
+        var swapped by mutableStateOf(false)
+        setContent {
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier = SwingModifier.caret(if (swapped) second else first).caretBlinkRate(BLINK_RATE),
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        assertEquals(BLINK_RATE, first.blinkRate, "the rate declared with the first caret reaches it")
+
+        // The rate is declared unchanged, so its slot writes nothing on this pass - the caret arriving
+        // is what the rate has to be written from.
+        swapped = true
+        awaitIdle()
+
+        assertSame(second, field.caret, "the newly declared caret should reach the field")
+        assertEquals(BLINK_RATE, second.blinkRate, "the rate still declared should reach the caret that replaced it")
+    }
+
+    @Test
+    fun aCaretReplacingAnotherIsGivenTheRateDeclaredLast() = runComposeSwingTest {
+        val first = DefaultCaret()
+        val second = DefaultCaret()
+        var swapped by mutableStateOf(false)
+        var rate by mutableStateOf(BLINK_RATE)
+        setContent {
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier = SwingModifier.caret(if (swapped) second else first).caretBlinkRate(rate),
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        assertEquals(BLINK_RATE, first.blinkRate, "the rate declared with the first caret reaches it")
+
+        // The rate changes on a pass of its own, so the caret arriving on the next one is written from
+        // what the rate stands at now and not from what it stood at when it was first declared.
+        rate = SLOW_BLINK_RATE
+        awaitIdle()
+        assertEquals(SLOW_BLINK_RATE, first.blinkRate, "the recomposed rate should reach the caret carrying it")
+
+        swapped = true
+        awaitIdle()
+        assertSame(second, field.caret, "the newly declared caret should reach the field")
+        assertEquals(SLOW_BLINK_RATE, second.blinkRate, "the caret replacing it should be given the rate declared last")
+
+        // The declaration still stands over the field, and the caret it let go of is no longer its target.
+        rate = BLINK_RATE
+        awaitIdle()
+        assertEquals(BLINK_RATE, second.blinkRate, "a rate declared later should reach the caret now carried")
+        assertEquals(SLOW_BLINK_RATE, first.blinkRate, "the caret let go of should be left at the rate it had")
+    }
+
+    @Test
+    fun aFieldLettingGoOfItsCaretUnderADeclaredRateIsLeftAlone() = runComposeSwingTest {
+        setContent {
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier = SwingModifier.caretBlinkRate(BLINK_RATE),
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        val installed = field.caret
+        assertEquals(BLINK_RATE, installed.blinkRate, "the declared rate reaches the caret the field carries")
+
+        // The field announces the caret it let go of, which is the announcement the declaration is
+        // written again on - and it leaves nothing to write to.
+        field.caret = null
+        assertEquals(BLINK_RATE, installed.blinkRate, "the caret let go of keeps the rate it was given")
+
+        val arriving = DefaultCaret()
+        field.caret = arriving
+        assertEquals(BLINK_RATE, arriving.blinkRate, "the caret arriving after it is given the declared rate")
+    }
+
+    @Test
+    fun aCaretArrivingAfterTheRateDeclarationIsDroppedIsLeftAlone() = runComposeSwingTest {
+        val first = DefaultCaret()
+        val second = DefaultCaret()
+        var swapped by mutableStateOf(false)
+        var declared by mutableStateOf(true)
+        setContent {
+            val caret = SwingModifier.caret(if (swapped) second else first)
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier = if (declared) caret.caretBlinkRate(BLINK_RATE) else caret,
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        assertEquals(BLINK_RATE, first.blinkRate, "the declared rate should reach the caret the field carries")
+
+        // Dropping the rate leaves the field with nothing declaring one, so the caret installed on the
+        // next pass is only reached if the dropped declaration is still listening for it.
+        declared = false
+        awaitIdle()
+        assertEquals(0, first.blinkRate, "dropping the rate should put back what the caret carried before it")
+
+        swapped = true
+        awaitIdle()
+        assertSame(second, field.caret, "the newly declared caret should reach the field")
+        assertEquals(0, second.blinkRate, "a caret arriving after the rate is dropped should not be given it")
+    }
+
+    @Test
+    fun droppingACaretAndItsRateTogetherLeavesEachWhereItStood() = runComposeSwingTest {
+        val declared = DefaultCaret()
+        var decorated by mutableStateOf(true)
+        setContent {
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier = if (decorated) SwingModifier.caret(declared).caretBlinkRate(BLINK_RATE) else SwingModifier,
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        val installedRate = JTextField().caret.blinkRate
+        assertEquals(BLINK_RATE, declared.blinkRate, "the declared rate reaches the declared caret")
+
+        // The rate answers the caret being replaced by writing itself onto the caret that arrives. The
+        // chain unwinds last-first, so the rate is gone - listener and all - before the caret slot hands
+        // the field's own caret back, which is what leaves that caret at the rate it came with.
+        decorated = false
+        awaitIdle()
+
+        assertNotSame(declared, field.caret, "the caret the field carried before is put back")
+        assertEquals(installedRate, field.caret.blinkRate, "the caret put back keeps the rate it carried")
+        assertEquals(0, declared.blinkRate, "the declared caret is left at the rate it had")
+    }
+
+    @Test
+    fun aRateDeclaredBeforeTheCaretReachesItAndComesApartAfterIt() = runComposeSwingTest {
+        val mine = DefaultCaret()
+        var decorated by mutableStateOf(true)
+        setContent {
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier = if (decorated) SwingModifier.caretBlinkRate(BLINK_RATE).caret(mine) else SwingModifier,
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        val installedRate = JTextField().caret.blinkRate
+        assertEquals(BLINK_RATE, mine.blinkRate, "the rate declared first reaches the caret declared after it")
+
+        // The caret is declared last, so it comes apart first: the field carries its own caret again
+        // while the rate declaration still stands, and the rate hands that caret back what it read.
+        decorated = false
+        awaitIdle()
+
+        assertNotSame(mine, field.caret, "the caret the field carried before is put back")
+        assertEquals(installedRate, field.caret.blinkRate, "the caret put back keeps the rate it carried")
+        assertEquals(BLINK_RATE, mine.blinkRate, "the caret let go of keeps the rate it was given")
+    }
+
+    @Test
+    fun aCaretLeavingAndComingBackUnderAStandingRateLeavesTheFieldAtTheDeclaredRate() = runComposeSwingTest {
+        val mine = DefaultCaret()
+        var declared by mutableStateOf(true)
+        var styled by mutableStateOf(true)
+        setContent {
+            val rate = SwingModifier.caretBlinkRate(BLINK_RATE)
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier =
+                    when {
+                        !styled -> SwingModifier
+                        declared -> SwingModifier.caret(mine).caretBlinkRate(BLINK_RATE)
+                        else -> rate
+                    },
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        assertEquals(BLINK_RATE, mine.blinkRate, "the declared rate reaches the declared caret")
+
+        // The caret leaves the chain and comes back, so the slot holding it is no longer the older of
+        // the two. What the rate restores is what it read, from the caret it read it from, whichever
+        // slot comes apart first - and the field's own caret, given the rate while it stood in for the
+        // declared one, keeps it the way any caret the declaration let go of does.
+        declared = false
+        awaitIdle()
+        declared = true
+        awaitIdle()
+        styled = false
+        awaitIdle()
+
+        assertEquals(0, mine.blinkRate, "the declared caret is left at the rate it had")
+        assertEquals(BLINK_RATE, field.caret.blinkRate, "the caret given the rate while it stood keeps it")
+    }
+
+    @Test
+    fun aLookAndFeelChangeLeavesTheFieldCarryingACaret() = runComposeSwingTest {
+        setContent {
+            SwingNode(factory = { JTextField(TEXT) }, modifier = SwingModifier.caretBlinkRate(BLINK_RATE))
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        val installed = field.caret
+
+        // A look and feel takes its own caret off the field before putting the next one on, so the field
+        // carries none for the span of the swap and the rate has nothing to be written to until it ends.
+        // It gives the caret it installs the rate its own defaults name, and reports the look and feel it
+        // took only once that is done.
+        SwingUtilities.updateComponentTreeUI(field)
+        awaitIdle()
+
+        assertNotSame(installed, field.caret, "the look and feel change should hand the field a fresh caret")
+        assertEquals(BLINK_RATE, field.caret.blinkRate, "the declared rate should stand over the one installed")
+    }
+
+    @Test
+    fun aLookAndFeelChangeLeavesTheDeclaredUpdatePolicyStanding() = runComposeSwingTest {
+        setContent {
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier = SwingModifier.caretUpdatePolicy(DefaultCaret.NEVER_UPDATE),
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+
+        SwingUtilities.updateComponentTreeUI(field)
+        awaitIdle()
+
+        assertEquals(
+            DefaultCaret.NEVER_UPDATE,
+            (field.caret as DefaultCaret).updatePolicy,
+            "the declared policy should reach the caret the look and feel installed",
+        )
+    }
 }
 
 private const val TEXT = "hello world"
@@ -128,3 +381,4 @@ private const val CARET_OFFSET = 4
 private const val SELECTION_START = 2
 private const val SELECTION_END = 5
 private const val BLINK_RATE = 250
+private const val SLOW_BLINK_RATE = 500

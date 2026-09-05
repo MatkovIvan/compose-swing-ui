@@ -21,7 +21,7 @@ import javax.swing.LayoutFocusTraversalPolicy
  * ones in their natural order.
  *
  * @param index the traversal position.
- * @return this chain with the traversal position declared on it.
+ * @return this modifier with the traversal position declared on it.
  */
 public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier =
     this then
@@ -74,7 +74,10 @@ private object OrderedFocusTraversalElement :
                 SavedFocusTraversal(
                     cycleRoot = component.isFocusCycleRoot,
                     policyProvider = component.isFocusTraversalPolicyProvider,
-                    policy = component.focusTraversalPolicy,
+                    // `getFocusTraversalPolicy` answers a cycle root that holds no policy of its own
+                    // with the one it inherits. Only a policy the container holds is one to hand back;
+                    // writing null leaves it inheriting again.
+                    policy = if (component.isFocusTraversalPolicySet) component.focusTraversalPolicy else null,
                 )
         }
 

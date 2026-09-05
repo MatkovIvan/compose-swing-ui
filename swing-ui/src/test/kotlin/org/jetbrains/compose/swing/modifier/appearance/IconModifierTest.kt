@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Font
 import java.awt.image.BufferedImage
 import javax.swing.AbstractButton
 import javax.swing.ImageIcon
@@ -20,6 +21,7 @@ import javax.swing.JCheckBox
 import javax.swing.JLabel
 import javax.swing.JMenuItem
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -49,6 +51,68 @@ class IconModifierTest {
         setContent { Button("Save", onClick = { }, modifier = SwingModifier.icon(icon)) }
 
         assertSame(icon, onNodeOfType<JButton>().fetch().icon)
+    }
+
+    @Test
+    fun removingAnIconLeavesTheFontALookAndFeelWorkedOutFromIt() = runComposeSwingTest {
+        val icon = icon()
+        var declared by mutableStateOf(false)
+        setContent {
+            Button(
+                "Save",
+                onClick = { },
+                modifier = if (declared) SwingModifier.icon(icon) else SwingModifier,
+            )
+        }
+        val button = onNodeOfType<JButton>().fetch()
+        val original = button.font
+        val derived = original.deriveFont(original.size2D - 2f)
+        // A look and feel that styles a button for carrying an icon at all and leaves it styled when the
+        // icon goes. Standing in for one here, the case says the same thing on every platform.
+        button.addPropertyChangeListener("icon") { event -> if (event.newValue != null) button.font = derived }
+
+        declared = true
+        awaitIdle()
+        assertEquals(derived, button.font, "the deriving stand-in should have restyled the button")
+
+        declared = false
+        awaitIdle()
+        assertNull(button.icon, "removing the declaration should put the icon back")
+        assertEquals(derived, button.font, "the font worked out from the icon is not the declaration's to put back")
+    }
+
+    @Test
+    fun droppingAFontLeavesTheFontTheStandingIconDerives() = runComposeSwingTest {
+        val icon = icon()
+        val declaredFont = Font("Monospaced", Font.BOLD, 22)
+        var decorated by mutableStateOf(false)
+        var fontDeclared by mutableStateOf(false)
+        setContent {
+            val chain = if (decorated) SwingModifier.icon(icon) else SwingModifier
+            Button("Save", onClick = { }, modifier = if (fontDeclared) chain.font(declaredFont) else chain)
+        }
+        val button = onNodeOfType<JButton>().fetch()
+        val original = button.font
+        val derived = original.deriveFont(original.size2D - 2f)
+        // A look and feel that styles the component for carrying an icon at all, which is what the font
+        // the modifier leaves standing has to answer to.
+        button.addPropertyChangeListener("icon") { button.font = derived }
+
+        decorated = true
+        awaitIdle()
+        assertEquals(derived, button.font, "the deriving stand-in should have restyled the button")
+
+        fontDeclared = true
+        awaitIdle()
+        assertEquals(declaredFont, button.font, "the declared font should stand over the derived one")
+
+        fontDeclared = false
+        awaitIdle()
+        assertEquals(
+            derived,
+            button.font,
+            "dropping the font should leave the font the standing icon derives, not the one the modifier found",
+        )
     }
 
     @Test

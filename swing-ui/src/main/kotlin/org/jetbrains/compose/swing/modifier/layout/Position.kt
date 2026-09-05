@@ -3,6 +3,8 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.PropertyInterference
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
@@ -32,6 +34,8 @@ public fun SwingModifier.bounds(
             value = Rectangle(x, y, width, height),
             read = { it.bounds },
             write = { component, value -> component.bounds = value },
+            interference =
+                PropertyInterference.AlsoOverwrites(XProperty, YProperty, WidthProperty, HeightProperty),
         )
 
 /**
@@ -73,6 +77,7 @@ public fun SwingModifier.location(point: Point): SwingModifier =
             value = point,
             read = { it.location },
             write = { component, value -> component.location = value },
+            interference = PropertyInterference.AlsoOverwrites(XProperty, YProperty),
         )
 
 /**
@@ -91,8 +96,8 @@ public fun SwingModifier.x(value: Int): SwingModifier =
         propertyElement<Component, Int>(
             name = "x",
             value = value,
-            read = { it.x },
-            write = { component, x -> component.setLocation(x, component.y) },
+            read = XProperty.read,
+            write = XProperty.write,
         )
 
 /**
@@ -111,6 +116,24 @@ public fun SwingModifier.y(value: Int): SwingModifier =
         propertyElement<Component, Int>(
             name = "y",
             value = value,
-            read = { it.y },
-            write = { component, y -> component.setLocation(component.x, y) },
+            read = YProperty.read,
+            write = YProperty.write,
         )
+
+/**
+ * The horizontal axis's own accessors, so the [x] declaration and every coarser write that covers the
+ * axis - a whole location, a whole geometry - name one property. The other coordinate written with it
+ * is the one the component holds, which leaves that axis where it stands.
+ */
+internal val XProperty =
+    PropertyAccessors<Component, Int>(
+        read = { it.x },
+        write = { component, value -> component.setLocation(value, component.y) },
+    )
+
+/** The vertical axis's own accessors, as [XProperty] is the horizontal one's. */
+internal val YProperty =
+    PropertyAccessors<Component, Int>(
+        read = { it.y },
+        write = { component, value -> component.setLocation(component.x, value) },
+    )

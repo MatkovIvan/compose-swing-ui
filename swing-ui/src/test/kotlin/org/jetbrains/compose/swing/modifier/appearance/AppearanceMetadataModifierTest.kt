@@ -33,7 +33,7 @@ import kotlin.test.assertTrue
 /**
  * Behavioral coverage for the appearance and metadata [SwingModifier]s that lack a dedicated suite:
  * font, border, cursor, clientProperty, testTag, focusable and preferredSize. Each test asserts the applied
- * Swing property AND its restoration to the pre-modifier default once the element leaves the chain -
+ * Swing property AND its restoration to the pre-modifier default once the element leaves the modifier -
  * the round-trip contract every property element promises.
  */
 class AppearanceMetadataModifierTest {
@@ -254,6 +254,62 @@ class AppearanceMetadataModifierTest {
         assertNull(
             label.fetch<JLabel>().getClientProperty(key),
             "removing the modifier should clear the client property",
+        )
+    }
+
+    @Test
+    fun removingAClientPropertyLeavesTheFontALookAndFeelWorkedOutFromIt() = runComposeSwingTest {
+        val key = "JComponent.sizeVariant"
+        var styled by mutableStateOf(false)
+        setContent { Label("X", modifier = if (styled) SwingModifier.clientProperty(key, "small") else SwingModifier) }
+        val label = onNodeOfType<JLabel>().fetch()
+        val original = label.font
+        val derived = original.deriveFont(original.size2D - 2f)
+        // A look and feel that works the font out again from a styling key and leaves it worked out when
+        // the key goes. Standing in for one here, the case says the same thing on every platform.
+        label.addPropertyChangeListener(key) { event -> if (event.newValue != null) label.font = derived }
+
+        styled = true
+        awaitIdle()
+        assertEquals(derived, label.font, "the deriving stand-in should have restyled the label")
+
+        styled = false
+        awaitIdle()
+        assertNull(label.getClientProperty(key), "removing the declaration should put the key back")
+        assertEquals(derived, label.font, "the font worked out from the key is not the declaration's to put back")
+    }
+
+    @Test
+    fun droppingAFontLeavesTheFontTheStandingClientPropertyDerives() = runComposeSwingTest {
+        val key = "JComponent.sizeVariant"
+        val declaredFont = Font("Monospaced", Font.BOLD, 22)
+        var styled by mutableStateOf(false)
+        var fontDeclared by mutableStateOf(false)
+        setContent {
+            val chain = if (styled) SwingModifier.clientProperty(key, "small") else SwingModifier
+            Label("X", modifier = if (fontDeclared) chain.font(declaredFont) else chain)
+        }
+        val label = onNodeOfType<JLabel>().fetch()
+        val original = label.font
+        val derived = original.deriveFont(original.size2D - 2f)
+        // A look and feel that works the font out again from a styling key, which is what the font the
+        // modifier leaves standing has to answer to.
+        label.addPropertyChangeListener(key) { label.font = derived }
+
+        styled = true
+        awaitIdle()
+        assertEquals(derived, label.font, "the deriving stand-in should have worked the font out from the key")
+
+        fontDeclared = true
+        awaitIdle()
+        assertEquals(declaredFont, label.font, "the declared font should stand over the derived one")
+
+        fontDeclared = false
+        awaitIdle()
+        assertEquals(
+            derived,
+            label.font,
+            "dropping the font should leave the font the standing key derives, not the one the modifier found",
         )
     }
 

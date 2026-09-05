@@ -10,11 +10,11 @@ import java.awt.Component
 import javax.swing.JComponent
 
 /**
- * Sets `background`; on a non-opaque component also chain [opaque]`(true)` for it to paint.
+ * Sets `background`; on a non-opaque component also declare [opaque]`(true)` for it to paint.
  *
  * @param color the background color; `null` takes the color from the parent container. Which parts of a
  *   component the color reaches is up to that component and to the platform.
- * @return this chain with the background color declared on it.
+ * @return this modifier with the background color declared on it.
  * @see java.awt.Component.setBackground
  */
 public fun SwingModifier.background(color: Color?): SwingModifier =
@@ -22,7 +22,7 @@ public fun SwingModifier.background(color: Color?): SwingModifier =
         propertyElement<Component, Color?>(
             name = "background",
             value = color,
-            read = { it.background },
+            read = { if (it.isBackgroundSet) it.background else null },
             write = { component, value ->
                 component.background = value
                 // JComponent.setBackground already repaints. A plain AWT Component does not, so the

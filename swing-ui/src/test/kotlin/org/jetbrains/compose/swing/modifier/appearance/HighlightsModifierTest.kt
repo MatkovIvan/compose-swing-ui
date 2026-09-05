@@ -17,6 +17,7 @@ import javax.swing.text.Highlighter
 import javax.swing.text.JTextComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
@@ -147,7 +148,7 @@ class HighlightsModifierTest {
         marked = false
         awaitIdle()
 
-        assertEquals(emptyList(), area.paintedSpans(), "leaving the chain should take the declaration's marks away")
+        assertEquals(emptyList(), area.paintedSpans(), "leaving the modifier should take the declaration's marks away")
     }
 
     @Test
@@ -191,6 +192,80 @@ class HighlightsModifierTest {
         val area = onNodeOfType<JTextArea>().fetch()
 
         assertEquals(listOf(0 to 5), area.paintedSpans(), "the declared range should paint over the state's document")
+    }
+
+    @Test
+    fun aDeclarationFollowsTheAreaOntoTheDocumentItIsReboundTo() = runComposeSwingTest {
+        var rebound by mutableStateOf(false)
+        setContent {
+            val first = rememberDocumentState(TEXT)
+            val second = rememberDocumentState(TEXT)
+            TextArea(
+                state = if (rebound) second else first,
+                modifier = SwingModifier.highlights(listOf(TextRange(0, 5)), Painter),
+            )
+        }
+        val area = onNodeOfType<JTextArea>().fetch()
+        val bound = area.document
+        assertEquals(listOf(0 to 5), area.paintedSpans(), "the declared range should be painted")
+
+        // A mark is anchored to positions of the document it was added to, so the marks the area
+        // carries paint nothing once it holds another document. The declaration is unchanged, which
+        // leaves the swap itself as the only thing that can put them back.
+        rebound = true
+        awaitIdle()
+
+        assertNotSame(bound, area.document, "the area should be carrying the other state's document")
+        assertEquals(listOf(0 to 5), area.paintedSpans(), "the declared range should be painted on the new document")
+    }
+
+    @Test
+    fun aDeclarationSurvivesAWriteOfTheDeclaredText() = runComposeSwingTest {
+        var text by mutableStateOf(TEXT)
+        setContent {
+            TextArea(
+                value = text,
+                onValueChange = {},
+                // The painter is hoisted, so a pass that only changes the text declares an equal modifier.
+                modifier = SwingModifier.highlights(listOf(TextRange(6, 11)), Painter),
+            )
+        }
+        val area = onNodeOfType<JTextArea>().fetch()
+        assertEquals(listOf(6 to 11), area.paintedSpans(), "the declared range should be painted")
+
+        // Rewrites exactly the span the declaration marks.
+        text = "hello there"
+        awaitIdle()
+
+        assertEquals(
+            listOf(6 to 11),
+            area.paintedSpans(),
+            "the declared range should still be painted after the text under it was rewritten",
+        )
+    }
+
+    @Test
+    fun aDeclarationStaysWhereItSaysWhenTheTextBeforeItGrows() = runComposeSwingTest {
+        var text by mutableStateOf(TEXT)
+        setContent {
+            TextArea(
+                value = text,
+                onValueChange = {},
+                modifier = SwingModifier.highlights(listOf(TextRange(6, 11)), Painter),
+            )
+        }
+        val area = onNodeOfType<JTextArea>().fetch()
+        assertEquals(listOf(6 to 11), area.paintedSpans(), "the declared range should be painted")
+
+        // Inserts ahead of the marked span, which drags a mark anchored to the document along with it.
+        text = "x$TEXT"
+        awaitIdle()
+
+        assertEquals(
+            listOf(6 to 11),
+            area.paintedSpans(),
+            "the declared offsets should still be what is painted after text was inserted before them",
+        )
     }
 
     /** The spans [painter] currently marks on this component, in the order the highlighter holds them. */

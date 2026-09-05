@@ -11,6 +11,7 @@ import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.runSwingTest
@@ -18,8 +19,10 @@ import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 import javax.swing.JButton
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -36,7 +39,9 @@ import kotlin.test.assertTrue
  *
  * What a failure must leave behind, and what must never be taken for one: a first composition that
  * throws leaves nothing of the composition it ran in standing, its snapshot observer withdrawn from the
- * global apply observers with the rest; and ending a recomposer is reported to nobody.
+ * global apply observers with the rest; a pass that throws part way through a modifier chain leaves
+ * every slot that modifier holds standing, so the teardown it provokes runs through; and ending a
+ * recomposer is reported to nobody.
  *
  * The cases that need a window realize a real [javax.swing.JFrame], so the window hands out and
  * replaces its recomposer on the production path. A failure is taken by a handler installed on the
@@ -61,7 +66,7 @@ class WindowRecomposerFailureTest {
             awaitUntil("the first content composes in the window") { first.componentCount == 1 }
             val ended = assertNotNull(frame.swingRecomposerOrNull(), "the window drives its content")
 
-            // The user breaks the composition: the pass this click schedules throws.
+            // The pass this click schedules throws.
             (first.getComponent(0) as JButton).doClick()
 
             awaitUntil("the failed pass is reported to the thread's uncaught-exception handler") {
@@ -147,6 +152,85 @@ class WindowRecomposerFailureTest {
             thread.setUncaughtExceptionHandler(enclosingHandler)
             frame.dispose()
         }
+    }
+
+    @Test
+    fun aPassRefusedByASubscriptionSlotLeavesTheWindowsTeardownAbleToRun() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val frame = realizedFrame()
+        val reported = mutableListOf<Throwable>()
+        val thread = Thread.currentThread()
+        val enclosingHandler = thread.uncaughtExceptionHandler
+        thread.setUncaughtExceptionHandler { _, raised -> reported += raised }
+        try {
+            var refused by mutableStateOf(false)
+            val panel = JPanel().also { frame.contentPane.add(it) }
+            panel.setContent {
+                Label(
+                    text = "content",
+                    modifier =
+                        SwingModifier.then(if (refused) TextFieldOnlyElement() else LabelSubscriptionElement()),
+                )
+            }
+            awaitUntil("the first content composes in the window") { panel.componentCount == 1 }
+            val ended = assertNotNull(frame.swingRecomposerOrNull(), "the window drives its content")
+
+            // The subscription position is handed an element of another kind, which a label is not the
+            // target of. The slot cannot host it, so the pass throws part way through the modifier.
+            refused = true
+
+            awaitUntil("the refusal is reported to the thread's uncaught-exception handler") {
+                reported.isNotEmpty()
+            }
+            val failure = reported.first()
+            assertTrue(
+                failure.message.orEmpty().contains("requires a ${JTextField::class.java.name} target"),
+                "the failure reported is the refusal, but was: $failure",
+            )
+
+            // The failure ends the recomposer, and ending it disposes the content composing under it,
+            // which takes the whole modifier apart. A slot the failed pass had already emptied fails that
+            // teardown where it stands, ahead of everything the disposal does after it - cancelling the
+            // recomposer, releasing the frame clock, ending the scope they run on.
+            awaitUntil("the disposal cancels the runtime recomposer it ran ahead of") {
+                ended.recomposer.currentState.value == Recomposer.State.ShutDown
+            }
+            assertEquals(0, panel.componentCount, "the content the window held is torn down")
+            assertEquals(listOf(failure), reported, "the teardown reports nothing of its own")
+        } finally {
+            thread.setUncaughtExceptionHandler(enclosingHandler)
+            frame.dispose()
+        }
+    }
+
+    /** A subscription element a label is the target of, so it stands until the modifier is taken apart. */
+    private class LabelSubscriptionElement : SwingModifier.NodeElement<JComponent, SwingModifier.Node<JComponent>>() {
+        override val targetType: Class<JComponent> get() = JComponent::class.java
+
+        override val additive: Boolean get() = true
+
+        override fun create(): SwingModifier.Node<JComponent> = SwingModifier.Node()
+
+        override fun update(node: SwingModifier.Node<JComponent>) = Unit
+
+        override fun equals(other: Any?): Boolean = this === other
+
+        override fun hashCode(): Int = System.identityHashCode(this)
+    }
+
+    /** A subscription element no component but a text field is the target of. */
+    private class TextFieldOnlyElement : SwingModifier.NodeElement<JTextField, SwingModifier.Node<JTextField>>() {
+        override val targetType: Class<JTextField> get() = JTextField::class.java
+
+        override val additive: Boolean get() = true
+
+        override fun create(): SwingModifier.Node<JTextField> = SwingModifier.Node()
+
+        override fun update(node: SwingModifier.Node<JTextField>) = Unit
+
+        override fun equals(other: Any?): Boolean = this === other
+
+        override fun hashCode(): Int = System.identityHashCode(this)
     }
 
     @Test

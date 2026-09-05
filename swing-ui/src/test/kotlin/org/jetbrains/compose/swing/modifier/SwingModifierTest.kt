@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -54,7 +55,9 @@ import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.node.SlotAttachment
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -66,6 +69,7 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
+import javax.swing.BoxLayout
 import javax.swing.ButtonGroup
 import javax.swing.JButton
 import javax.swing.JComponent
@@ -151,7 +155,7 @@ class SwingModifierTest {
 
         styled = false
         awaitIdle()
-        // The element left the chain, so the background is restored to what it was before the
+        // The element left the modifier, so the background is restored to what it was before the
         // modifier first touched it (the same default the untouched control still shows).
         assertEquals(
             default,
@@ -186,7 +190,7 @@ class SwingModifierTest {
         hoverEnabled = false
         awaitIdle()
         button.dispatchEvent(mouseEntered(button))
-        assertEquals(1, enterCount, "listener must be removed when its element leaves the chain")
+        assertEquals(1, enterCount, "listener must be removed when its element leaves the modifier")
     }
 
     @Test
@@ -218,7 +222,7 @@ class SwingModifierTest {
 
         disabled = false
         awaitIdle()
-        // The element left the chain, so isEnabled is restored to the pre-modifier default.
+        // The element left the modifier, so isEnabled is restored to the pre-modifier default.
         button.assertIsEnabled()
     }
 
@@ -233,7 +237,7 @@ class SwingModifierTest {
 
         hidden = false
         awaitIdle()
-        // The element left the chain, so isVisible is restored to the pre-modifier default.
+        // The element left the modifier, so isVisible is restored to the pre-modifier default.
         button.assertIsVisible()
     }
 
@@ -249,7 +253,7 @@ class SwingModifierTest {
 
         constrained = false
         awaitIdle()
-        // The element left the chain, so the explicit minimum size is cleared again.
+        // The element left the modifier, so the explicit minimum size is cleared again.
         assertFalse(
             onNodeOfType<JLabel>().fetch().isMinimumSizeSet,
             "removing the modifier should clear the minimum-size-set flag",
@@ -268,7 +272,7 @@ class SwingModifierTest {
 
         constrained = false
         awaitIdle()
-        // The element left the chain, so the explicit maximum size is cleared again.
+        // The element left the modifier, so the explicit maximum size is cleared again.
         assertFalse(
             onNodeOfType<JLabel>().fetch().isMaximumSizeSet,
             "removing the modifier should clear the maximum-size-set flag",
@@ -310,6 +314,75 @@ class SwingModifierTest {
     }
 
     @Test
+    fun alignmentXModifierRestoresTheLayoutDerivedAlignmentOnRemoval() = runComposeSwingTest {
+        var declared by mutableStateOf(true)
+        setContent {
+            BoxPanel(modifier = if (declared) SwingModifier.alignmentX(0.5f) else SwingModifier) {
+                Label("child", modifier = SwingModifier.alignmentX(1.0f))
+            }
+        }
+        val panel = onNodeWithText("child").onParent()
+        assertEquals(0.5f, panel.fetch<JComponent>().alignmentX, "the modifier should set the x alignment")
+
+        declared = false
+        awaitIdle()
+        // The element left the modifier, so the panel takes its x alignment from its child again - the
+        // value a panel without the modifier reports.
+        assertEquals(
+            1.0f,
+            panel.fetch<JComponent>().alignmentX,
+            "removing the modifier should hand the x alignment back to the one the layout derives",
+        )
+    }
+
+    @Test
+    fun alignmentYModifierRestoresTheLayoutDerivedAlignmentOnRemoval() = runComposeSwingTest {
+        var declared by mutableStateOf(true)
+        setContent {
+            BoxPanel(
+                modifier = if (declared) SwingModifier.alignmentY(0.5f) else SwingModifier,
+                axis = BoxLayout.X_AXIS,
+            ) {
+                Label("child", modifier = SwingModifier.alignmentY(1.0f))
+            }
+        }
+        val panel = onNodeWithText("child").onParent()
+        assertEquals(0.5f, panel.fetch<JComponent>().alignmentY, "the modifier should set the y alignment")
+
+        declared = false
+        awaitIdle()
+        // A horizontal BoxLayout derives the y alignment from its children.
+        assertEquals(
+            1.0f,
+            panel.fetch<JComponent>().alignmentY,
+            "removing the modifier should hand the y alignment back to the one the layout derives",
+        )
+    }
+
+    @Test
+    fun alignmentXModifierRestoresAnAlignmentTheComponentHeldOfItsOwn() = runComposeSwingTest {
+        var declared by mutableStateOf(true)
+        setContent {
+            // 0.25f is neither the alignment a JLabel starts with nor the centered value a component
+            // holding none reports, so only the label's own alignment can restore it.
+            SwingNode(
+                factory = { JLabel("pinned").apply { alignmentX = 0.25f } },
+                modifier = if (declared) SwingModifier.alignmentX(1.0f) else SwingModifier,
+            )
+        }
+        val label = onNodeOfType<JLabel>()
+        assertEquals(1.0f, label.fetch().alignmentX, "the modifier should set the x alignment")
+
+        declared = false
+        awaitIdle()
+        assertEquals(
+            0.25f,
+            label.fetch().alignmentX,
+            "removing the modifier should restore the alignment the label carried of its own",
+        )
+    }
+
+    @Test
     fun componentOrientationModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var rtl by mutableStateOf(true)
         setContent {
@@ -330,7 +403,7 @@ class SwingModifierTest {
 
         rtl = false
         awaitIdle()
-        // The element left the chain, so the orientation is restored to the pre-modifier default
+        // The element left the modifier, so the orientation is restored to the pre-modifier default
         // (the same one the untouched control still shows).
         assertEquals(
             default,
@@ -468,12 +541,12 @@ class SwingModifierTest {
         button.dispatchEvent(mouseEntered(button))
         assertEquals(1, enterCount, "the hover listener should fire while its element is present")
 
-        // The hover leaves the chain and a different kind takes over its position: the hover node
+        // The hover leaves the modifier and a different kind takes over its position: the hover node
         // is detached, so its listener is gone from the component.
         hoverEnabled = false
         awaitIdle()
         button.dispatchEvent(mouseEntered(button))
-        assertEquals(1, enterCount, "the hover listener must be detached when its element leaves the chain")
+        assertEquals(1, enterCount, "the hover listener must be detached when its element leaves the modifier")
     }
 
     @Test
@@ -514,7 +587,7 @@ class SwingModifierTest {
         awaitIdle()
         button.dispatchEvent(mouseEntered(button))
         button.dispatchEvent(mouseMoved(button))
-        assertEquals(1, enterCount, "the mouse listener must be detached when its element leaves the chain")
+        assertEquals(1, enterCount, "the mouse listener must be detached when its element leaves the modifier")
         assertEquals(2, moveCount, "the surviving motion listener must keep firing after the kind change")
     }
 
@@ -549,7 +622,7 @@ class SwingModifierTest {
         }
         assertEquals(1, attachCount, "the listener should be attached once on first apply")
 
-        // Recomposition rebuilds the chain with a fresh element instance. The position persists with
+        // Recomposition rebuilds the modifier with a fresh element instance. The position persists with
         // the same kind, so the slot keeps its node and the stable instance is not re-registered.
         label = "second"
         awaitIdle()
@@ -602,6 +675,29 @@ class SwingModifierTest {
     }
 
     @Test
+    fun aChainComesApartInTheReverseOfTheOrderItDeclares() = runComposeSwingTest {
+        var styled by mutableStateOf(true)
+        val seen = ArrayList<String?>()
+        val probe = ReadOnDetachElement { seen += it.toolTipText }
+        setContent {
+            Button(
+                "X",
+                onClick = { },
+                modifier = if (styled) SwingModifier.then(ToolTipElement("declared")).then(probe) else SwingModifier,
+            )
+        }
+        assertEquals("declared", onNodeOfType<JButton>().fetch().toolTipText)
+        assertTrue(seen.isEmpty(), "a node stands while its element does")
+
+        // The later element was installed over the tooltip declaration, so it comes apart while that
+        // declaration still stands - not after the slot holding it has handed the tooltip back.
+        styled = false
+        awaitIdle()
+
+        assertEquals(listOf<String?>("declared"), seen, "a node unwinds before the ones installed before it")
+    }
+
+    @Test
     fun readingNodeComponentBeforeAttachFailsWithADiagnosticMessage() = runComposeSwingTest {
         // The target is injected between create() and onAttach(), so an element author reading the
         // node's component from create() is told what went wrong instead of hitting a null target.
@@ -634,7 +730,7 @@ class SwingModifierTest {
         assertEquals("hello", onNodeOfType<JButton>().fetch().toolTipText)
         val node = nodes.single()
 
-        // The element leaves the chain, so its node no longer owns the component: reading the target
+        // The element leaves the modifier, so its node no longer owns the component: reading the target
         // fails exactly as it does before attach, instead of handing out a widget it may not touch.
         styled = false
         awaitIdle()
@@ -699,6 +795,32 @@ class SwingModifierTest {
 
             override fun onDetach() {
                 component.toolTipText = original
+            }
+        }
+    }
+
+    /**
+     * An element whose node reads the component as it comes apart, so a test can see what the rest of
+     * the modifier had standing at that moment.
+     */
+    private class ReadOnDetachElement(
+        private val onTeardown: (JComponent) -> Unit,
+    ) : SwingModifier.NodeElement<JComponent, ReadOnDetachElement.Node>() {
+        override val targetType: Class<JComponent> get() = JComponent::class.java
+
+        override fun create(): Node = Node(onTeardown)
+
+        override fun update(node: Node) = Unit
+
+        override fun equals(other: Any?): Boolean = other is ReadOnDetachElement && onTeardown === other.onTeardown
+
+        override fun hashCode(): Int = System.identityHashCode(onTeardown)
+
+        class Node(
+            private val onTeardown: (JComponent) -> Unit,
+        ) : SwingModifier.Node<JComponent>() {
+            override fun onDetach() {
+                onTeardown(component)
             }
         }
     }

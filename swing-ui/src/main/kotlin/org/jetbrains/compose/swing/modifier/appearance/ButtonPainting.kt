@@ -5,6 +5,8 @@ package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.modifier.MultiTargetProperty
 import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.PropertyInterference
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyCase
 import org.jetbrains.compose.swing.modifier.propertyElement
@@ -45,8 +47,9 @@ public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier =
  * A button stops taking this from the look and feel once the property is set, and Swing offers no way to
  * hand it back.
  *
- * This, rather than [opaque]`(false)`, is how a button is made transparent: a look and feel's button
- * listener writes the button's opaque flag from this property as soon as it changes.
+ * This, rather than [opaque]`(false)`, is how a button is made transparent: a look and feel paints the
+ * fill from this property, and keeps the opaque flag in step with it - for every button but a menu item,
+ * whose flag stands on its own.
  *
  * @param filled `false` leaves the area behind the text and icon unpainted, so whatever is behind the
  *   button shows through it.
@@ -63,6 +66,7 @@ public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
             write = { component, value ->
                 if (component.isContentAreaFilled != value) component.isContentAreaFilled = value
             },
+            interference = PropertyInterference.AlsoOverwrites(OpaqueProperty),
         )
 
 /**
@@ -83,11 +87,11 @@ public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
         propertyElement<AbstractButton, Boolean>(
             name = "rolloverEnabled",
             value = enabled,
-            read = { it.isRolloverEnabled },
-            // Latched by the first write, as a button's border painting is.
-            write = { component, value ->
-                if (component.isRolloverEnabled != value) component.isRolloverEnabled = value
-            },
+            read = RolloverEnabledProperty.read,
+            write = RolloverEnabledProperty.write,
+            // Writing either rollover icon switches the state on after announcing the icon, so the
+            // icon's own announcement comes too early to answer.
+            interference = PropertyInterference.OverwrittenOn("rolloverEnabled"),
         )
 
 /**
@@ -143,4 +147,13 @@ private val BorderPaintedProperty =
             read = { it.isBorderPainted },
             write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
+    )
+
+/** The switch's own accessors. The write is latched by the first, as a button's border painting is. */
+internal val RolloverEnabledProperty =
+    PropertyAccessors<AbstractButton, Boolean>(
+        read = { it.isRolloverEnabled },
+        write = { component, value ->
+            if (component.isRolloverEnabled != value) component.isRolloverEnabled = value
+        },
     )

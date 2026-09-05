@@ -34,8 +34,8 @@ import java.awt.Component
  * The modifier is immutable and safe to share, hoist, and reuse as a theme token. Building the chain
  * inline in the composable body is the intended style and needs no `remember`: a chain declaring what
  * the one last applied to a component declares is skipped, and each element is judged on its own, so a
- * property whose declared value has not changed is not written again. See [NodeElement] for what an
- * element that did change costs.
+ * property whose declared value has not changed is not written again, until something declared before
+ * it writes. See [NodeElement] for what an element that did change costs.
  *
  * A modifier is applied *to* a node, and a node *holds* the modifier state that outlives one
  * apply pass, so `modifier` and `node` are one boundary read from two sides, not two layers - a
@@ -94,7 +94,15 @@ public interface SwingModifier {
         /** Runs once, after the component is injected, to install listeners or capture originals. */
         public open fun onAttach() {}
 
-        /** Runs once, when the element leaves the chain or the node is released/reused. */
+        /**
+         * Runs once, when the element leaves the chain or the node is released/reused.
+         *
+         * Property nodes come apart in the reverse of the order the chain declared them last, so a node
+         * putting back what it read finds every node declared before it still standing. Subscription
+         * nodes are held by position instead, and come apart after the property diff has both restored
+         * what left the chain and applied what stands, so what one of them reads as it goes is what the
+         * pass leaves behind.
+         */
         public open fun onDetach() {}
     }
 
@@ -120,9 +128,10 @@ public interface SwingModifier {
      * recompositions.
      *
      * [equals] and [hashCode] are abstract, so every element states its own equality: the slot skips an
-     * incoming element equal to the one it holds, and equality is therefore the contract deciding when
-     * [update] runs at all. Compare a value structurally - a `data class` says that in one word - and
-     * compare anything the node *registers* (a listener, a callback, a binding, a slot attachment) with
+     * incoming element equal to the one it holds, unless it is a property element and a property
+     * declared before it has already written on this pass - see [update] for that second occasion.
+     * Compare a value structurally - a `data class` says that in one word - and compare anything the
+     * node *registers* (a listener, a callback, a binding, a slot attachment) with
      * `===`, since such a field may carry an `equals` of its own under which two instances the node must
      * tell apart compare equal, leaving the node holding the one the composition replaced. An element
      * that carries nothing, and one whose write has to be redone whatever the declaration says, are
@@ -181,8 +190,9 @@ public interface SwingModifier {
         public abstract fun create(): N
 
         /**
-         * Pushes this element's latest data onto [node]. Called on add, and on a chain change that hands
-         * this slot an element unequal to the one it holds.
+         * Pushes this element's latest data onto [node]. Called on add, on a chain change that hands
+         * this slot an element unequal to the one it holds, and - for a property element - on a pass
+         * where a property declared before this one has already written.
          *
          * @param node the node [create] returned for this slot, already attached and past
          *   [Node.onAttach], so [Node.component] is readable from here.
@@ -281,21 +291,35 @@ internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
     fun canRebind(element: SwingModifier.NodeElement<*, *>): Boolean = elementType.isInstance(element)
 
     /**
-     * Rebinds the slot to a (possibly new) [element] instance, then refreshes it against [target].
-     * An element the one the slot already carries [adopts][SwingModifier.NodeElement.adopt] declares
-     * the same data, so the slot keeps the one it holds and writes nothing. Anything else rebinds: a
-     * fresh element instance carrying new data (or new callbacks) is pushed onto the node via
-     * [SwingModifier.NodeElement.update], which keeps a node-installed listener's callbacks current
-     * without reattaching.
+     * Rebinds the slot to a (possibly new) [element] instance and writes it against [target], unless
+     * the one the slot already carries [adopts][SwingModifier.NodeElement.adopt] it - an element
+     * declaring the same data, so the slot keeps what it holds and writes nothing. Anything else
+     * rebinds: a fresh element instance carrying new data (or new callbacks) is pushed onto the node
+     * via [SwingModifier.NodeElement.update], which keeps a node-installed listener's callbacks
+     * current without reattaching.
      *
      * Only call when [canRebind] holds: the slot's node statically knows its own type, so a
      * [canRebind]-checked [element] is applied through it without an unchecked cast.
+     *
+     * @return whether the declaration was written.
      */
     fun rebindAndRefresh(
         element: SwingModifier.NodeElement<*, *>,
         target: Component,
+    ): Boolean {
+        if (adopt(element)) return false
+        rebindAndWrite(element, target)
+        return true
+    }
+
+    /**
+     * Rebinds the slot to [element] and writes it against [target] whatever the slot already carries.
+     * Only call when [canRebind] holds.
+     */
+    fun rebindAndWrite(
+        element: SwingModifier.NodeElement<*, *>,
+        target: Component,
     ) {
-        if (adopt(element)) return
         this.element = elementType.cast(element)
         refresh(target)
     }
@@ -352,6 +376,70 @@ public class SwingModifierState internal constructor() {
 
     /** The additive (subscription) elements of the chain being applied, in declaration order. */
     internal val incomingAdditive: ArrayList<SwingModifier.NodeElement<*, *>> = ArrayList()
+
+    /** What each property this chain writes stood at before it did; see [PropertyCaptures]. */
+    internal val captures: PropertyCaptures = PropertyCaptures()
+
+    /**
+     * The keys of [records]'s slots in the order the chain applied last declared them, which is not the
+     * order [records] holds them in: a slot keeps the place it attached at, and a reorder attaches
+     * nothing. [diffKeyedElements] reads it to see which slots the chain being applied has moved.
+     */
+    internal val declaredKeyOrder: ArrayList<Any> = ArrayList()
+
+    /**
+     * Hands [action] the key of every standing property slot in the reverse of the order the chain
+     * declared them last, which is the order the slots are taken apart in.
+     *
+     * That is not the reverse of the order [records] holds the slots in: a slot keeps the place it
+     * attached at, so one that left the chain and was declared again stands where it re-attached rather
+     * than where the chain declares it. A key [declaredKeyOrder] does not reach is one a pass that threw
+     * installed without recording it; it is the most recently attached, so it comes apart first.
+     *
+     * [action] may drop the slot it is handed from [records]. It must leave [declaredKeyOrder] alone.
+     */
+    internal inline fun forEachStandingKeyInUnwindOrder(action: (Any) -> Unit) {
+        var declared = 0
+        for (key in declaredKeyOrder) {
+            if (key in records) declared++
+        }
+        if (declared < records.size) {
+            // records answers no backwards walk, so these keys are gathered to be handed over in reverse.
+            val undeclared = ArrayList<Any>(records.size - declared)
+            for (key in records.keys) {
+                if (key !in declaredKeyOrder) undeclared.add(key)
+            }
+            for (index in undeclared.indices.reversed()) action(undeclared[index])
+        }
+        for (index in declaredKeyOrder.indices.reversed()) {
+            val key = declaredKeyOrder[index]
+            if (key in records) action(key)
+        }
+    }
+
+    /**
+     * The first slot the chain being applied declares in another place among the slots that stand than
+     * the chain applied last declared it in, or `null` where every one of them stands where it stood.
+     *
+     * Two slots that swap places settle their overlap the other way round while both elements stay
+     * equal, so the slots from the first moved one on are written again rather than adopted. A slot
+     * [declaredKeyOrder] does not reach is one attached by a pass that threw before recording it; where
+     * it stood is unknown, so it counts as moved.
+     *
+     * Both orders are read past the slots that do not stand: [incomingKeyed] names the slots yet to
+     * attach, and [declaredKeyOrder] the ones that have left.
+     */
+    internal fun firstMovedKey(): Any? {
+        var stoodIndex = 0
+        for (key in incomingKeyed.keys) {
+            if (key !in records) continue
+            while (stoodIndex < declaredKeyOrder.size && declaredKeyOrder[stoodIndex] !in records) stoodIndex++
+            val stoodKey = declaredKeyOrder.getOrNull(stoodIndex)
+            stoodIndex++
+            if (key != stoodKey) return key
+        }
+        return null
+    }
 }
 
 /**
@@ -363,7 +451,7 @@ public class SwingModifierState internal constructor() {
  * Runs after the component's own `set`s, so a modifier can override component defaults. A chain
  * declaring what the one applied last declares is skipped whole - a listener callback the pass rebuilt
  * reaches the node that reads it without counting as a change - and in a chain that did change, every
- * element that did not is skipped with it.
+ * element ahead of the first write is skipped with it.
  *
  * A chain carrying a placement - [org.jetbrains.compose.swing.modifier.layout.layoutConstraint] or a host
  * slot - declares where the node is attached in its parent, and this is the channel through which that
@@ -467,7 +555,12 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
         if (element.additive) {
             chainState.incomingAdditive.add(element)
         } else {
-            chainState.incomingKeyed[element.key] = element
+            // Last wins the place as well as the value: the chain settles two writes of one property by
+            // its own order, so a key declared again later stands where it was declared last. The key is
+            // asked for once, which is what the walk over a chain costs.
+            val key = element.key
+            chainState.incomingKeyed.remove(key)
+            chainState.incomingKeyed[key] = element
         }
         chainState
     }
@@ -490,8 +583,8 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     declaredSlot = slot?.let { DeclaredSlot(it.attachment, it.regionName) }
     applyConstraint(constraint)
 
-    diffKeyedElements(target, state.records, state.incomingKeyed)
-    diffAdditiveElements(target, state.additiveRecords, state.incomingAdditive)
+    diffKeyedElements(target, state)
+    diffAdditiveElements(target, state.additiveRecords, state.incomingAdditive, state.captures)
 
     // Recorded once the slots hold it, so a diff that fails partway leaves the chain it did not finish
     // applying to be diffed again rather than adopted.
@@ -510,6 +603,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
 private fun <T : Component, N : SwingModifier.Node<T>> attachElement(
     element: SwingModifier.NodeElement<T, N>,
     raw: Component,
+    captures: PropertyCaptures,
 ): ElementRecord<T, N> {
     val typed = checkedTarget(element, raw)
     val node = element.create()
@@ -517,6 +611,7 @@ private fun <T : Component, N : SwingModifier.Node<T>> attachElement(
         "A SwingModifier.Node instance may not be attached to multiple components simultaneously"
     }
     node.attachedComponent = typed
+    (node as? PropertyNode<*, *>)?.captures = captures
     node.onAttach()
     element.update(node)
     // element.javaClass is typed Class<out NodeElement<T, N>>: capturing it lets a later rebind
@@ -558,29 +653,50 @@ private fun <T : Component> checkedTarget(
 /** Diffs the keyed (last-wins) property elements: detach departed keys, then add/refresh the rest. */
 private fun diffKeyedElements(
     target: Component,
-    records: LinkedHashMap<Any, ElementRecord<*, *>>,
-    incoming: LinkedHashMap<Any, SwingModifier.NodeElement<*, *>>,
+    state: SwingModifierState,
 ) {
-    // Detach + drop elements whose key left the chain.
-    val iterator = records.entries.iterator()
-    while (iterator.hasNext()) {
-        val entry = iterator.next()
-        if (entry.key !in incoming) {
-            entry.value.detach()
-            iterator.remove()
+    val records = state.records
+    val incoming = state.incomingKeyed
+    val declaredKeyOrder = state.declaredKeyOrder
+    val captures = state.captures
+
+    // Detach + drop elements whose key left the chain, last declared first: a slot restoring through an
+    // object a later slot declared needs that object still standing.
+    var wrote = false
+    state.forEachStandingKeyInUnwindOrder { key ->
+        if (key !in incoming) {
+            records.remove(key)?.detach()
+            wrote = true
         }
     }
 
     // Apply (add or refresh) the current chain. A persisting slot keeps its node and refreshes it via
     // update(), which keeps a node-installed listener's callbacks current without reattaching.
+    //
+    // A slot writes what its own declaration says, and a coarser slot's write covers a finer one's
+    // property - a whole geometry over one axis of it. The chain settles that by order: the later
+    // declaration wins. So once anything has written on this pass, every slot after it writes again
+    // rather than being adopted, or the earlier write would stand over a later declaration that had
+    // nothing to say for itself. A slot that left counts as a write, since its restore put back what
+    // the component carried before it.
+    //
+    val moved = state.firstMovedKey()
+
     for ((key, element) in incoming) {
+        if (key == moved) wrote = true
         val record = records[key]
         if (record == null) {
-            records[key] = attachElement(element, target)
+            records[key] = attachElement(element, target, captures)
+            wrote = true
+        } else if (wrote) {
+            record.rebindAndWrite(element, target)
         } else {
-            record.rebindAndRefresh(element, target)
+            wrote = record.rebindAndRefresh(element, target)
         }
     }
+
+    declaredKeyOrder.clear()
+    declaredKeyOrder.addAll(incoming.keys)
 }
 
 /**
@@ -588,17 +704,17 @@ private fun diffKeyedElements(
  * detached and removed; a persisting position keeps its node and is refreshed via update(); a new
  * trailing position is created and attached. A conditional chain changing shape can hand a persisting
  * position an element of a different kind; the slot's node cannot host it, so the slot is swapped
- * wholesale - the old node detaches (removing its listener) and the new element attaches fresh.
+ * wholesale - the new element attaches fresh and the old node then detaches, removing its listener.
  */
 private fun diffAdditiveElements(
     target: Component,
     records: ArrayList<ElementRecord<*, *>>,
     incoming: ArrayList<SwingModifier.NodeElement<*, *>>,
+    captures: PropertyCaptures,
 ) {
-    // Detach + drop trailing positions that left the chain.
+    // Detach + drop trailing positions that left the chain, from the end.
     while (records.size > incoming.size) {
-        val record = records.removeAt(records.size - 1)
-        record.detach()
+        records.removeAt(records.size - 1).detach()
     }
 
     // Apply (add or refresh) each position. A persisting position of the same kind refreshes via
@@ -608,7 +724,7 @@ private fun diffAdditiveElements(
         val record = records.getOrNull(index)
         when {
             record == null -> {
-                records.add(attachElement(element, target))
+                records.add(attachElement(element, target, captures))
             }
 
             record.canRebind(element) -> {
@@ -616,8 +732,11 @@ private fun diffAdditiveElements(
             }
 
             else -> {
+                // The replacement attaches first: an element the component is not the target of is
+                // refused here, and the slot is left holding the node it has rather than a detached one
+                // every later teardown would fail on.
+                records[index] = attachElement(element, target, captures)
                 record.detach()
-                records[index] = attachElement(element, target)
             }
         }
     }
@@ -630,15 +749,17 @@ private fun diffAdditiveElements(
  */
 internal fun SwingNodeHolder<*>.resetModifierState() {
     val state = modifierState ?: return
-    for (record in state.records.values) {
-        record.detach()
-    }
-    for (record in state.additiveRecords) {
-        record.detach()
+    // The property slots in the reverse of the order the chain declared them last, then the
+    // subscription slots from the end - the order [applyModifierDiff] unwinds a departed slot of each
+    // kind in.
+    state.forEachStandingKeyInUnwindOrder { key -> state.records.getValue(key).detach() }
+    for (index in state.additiveRecords.indices.reversed()) {
+        state.additiveRecords[index].detach()
     }
     state.records.clear()
     state.additiveRecords.clear()
     state.incomingKeyed.clear()
     state.incomingAdditive.clear()
+    state.declaredKeyOrder.clear()
     modifierState = null
 }

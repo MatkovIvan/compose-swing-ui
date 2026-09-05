@@ -10,11 +10,11 @@ import java.awt.Component
 import javax.swing.JComponent
 
 /**
- * Sets `foreground`; `null` restores the inherited/look-and-feel default.
+ * Sets `foreground`; `null` takes the color from the parent container.
  *
  * @param color the color the component draws its text and content in, inherited by children that have none
  *   of their own.
- * @return this chain with the foreground color declared on it.
+ * @return this modifier with the foreground color declared on it.
  * @see java.awt.Component.setForeground
  */
 public fun SwingModifier.foreground(color: Color?): SwingModifier =
@@ -22,7 +22,7 @@ public fun SwingModifier.foreground(color: Color?): SwingModifier =
         propertyElement<Component, Color?>(
             name = "foreground",
             value = color,
-            read = { it.foreground },
+            read = { if (it.isForegroundSet) it.foreground else null },
             write = { component, value ->
                 component.foreground = value
                 // JComponent.setForeground already repaints. A plain AWT Component does not, so the

@@ -76,7 +76,7 @@ class PositionModifierTest {
     @Test
     fun locationAfterXWinsTheXAxis() = runComposeSwingTest {
         val child = positionedChild(SwingModifier.x(10).location(20, 30))
-        // location is applied later in the chain, so its x wins over the earlier x(10).
+        // location is applied later in the modifier chain, so its x wins over the earlier x(10).
         assertEquals(Point(20, 30), child.location, "later location wins the x axis")
     }
 
@@ -108,13 +108,107 @@ class PositionModifierTest {
 
         positioned = false
         awaitIdle()
-        // The location modifier left the chain, so the component returns to the location it had before it.
+        // The location declaration is gone, so the component returns to the location it had before it.
         val restored = onNodeOfType<JLabel>().fetch()
         assertEquals(
             Point(0, 0),
             restored.location,
             "removing the location modifier restores the component's original location",
         )
+    }
+
+    @Test
+    fun droppingTheLocationLeavesTheAxisAnotherModifierDeclares() = runComposeSwingTest {
+        var whole by mutableStateOf(true)
+        setContent {
+            LayeredPane {
+                val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
+                Label(
+                    text = "child",
+                    modifier = (if (whole) onDefaultLayer.location(20, 30) else onDefaultLayer).y(50),
+                )
+            }
+        }
+        val child = onNodeOfType<JLabel>().fetch()
+        assertEquals(Point(20, 50), child.location, "the later y wins its axis, x stays from location")
+
+        whole = false
+        awaitIdle()
+
+        // Restoring a location puts both axes back, y included, so the modifier declaring that axis
+        // alone writes it again on the same pass.
+        assertEquals(Point(0, 50), child.location, "the declared y stands after the location is dropped")
+    }
+
+    @Test
+    fun addingTheBoundsLeavesTheAxisAnotherModifierDeclares() = runComposeSwingTest {
+        var whole by mutableStateOf(false)
+        setContent {
+            LayeredPane {
+                val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
+                Label(
+                    text = "child",
+                    modifier = (if (whole) onDefaultLayer.bounds(20, 30, 100, 40) else onDefaultLayer).x(10),
+                )
+            }
+        }
+        val child = onNodeOfType<JLabel>().fetch()
+        assertEquals(10, child.x, "the declared x is what the child carries")
+
+        // The bounds arrive ahead of the x declaration and write the axis it declares, so the later
+        // declaration is written again over them.
+        whole = true
+        awaitIdle()
+
+        assertEquals(10, child.x, "the declared x stands after the bounds arrive under it")
+    }
+
+    @Test
+    fun movingTheBoundsLeavesTheAxisAnotherModifierDeclares() = runComposeSwingTest {
+        var top by mutableStateOf(30)
+        setContent {
+            LayeredPane {
+                Label(
+                    text = "child",
+                    modifier =
+                        SwingModifier
+                            .layer(JLayeredPane.DEFAULT_LAYER)
+                            .bounds(20, top, 100, 40)
+                            .x(10),
+                )
+            }
+        }
+        val child = onNodeOfType<JLabel>().fetch()
+        assertEquals(10, child.x, "the declared x is what the child carries")
+
+        // Nothing joins or leaves the modifier: the bounds simply declare a new value, which writes the
+        // x axis on its way past.
+        top = 60
+        awaitIdle()
+
+        assertEquals(60, child.y, "the redeclared bounds reach the axis they own")
+        assertEquals(10, child.x, "the declared x stands after the bounds are written again")
+    }
+
+    @Test
+    fun droppingTheBoundsLeavesTheAxisAnotherModifierDeclares() = runComposeSwingTest {
+        var whole by mutableStateOf(true)
+        setContent {
+            LayeredPane {
+                val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
+                Label(
+                    text = "child",
+                    modifier = (if (whole) onDefaultLayer.bounds(20, 30, 100, 40) else onDefaultLayer).x(10),
+                )
+            }
+        }
+        val child = onNodeOfType<JLabel>().fetch()
+        assertEquals(10, child.x, "the later x wins its axis")
+
+        whole = false
+        awaitIdle()
+
+        assertEquals(10, child.x, "the declared x stands after the bounds are dropped")
     }
 
     @Test

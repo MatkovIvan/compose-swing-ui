@@ -201,13 +201,12 @@ internal fun checkOnePlacement(
     slot: SlotElement?,
     constraint: Any?,
 ) {
-    if (slot == null || constraint == null) return
-    error(
+    require(slot == null || constraint == null) {
         "A parent holds a child either under a layout constraint its layout manager registers the " +
             "component by, or in a region of its own reached through a setter written for that region, " +
-            "and this modifier declares both: layoutConstraint($constraint) and ${slot.regionName}. Declare " +
-            "the one the enclosing container holds its children by, and drop the other.",
-    )
+            "and this modifier declares both: layoutConstraint($constraint) and ${slot?.regionName}. " +
+            "Declare the one the enclosing container holds its children by, and drop the other."
+    }
 }
 
 private fun placementHasNoNode(): Nothing =

@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.EditorPane
+import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.node.SwingNode
@@ -16,8 +17,10 @@ import javax.swing.text.AttributeSet
 import javax.swing.text.DocumentFilter
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * Behavioral coverage for the `SwingModifier.documentFilter` seam, driving a live text component's
@@ -232,6 +235,27 @@ class DocumentFilterModifierTest {
             "12",
             after.getText(0, after.length),
             "the migrated filter should still gate edits on the new document",
+        )
+    }
+
+    @Test
+    fun aFormattedFieldRejectsTheDeclarationBecauseItsFormatterOwnsTheFilter() {
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                runComposeSwingTest {
+                    setContent {
+                        FormattedTextField(
+                            value = 42,
+                            onValueChange = {},
+                            modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
+                        )
+                    }
+                }
+            }
+
+        assertTrue(
+            "getDocumentFilter" in failure.message.orEmpty(),
+            "the message should name the formatter method that owns the filter, but was: ${failure.message}",
         )
     }
 }

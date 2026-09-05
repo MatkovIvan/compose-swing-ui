@@ -53,10 +53,14 @@ public fun SwingModifier.mnemonic(mnemonic: Char): SwingModifier =
  * the text; `-1` underlines none of them. Use it when the letter appears more than once and the first
  * one is not the one to decorate - `displayedMnemonicIndex(5)` underlines the `A` of `Save As`.
  *
- * Setting the mnemonic recomputes the index, and so does changing the text, so declare this after the
- * [mnemonic] in the chain.
+ * A widget derives the index again from its text and its mnemonic whenever either is written, and every
+ * pass writes this declaration back over what it derived. Declare it after the [mnemonic], since a later
+ * element in the chain is applied last.
  *
- * Throws when [index] is below `-1` or beyond the end of the text, as Swing does.
+ * Throws when [index] is below `-1` or beyond the end of the text, as Swing does - including where a
+ * shortened text is what leaves the declared index past its end.
+ *
+ * Dropping this leaves the index the widget derives for the text and mnemonic that stand.
  *
  * @param index the zero-based index into the text of the character to underline, or `-1` to underline
  *   none of them.
@@ -65,7 +69,7 @@ public fun SwingModifier.mnemonic(mnemonic: Char): SwingModifier =
  * @see javax.swing.JLabel.setDisplayedMnemonicIndex
  */
 public fun SwingModifier.displayedMnemonicIndex(index: Int): SwingModifier =
-    this then MultiTargetPropertyElement(DisplayedMnemonicIndexProperty, index)
+    this then DisplayedMnemonicIndexElement(index)
 
 /**
  * `AbstractButton` and `JLabel` each declare the mnemonic for themselves and under different names, so
@@ -84,16 +88,46 @@ private val MnemonicProperty =
         ),
     )
 
-/** The same pair of targets as [MnemonicProperty], here under a name both of them share. */
+/**
+ * The same pair of targets as [MnemonicProperty], here under a name both of them share.
+ *
+ * Neither widget holds an index of its own: each derives one from its text and its mnemonic on every
+ * `setText`, and again on every mnemonic write. The read therefore answers `null` - none of its own -
+ * and writing `null` hands the text back to the widget, whose own derivation is what a widget that never
+ * carried the modifier holds.
+ */
 private val DisplayedMnemonicIndexProperty =
-    MultiTargetProperty<Int>(
+    MultiTargetProperty<Int?>(
         "displayedMnemonicIndex",
-        propertyCase<AbstractButton, Int>(
-            read = { it.displayedMnemonicIndex },
-            write = { component, value -> component.displayedMnemonicIndex = value },
+        propertyCase<AbstractButton, Int?>(
+            read = { null },
+            write = { component, value ->
+                // setText derives the index again whatever text it is called with, and an equal text is
+                // no change to announce or lay out for.
+                if (value == null) component.text = component.text else component.displayedMnemonicIndex = value
+            },
         ),
-        propertyCase<JLabel, Int>(
-            read = { it.displayedMnemonicIndex },
-            write = { component, value -> component.displayedMnemonicIndex = value },
+        propertyCase<JLabel, Int?>(
+            read = { null },
+            write = { component, value ->
+                if (value == null) component.text = component.text else component.displayedMnemonicIndex = value
+            },
         ),
     )
+
+/**
+ * The element [displayedMnemonicIndex] declares. An index unchanged since the last pass is still due to
+ * be written back over what the widget derived, so the element is equal only to itself.
+ *
+ * Both widgets announce the derived index, but a listener answering that announcement would write from
+ * inside `setText`, against text the pass has already installed and the declared index it is carrying
+ * may no longer reach - including on the pass that shortens the text and withdraws the declaration
+ * together. Writing on the pass instead puts the index in after the text it indexes into.
+ */
+private class DisplayedMnemonicIndexElement(
+    index: Int,
+) : MultiTargetPropertyElement<Int?>(DisplayedMnemonicIndexProperty, index) {
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
+}

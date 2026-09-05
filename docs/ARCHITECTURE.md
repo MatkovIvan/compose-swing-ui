@@ -144,10 +144,12 @@ order does not express that intent: conditionals and reordering change a child's
 changing where the author meant to place it. Placement is therefore explicit rather than inferred
 from index.
 
-A child declares its own placement, on its own modifier chain. `layoutConstraint` puts the value on
-the chain. The default, for a chain that declares none, is "add by position." The last placement
-declared in a chain wins, and a chain that stops declaring one returns the component to placement by
-index.
+A child declares its own placement, on its own modifier. `layoutConstraint` puts the whole constraint
+on the modifier outright, and the last one declared there wins. A `Row` or `Column` scope's own
+builders - `weight()`, `align()`, a cross-axis fill - each declare a part of the constraint instead
+and fold it into what the modifier declared before. A modifier mixing the two kinds of declaration is
+refused. The default, for a modifier that declares neither, is "add by position," and a modifier that
+stops declaring a placement returns the component to it.
 
 The ordering that makes this work is the applier's own. An inserted node is visited twice, top-down
 and then bottom-up, its `update` changes run between the two passes, and the bottom-up pass is the
@@ -168,9 +170,9 @@ not wrap possible at all: the container supplies the manager and hosts arbitrary
 child it holds names its own place in it. The value is untyped, matching what a container takes; a
 manager's author names it in a scope of typed builders for their own callers.
 
-A placement reaches the node whose chain declares it and travels no further, so it says nothing about
-that node's own children: a container placed in a region of its parent lays its own children out under
-the placements they declare, and neither knows about the other.
+A placement reaches the node whose modifier declares it and travels no further, so it says nothing
+about that node's own children: a container placed in a region of its parent lays its own children
+out under the placements they declare, and neither knows about the other.
 
 A constraint that changes while its component is already attached re-registers the component with its
 parent's manager rather than re-adding it, so placement follows state without the component losing
@@ -179,7 +181,7 @@ its position in the container, its focus, or its native resources.
 The two kinds of placement differ in when a change takes hold. A layout constraint is the parent's
 layout manager's, and the manager can be told about it at any time, so a new value takes effect as it
 changes. A host-slot attachment is the applier's, and it is identified by the region's name alone: a
-chain naming a different region moves the child there within the same change pass. The applier
+modifier naming a different region moves the child there within the same change pass. The applier
 compares names, not attachments, so declaring a different attachment under a name that stays the same
 moves and reinstalls nothing, and a container
 that wants to change what an already-filled region shows for its child writes that as an ordinary
@@ -210,19 +212,21 @@ listener once and a fresh lambda re-registers nothing.
 
 `SwingModifier` is the Compose-shaped way to configure a component: appearance, layout hints,
 keyboard and interaction wiring, data transfer, accessibility, and listeners are expressed as
-modifier elements chained onto a component. A passed `modifier` is the base of the chain and a
-component's own elements chain onto it, following the Compose convention. Elements that share a slot
-are last-wins, so where a component declares a property itself, its own value stands - what a
-component means you to decide is a parameter, not a modifier element.
+modifier elements declared on a component. A passed `modifier` is the base, and a component's own
+elements are added onto it, following the Compose convention. Elements that share a slot are
+last-wins, so where a component declares a property itself, its own value stands - what a component
+means you to decide is a parameter, not a modifier element.
 
-A chain is immutable and diffed against the chain applied last. One declaring what that one declared is
-skipped whole, and within a chain that did change every element is compared on its own, so a property
-whose declared value has not changed is not written again. A value compares structurally. A callback the
-node reads when an event fires is not a value the node holds, so it is no part of what its element
-declares: a chain the composition rebuilt around a fresh callback still declares the registration it
-declared last, the callback reaches the already-installed listener on its own, and the chain is skipped
-around it. Building the chain inline in the composable body is therefore the intended style and needs no
-`remember`; hoisting a chain is for sharing it as a theme token, not for making it cheap.
+A modifier is immutable and diffed against the one applied last. One declaring what that one
+declared is skipped whole, and within a modifier chain that did change every element is compared on its
+own, so a property whose declared value has not changed is not written again. Once an earlier
+declaration writes, the modifier's order decides which declaration stands. A value compares
+structurally. A callback the node reads when an event fires is not a value the node holds, so it is
+no part of what its element declares: a modifier the composition rebuilt around a fresh callback
+still declares the registration it declared last, the callback reaches the already-installed
+listener on its own, and the modifier is skipped around it. Building the modifier inline in the
+composable body is therefore the intended style and needs no `remember`; hoisting one is for sharing
+it as a theme token, not for making it cheap.
 
 Closed sets of Swing integer (and a few string) constants - scrollbar policies, orientations,
 selection modes, and the like - are exposed as typed constant sets. A parameter that takes one of

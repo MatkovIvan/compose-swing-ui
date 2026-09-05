@@ -4,8 +4,12 @@
 package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.DocumentMirror
+import org.jetbrains.compose.swing.modifier.listener.attachSettlingDocumentListener
+import org.jetbrains.compose.swing.modifier.listener.detachSwappableDocumentListener
 import org.jetbrains.compose.swing.text.TextRange
-import java.beans.PropertyChangeListener
+import javax.swing.event.DocumentEvent
+import javax.swing.text.Document
 import javax.swing.text.Highlighter
 import javax.swing.text.JTextComponent
 
@@ -22,8 +26,13 @@ import javax.swing.text.JTextComponent
  * A range is painted as the span between its two offsets, whichever way round they are, clamped to the
  * document the way a selection is; a range beyond the text paints as far as the text goes.
  *
+ * The offsets are the declaration itself, not where a mark starts out: an edit under a mark - the
+ * user's own typing, or a change to the text the composition declares - leaves the range painted where
+ * [ranges] puts it. A span that should move with the edit is declared at its new offsets.
+ *
  * The painter is compared by identity, so one built inline is a new painter on every recomposition and
- * repaints the whole set each time; hoist it into a `remember` to repaint only when [ranges] change.
+ * repaints the whole set each time; hoist it into a `remember` to repaint only when [ranges] change or
+ * the document does.
  *
  * ```
  * TextArea(
@@ -47,13 +56,15 @@ public fun SwingModifier.highlights(
 
 /**
  * Re-paints a text component's highlighter with the declared ranges whenever the declaration changes,
- * keeping the tags the highlighter handed back so exactly those marks are taken away again. Carries the
- * declaration across document swaps via a one-time `document`-property listener: a highlight's tag is
- * bound to the document instance current when it was added, so a swap - a `JEditorPane` switching content
- * type, a `TextArea` rebinding to a new `DocumentState` - stops the old tags from painting anything.
+ * keeping the tags the highlighter handed back so exactly those marks are taken away again. A mark is
+ * anchored to positions of the document it was added to, and the document alone decides where those go,
+ * so the node rides the document the component holds and paints the declaration again for anything that
+ * happens to it: an edit moves or collapses the positions a mark spans, and a swap - a `JEditorPane`
+ * switching content type, a `TextArea` rebinding to a new `DocumentState` - leaves the old tags
+ * painting nothing.
  *
  * The [painter] is the caller's own object, handed to the highlighter as the mark's painter, so it is
- * compared by identity - the same comparison the node makes against what it has already painted.
+ * compared by identity: the highlighter tells one painter's marks from another's the same way.
  *
  * [ranges] is a list no caller holds. An equal element leaves the chain it declares adopted as-is, so
  * what a later declaration is compared against must be a list nothing outside can change under it.
@@ -77,43 +88,43 @@ private class HighlightsElement(
     override fun update(node: Node) {
         node.ranges = ranges
         node.painter = painter
-        node.apply(force = false)
+        node.paintDeclared()
     }
 
     class Node : SwingModifier.Node<JTextComponent>() {
         private val tags = ArrayList<Any>()
-        private var appliedRanges: List<TextRange>? = null
-        private var appliedPainter: Highlighter.HighlightPainter? = null
-        private var documentListener: PropertyChangeListener? = null
+
+        /** Paints the declaration again for every change the document makes to what the tags describe. */
+        private val documentMirror =
+            object : DocumentMirror {
+                override fun insertUpdate(event: DocumentEvent): Unit = paintDeclared()
+
+                override fun removeUpdate(event: DocumentEvent): Unit = paintDeclared()
+
+                override fun changedUpdate(event: DocumentEvent) {
+                    // An attribute change moves no position, so the marks still span what the declaration says.
+                }
+
+                override fun adoptModelSwap(model: Document): Unit = paintDeclared()
+            }
 
         var ranges: List<TextRange> = emptyList()
         var painter: Highlighter.HighlightPainter? = null
 
-        override fun onAttach() {
-            // force = true: the tags belong to the document being swapped out, not the one replacing it.
-            val listener = PropertyChangeListener { apply(force = true) }
-            component.addPropertyChangeListener("document", listener)
-            documentListener = listener
-        }
+        override fun onAttach(): Unit = component.attachSettlingDocumentListener(documentMirror)
 
         /**
-         * Paints [ranges] with [painter], unless what is already painted came from an equal declaration
-         * against the same document and [force] is not set.
+         * Paints [ranges] with [painter], replacing the marks the previous painting left. Silent until a
+         * painter is declared, and on a component whose highlighter has not been installed yet, which
+         * carries no marks to replace.
          */
-        fun apply(force: Boolean) {
-            val declaredRanges = ranges
-            val declaredPainter = painter
-            // A component whose highlighter has not been installed yet carries no marks to replace;
-            // leaving the declaration unrecorded lets the next pass paint it.
-            val highlighter = component.highlighter
-            if (declaredPainter == null || highlighter == null) return
-            if (!force && declaredPainter === appliedPainter && declaredRanges == appliedRanges) return
-            appliedRanges = declaredRanges
-            appliedPainter = declaredPainter
+        fun paintDeclared() {
+            val declaredPainter = painter ?: return
+            val highlighter = component.highlighter ?: return
 
             removePainted(highlighter)
             val length = component.document.length
-            for (range in declaredRanges) {
+            for (range in ranges) {
                 val from = minOf(range.start, range.end).coerceIn(0, length)
                 val to = maxOf(range.start, range.end).coerceIn(0, length)
                 tags += highlighter.addHighlight(from, to, declaredPainter)
@@ -121,8 +132,7 @@ private class HighlightsElement(
         }
 
         override fun onDetach() {
-            documentListener?.let { component.removePropertyChangeListener("document", it) }
-            documentListener = null
+            component.detachSwappableDocumentListener(documentMirror)
             val highlighter = component.highlighter ?: return
             removePainted(highlighter)
         }

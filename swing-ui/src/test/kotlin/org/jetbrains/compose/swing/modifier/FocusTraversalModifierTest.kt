@@ -32,6 +32,7 @@ import javax.swing.JRadioButton
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -121,6 +122,34 @@ class FocusTraversalModifierTest {
             installed,
             after.focusTraversalPolicy,
             "removing the modifier should restore the pre-modifier traversal policy",
+        )
+    }
+
+    @Test
+    fun removingOrderedFocusTraversalLeavesAContainerInheritingAPolicyAgain() = runComposeSwingTest {
+        // A container that is a focus cycle root but holds no policy of its own answers with the policy
+        // it inherits, so what it reports before the modifier is not a policy to hand back to it.
+        val cycleRoot = JPanel().apply { isFocusCycleRoot = true }
+        var ordered by mutableStateOf(false)
+        setContent {
+            SwingNode(
+                factory = { cycleRoot },
+                modifier = if (ordered) SwingModifier.orderedFocusTraversal() else SwingModifier,
+            ) {
+                TextField("", onValueChange = {})
+            }
+        }
+        assertFalse(cycleRoot.isFocusTraversalPolicySet, "the container should hold no policy of its own")
+        assertNotNull(cycleRoot.focusTraversalPolicy, "a cycle root answers with the policy it inherits")
+
+        ordered = true
+        awaitIdle()
+        ordered = false
+        awaitIdle()
+
+        assertFalse(
+            cycleRoot.isFocusTraversalPolicySet,
+            "removing the modifier should leave the container carrying no policy of its own",
         )
     }
 

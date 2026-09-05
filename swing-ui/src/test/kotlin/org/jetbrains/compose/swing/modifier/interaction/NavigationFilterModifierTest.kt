@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.DocumentState
+import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -15,8 +16,10 @@ import javax.swing.text.NavigationFilter
 import javax.swing.text.Position
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * Behavioral coverage for the `SwingModifier.navigationFilter` seam. A navigation filter answers every
@@ -107,6 +110,27 @@ class NavigationFilterModifierTest {
         state.selection = TextRange(INSIDE_THE_PROMPT, INSIDE_THE_PROMPT)
         awaitIdle()
         assertEquals(INSIDE_THE_PROMPT, field.caretPosition, "with no filter the caret goes where it is put")
+    }
+
+    @Test
+    fun aFormattedFieldRejectsTheDeclarationBecauseItsFormatterOwnsTheFilter() {
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                runComposeSwingTest {
+                    setContent {
+                        FormattedTextField(
+                            value = 42,
+                            onValueChange = {},
+                            modifier = SwingModifier.navigationFilter(AfterThePromptFilter),
+                        )
+                    }
+                }
+            }
+
+        assertTrue(
+            "getNavigationFilter" in failure.message.orEmpty(),
+            "the message should name the formatter method that owns the filter, but was: ${failure.message}",
+        )
     }
 }
 

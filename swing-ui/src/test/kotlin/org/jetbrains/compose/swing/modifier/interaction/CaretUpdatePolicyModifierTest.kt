@@ -12,6 +12,8 @@ import javax.swing.JTextArea
 import javax.swing.text.DefaultCaret
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotSame
+import kotlin.test.assertSame
 
 /**
  * Behavioral coverage for the `SwingModifier.caretUpdatePolicy` switch. Each case puts the caret at a
@@ -126,7 +128,81 @@ class CaretUpdatePolicyModifierTest {
         assertEquals(
             TEXT.length + PREFIX.length,
             area.caretPosition,
-            "leaving the chain should put back the policy the caret carried, which follows the edit again",
+            "leaving the modifier should put back the policy the caret carried, which follows the edit again",
+        )
+    }
+
+    @Test
+    fun aPolicyDeclaredBeforeTheCaretReachesItAndComesApartAfterIt() = runComposeSwingTest {
+        val mine = DefaultCaret()
+        var decorated by mutableStateOf(true)
+        setContent {
+            SwingNode(
+                factory = { JTextArea(TEXT) },
+                modifier =
+                    if (decorated) {
+                        SwingModifier.caretUpdatePolicy(DefaultCaret.NEVER_UPDATE).caret(mine)
+                    } else {
+                        SwingModifier
+                    },
+            )
+        }
+        val area = onNodeOfType<JTextArea>().fetch()
+        val installedPolicy = (JTextArea().caret as DefaultCaret).updatePolicy
+        assertEquals(
+            DefaultCaret.NEVER_UPDATE,
+            mine.updatePolicy,
+            "the policy declared first reaches the caret declared after it",
+        )
+
+        // The caret is declared last, so it comes apart first: the area carries its own caret again
+        // while the policy declaration still stands, and the policy hands that caret back what it read.
+        decorated = false
+        awaitIdle()
+
+        assertNotSame(mine, area.caret, "the caret the area carried before is put back")
+        assertEquals(
+            installedPolicy,
+            (area.caret as DefaultCaret).updatePolicy,
+            "the caret put back keeps the policy it carried",
+        )
+        assertEquals(
+            DefaultCaret.NEVER_UPDATE,
+            mine.updatePolicy,
+            "the caret let go of keeps the policy it was given",
+        )
+    }
+
+    @Test
+    fun aCaretReplacingAnotherUnderTheSamePolicyHoldsToIt() = runComposeSwingTest {
+        val first = DefaultCaret()
+        val second = DefaultCaret()
+        var swapped by mutableStateOf(false)
+        setContent {
+            SwingNode(
+                factory = { JTextArea(TEXT) },
+                modifier =
+                    SwingModifier
+                        .caret(if (swapped) second else first)
+                        .caretUpdatePolicy(DefaultCaret.NEVER_UPDATE),
+            )
+        }
+        val area = onNodeOfType<JTextArea>().fetch()
+
+        // The caret slot writes on this pass, so the policy slot declared after it is written again
+        // rather than adopted, onto the caret that has just arrived.
+        swapped = true
+        awaitIdle()
+        assertSame(second, area.caret, "the newly declared caret should reach the area")
+
+        area.caretPosition = TEXT.length
+        area.document.insertString(0, PREFIX, null)
+        awaitIdle()
+
+        assertEquals(
+            TEXT.length,
+            area.caretPosition,
+            "the policy still declared should hold the caret that replaced the first one where it is",
         )
     }
 

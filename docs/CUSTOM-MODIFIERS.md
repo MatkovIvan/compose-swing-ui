@@ -64,7 +64,8 @@ Built-in modifier builders are extension functions on `SwingModifier`, grouped b
 - **Metadata** - `name`, `toolTip`, `clientProperty`, `testTag`.
 - **Interaction** - `enabled`, `focusable`, `focusTraversalIndex`, `orderedFocusTraversal`,
   `defaultButton`, `onHover`, `onFocus`, `onPointerEvent`, `onAccept`, `focusRequester`, `initialFocus`,
-  `inputVerifier`, `verifyInputWhenFocusTarget`, `documentFilter`, `caretUpdatePolicy` (requires a
+  `inputVerifier`, `verifyInputWhenFocusTarget`, `documentFilter` (not on a `JFormattedTextField`,
+  whose formatter owns the filter), `navigationFilter`, `caretUpdatePolicy` (requires a
   `JTextComponent` whose caret is a `DefaultCaret`), and `popupAnchor`, which names the component a
   `ContextMenu` or `PopupMenu` declared beside it opens over, plus the listener builders
   (`mouseListener`, `keyListener`, ...; see *Attaching a listener* below).
@@ -116,22 +117,24 @@ The lifecycle, across the `NodeElement`/`Node` pair:
 - `NodeElement.create()` builds the `Node` once, when the element first enters the chain;
 - `Node.onAttach()` runs once, right after the component is injected - **capture the component's
   existing value here** so it can be restored;
-- `NodeElement.update(node)` runs on attach, and on a chain change that hands the slot an element unequal
-  to the one it holds - **write the new value here**, so a fresh element instance (a new value on
+- `NodeElement.update(node)` runs on attach, on a chain change that hands the slot an element unequal
+  to the one it holds, and - for a property element - on a pass where a property declared before it has
+  already written. **Write the new value here**, so a fresh element instance (a new value on
   recomposition) reaches the live node without re-creating it;
 - `Node.onDetach()` runs once, when the element is dropped from the chain or the node is released or
   deactivated - **restore the captured original here**.
 
 **`equals` and `hashCode` are abstract**, so the element has to state its own equality and the
 compiler rejects one that does not. A slot whose incoming element equals the one it already applied
-does nothing, so an element that compares by value is applied once and then skipped for as long as
-its value stands - which is what lets you build the chain inline in the composable body without a
-`remember`. An element that answers `this === other` is unequal to any other instance, so a chain that
-builds a fresh one each pass is re-applied each pass; that is the right answer for an element carrying
-nothing, and for one whose write has to be redone whatever the declaration says, but for a plain value
-it is the difference between a frame of work and none. Declare such an element as an `object` and the
-chain hands the slot the same instance every pass, so it is applied once - right where the write is
-idempotent and there is nothing to redo.
+does nothing, unless a property element ahead of it wrote on that pass, so an element that compares by
+value is applied once and then skipped for as long as its value stands - which is what lets you build
+the chain inline in the composable body without a `remember`. An element that answers
+`this === other` is unequal to any other instance, so a chain that builds a fresh one each pass is
+re-applied each pass; that is the right answer for an element carrying nothing, and for one whose
+write has to be redone whatever the declaration says, but for a plain value it is the difference
+between a frame of work and none. Declare such an element as an `object` and the chain hands the
+slot the same instance every pass, so it is applied once - right where the write is idempotent and
+there is nothing to redo.
 
 Compare a value structurally and a callback by identity. Where the node writes a value, structural
 equality is what you want, and a `data class` says it in one word. Where the node **registers**
@@ -166,7 +169,9 @@ lambda renders as its class.
 ### Slots and keys
 
 A property element is **keyed and last-wins**: its `key` defaults to the element's class, so two
-elements of different types never collide. Leave `additive` at its default `false` for a property
+elements of different types never collide. A key declared twice in one chain takes the value and the
+place of its last declaration, and where two slots write the same widget property the chain's order is
+what settles which of them stands. Leave `additive` at its default `false` for a property
 (one value wins); a listener instead sets `additive = true` so two of the same builder both install
 (see *Attaching a listener* below). Override `key` only when several instances of the *same* type must
 coexist as independent slots (e.g. keyed by a property name).

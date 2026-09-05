@@ -516,7 +516,7 @@ class SwingApplierRegionTest {
         val child = SwingNodeHolder(JLabel("placed twice"))
 
         val failure =
-            assertFailsWith<IllegalStateException> {
+            assertFailsWith<IllegalArgumentException> {
                 child.applyModifierDiff(
                     SwingModifier.layoutConstraint(BorderLayout.CENTER).slot(VIEWPORT_CALL, HoldsNothing),
                 )

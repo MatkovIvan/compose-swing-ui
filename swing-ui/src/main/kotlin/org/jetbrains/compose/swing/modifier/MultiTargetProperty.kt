@@ -50,7 +50,7 @@ internal class MultiTargetProperty<V>(
     private vararg val cases: PropertyCase<*, V>,
 ) {
     /**
-     * Reads the property, capturing the value to restore when the element leaves the chain.
+     * Reads the property, capturing the value to restore when the element leaves the modifier.
      *
      * Allocated once, with the property, so every element built from this property holds the same
      * accessor object and elements declaring the same value compare equal.
@@ -77,7 +77,7 @@ internal class MultiTargetProperty<V>(
  * mismatch message is the one a caller sees, and takes its last-wins slot from the property, so every
  * application of one property shares a slot while distinct properties stay independent.
  */
-internal class MultiTargetPropertyElement<V>(
+internal open class MultiTargetPropertyElement<V>(
     private val property: MultiTargetProperty<V>,
     value: V,
 ) : PropertyElement<Component, V>(

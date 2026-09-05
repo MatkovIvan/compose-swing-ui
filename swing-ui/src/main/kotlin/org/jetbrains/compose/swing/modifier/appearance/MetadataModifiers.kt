@@ -85,31 +85,25 @@ public fun SwingModifier.clientProperty(
     value: Any?,
 ): SwingModifier =
     this then
-        KeyedPropertyElement(
-            JComponent::class.java,
-            name = "clientProperty",
-            slotKey = key,
-            value = value,
-            read = { it.getClientProperty(key) },
-            write = { component, declared -> component.putClientProperty(key, declared) },
-        )
+        ClientPropertyElement(key, value)
 
 /**
- * A [PropertyElement] whose last-wins slot is keyed by an explicit [slotKey] rather than its class, so
- * distinct keys (e.g. distinct client-property keys) are independent slots even though they share this
- * runtime class. A fixed-property element keyed by its own class never equals such a key, so no
- * collision with a class-keyed property is possible.
+ * A client-property entry, whose last-wins slot is keyed by the property key rather than by its class,
+ * so distinct keys are independent slots even though they share this runtime class. A fixed-property
+ * element keyed by its own class never equals such a key, so no collision with one is possible.
  */
-private class KeyedPropertyElement<T : Component, V>(
-    targetType: Class<T>,
-    name: String,
-    private val slotKey: Any,
-    value: V,
-    read: (component: T) -> V,
-    write: (component: T, value: V) -> Unit,
-) : PropertyElement<T, V>(targetType, name, value, read, write) {
-    override val key: Any get() = slotKey
+private class ClientPropertyElement(
+    private val propertyKey: Any,
+    value: Any?,
+) : PropertyElement<JComponent, Any?>(
+        JComponent::class.java,
+        name = "clientProperty",
+        value = value,
+        read = { it.getClientProperty(propertyKey) },
+        write = { component, declared -> component.putClientProperty(propertyKey, declared) },
+    ) {
+    override val key: Any get() = propertyKey
 
     /** The key names the entry written, so it stands beside the value written under it. */
-    override val declaredValues: Map<String, Any?> get() = mapOf("key" to slotKey) + super.declaredValues
+    override val declaredValues: Map<String, Any?> get() = mapOf("key" to propertyKey) + super.declaredValues
 }

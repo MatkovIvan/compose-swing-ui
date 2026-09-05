@@ -5,12 +5,14 @@ package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.modifier.MultiTargetProperty
 import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
+import org.jetbrains.compose.swing.modifier.PropertyInterference
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyCase
 import org.jetbrains.compose.swing.modifier.propertyElement
 import javax.swing.AbstractButton
 import javax.swing.Icon
 import javax.swing.JLabel
+import javax.swing.plaf.UIResource
 
 /*
  * Icon SwingModifiers - the icon a component displays, and the icons a button swaps in for its states.
@@ -26,6 +28,9 @@ import javax.swing.JLabel
  * Sets the icon a component displays beside its text; `null` displays none.
  *
  * Applies to labels and to every kind of button.
+ *
+ * A look and feel may work other properties out from the icon a component carries; removing the
+ * declaration puts the icon back, not what was derived from it.
  *
  * @param icon the icon drawn beside the text; its size counts toward the component's preferred size, so
  *   swapping in a differently sized one re-lays the component out.
@@ -86,11 +91,12 @@ public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
         propertyElement<AbstractButton, Icon?>(
             name = "disabledIcon",
             value = icon,
-            // Reading the property is what makes the look and feel derive its grayed icon, so what is
-            // captured here may be that derived one. A derived icon is a UIResource, which the button
-            // discards by itself the next time its base icon changes, so the fallback resumes.
-            read = { it.disabledIcon },
+            read = { it.disabledIcon.ownIcon() },
             write = { component, value -> component.disabledIcon = value },
+            // Replacing the base icon drops a disabled icon that is a `UIResource`, a declared one
+            // included, and announces the base icon rather than the drop. A look and feel change drops
+            // such an icon too, after announcing the look and feel it took, and leaves it dropped.
+            interference = PropertyInterference.OverwrittenOn("icon"),
         )
 
 /**
@@ -107,8 +113,16 @@ public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
         propertyElement<AbstractButton, Icon?>(
             name = "disabledSelectedIcon",
             value = icon,
-            read = { it.disabledSelectedIcon },
+            read = {
+                val own = it.disabledSelectedIcon
+                // A button carrying no selected icon answers this read with its disabled icon, which
+                // belongs to that declaration; only an icon of its own is one to hand back here.
+                if (it.selectedIcon == null && own === it.disabledIcon) null else own.ownIcon()
+            },
             write = { component, value -> component.disabledSelectedIcon = value },
+            // Replacing the selected icon drops a disabled selected icon that is a `UIResource`, as
+            // [disabledIcon] describes for the base icon.
+            interference = PropertyInterference.OverwrittenOn("selectedIcon"),
         )
 
 /**
@@ -127,6 +141,10 @@ public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
             value = icon,
             read = { it.rolloverIcon },
             write = { component, value -> component.rolloverIcon = value },
+            // `setRolloverIcon` switches rollover painting on whatever it is handed, the `null` a
+            // removal writes included.
+            interference =
+                PropertyInterference.AlsoOverwrites(RolloverEnabledProperty),
         )
 
 /**
@@ -144,7 +162,20 @@ public fun SwingModifier.rolloverSelectedIcon(icon: Icon?): SwingModifier =
             value = icon,
             read = { it.rolloverSelectedIcon },
             write = { component, value -> component.rolloverSelectedIcon = value },
+            // Switches rollover painting on whatever it is handed, as [rolloverIcon] describes.
+            interference =
+                PropertyInterference.AlsoOverwrites(RolloverEnabledProperty),
         )
+
+/**
+ * This icon where the button holds it as its own, and `null` where the look and feel derived it - which
+ * is what reading a disabled state's icon makes the look and feel do while nothing has set one.
+ *
+ * A derived icon is a `UIResource`, which is how the button itself tells the two apart: it discards a
+ * derived one whenever the icon it was derived from, or the look and feel deriving it, is replaced. So it
+ * is not a value to hand back on removal - a button that never carried the modifier holds none.
+ */
+private fun Icon?.ownIcon(): Icon? = takeUnless { it is UIResource }
 
 /**
  * `JLabel` and `AbstractButton` each declare `icon` for themselves; the class they share declares no

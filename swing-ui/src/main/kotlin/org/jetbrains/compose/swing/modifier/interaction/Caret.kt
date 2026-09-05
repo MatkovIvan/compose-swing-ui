@@ -5,7 +5,8 @@ package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.constants.CaretUpdatePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import java.beans.PropertyChangeEvent
+import java.beans.PropertyChangeListener
 import javax.swing.text.Caret
 import javax.swing.text.DefaultCaret
 import javax.swing.text.JTextComponent
@@ -52,11 +53,12 @@ public fun SwingModifier.caret(caret: Caret): SwingModifier = this then CaretEle
 
 /**
  * How fast the component's caret blinks: the delay in milliseconds between the caret being shown and
- * being hidden again. `0` holds it steady. Removing the declaration puts back the rate the caret
- * carried before.
+ * being hidden again. `0` holds it steady. Removing the declaration puts the rate back onto the caret it
+ * was read from; a caret the component took after that keeps the declared rate, as one the chain let go
+ * of does.
  *
- * Declare it after the [caret] it belongs to - a chain is applied in the order it is written, so a rate
- * declared first reaches the caret that is about to be replaced.
+ * The rate belongs to the component, not to one caret: a caret that arrives later - one a [caret]
+ * declared anywhere in the chain installs - is given the declared rate as it is installed.
  *
  * @param rate the delay in milliseconds between blinks, or `0` for a caret that does not blink.
  * @return this chain with the blink rate declared on it.
@@ -64,11 +66,11 @@ public fun SwingModifier.caret(caret: Caret): SwingModifier = this then CaretEle
  */
 public fun SwingModifier.caretBlinkRate(rate: Int): SwingModifier =
     this then
-        propertyElement<JTextComponent, Int>(
+        CaretPropertyElement(
             name = "caretBlinkRate",
             value = rate,
-            read = { it.caret.blinkRate },
-            write = { component, value -> component.caret.blinkRate = value },
+            read = { it.blinkRate },
+            write = BlinkRateWrite,
         )
 
 /**
@@ -83,10 +85,12 @@ public fun SwingModifier.caretBlinkRate(rate: Int): SwingModifier =
  * edits made off it.
  *
  * Requires a [JTextComponent] whose caret is a [DefaultCaret] - the caret a look and feel installs.
- * Removing the declaration puts back the policy the caret carried before.
+ * Removing the declaration puts the policy back as [caretBlinkRate] describes for the rate.
  *
- * @param policy the update constant written to the caret the component carries when the chain is applied, so
- *   declare it after any [caret] of your own.
+ * The policy belongs to the component, not to one caret, as [caretBlinkRate] describes for the rate. A
+ * caret that arrives and is not a [DefaultCaret] fails as it is installed, as it would on a pass.
+ *
+ * @param policy the update constant written to the caret the component carries.
  * @return this chain with the caret update policy declared on it.
  * @see javax.swing.text.DefaultCaret.setUpdatePolicy
  */
@@ -94,21 +98,91 @@ public fun SwingModifier.caretUpdatePolicy(
     @CaretUpdatePolicy policy: Int,
 ): SwingModifier =
     this then
-        propertyElement<JTextComponent, Int>(
+        CaretPropertyElement(
             name = "caretUpdatePolicy",
             value = policy,
-            read = { it.defaultCaret().updatePolicy },
-            write = { component, value -> component.defaultCaret().updatePolicy = value },
+            read = { it.asDefaultCaret().updatePolicy },
+            write = UpdatePolicyWrite,
         )
 
-/** The component's caret as the [DefaultCaret] the policy is written to. */
-private fun JTextComponent.defaultCaret(): DefaultCaret {
-    val caret = caret
-    check(caret is DefaultCaret) {
-        "caretUpdatePolicy requires a ${DefaultCaret::class.java.name} caret, " +
-            "but the ${javaClass.name} carries ${caret?.javaClass?.name}"
+/** Held here rather than built per call, so every declaration of one value takes the same slot. */
+private val BlinkRateWrite: (Caret, Int) -> Unit = { caret, value -> caret.blinkRate = value }
+
+/** [BlinkRateWrite], for the policy, which only a [DefaultCaret] carries. */
+private val UpdatePolicyWrite: (Caret, Int) -> Unit = { caret, value -> caret.asDefaultCaret().updatePolicy = value }
+
+/** This caret as the [DefaultCaret] a policy is written to. */
+private fun Caret.asDefaultCaret(): DefaultCaret {
+    require(this is DefaultCaret) {
+        "caretUpdatePolicy requires a ${DefaultCaret::class.java.name} caret, but the caret is a ${javaClass.name}"
     }
-    return caret
+    return this
+}
+
+/**
+ * A property of the caret a text component carries, declared on the component.
+ *
+ * The caret is the object written to, and the component replaces it - a look and feel installing one of
+ * its own, another element declaring one - so the declaration is written again onto whichever caret the
+ * component announces next, and a component reports the look and feel it took once that look and feel
+ * has installed its caret and given it the defaults' value.
+ *
+ * What the declaration restores is the value it read together with the caret it read it from, and no
+ * pair of accessors written against the component can name both.
+ */
+private class CaretPropertyElement(
+    override val name: String,
+    private val value: Int,
+    private val read: (Caret) -> Int,
+    private val write: (Caret, Int) -> Unit,
+) : SwingModifier.NodeElement<JTextComponent, CaretPropertyElement.Node>() {
+    override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
+
+    override val key: Any get() = write
+
+    override val declaredValues: Map<String, Any?> get() = mapOf(name to value)
+
+    override fun create(): Node = Node(read, write)
+
+    override fun update(node: Node) = node.apply(value)
+
+    override fun equals(other: Any?): Boolean =
+        other is CaretPropertyElement && write === other.write && value == other.value
+
+    override fun hashCode(): Int = 31 * System.identityHashCode(write) + value
+
+    class Node(
+        private val read: (Caret) -> Int,
+        private val write: (Caret, Int) -> Unit,
+    ) : SwingModifier.Node<JTextComponent>(),
+        PropertyChangeListener {
+        private var declared: Int = 0
+        private var readFrom: Caret? = null
+        private var original: Int = 0
+
+        override fun onAttach() {
+            val component = component
+            readFrom = component.caret?.also { original = read(it) }
+            component.addPropertyChangeListener("caret", this)
+            component.addPropertyChangeListener("UI", this)
+        }
+
+        fun apply(value: Int) {
+            declared = value
+            component.caret?.let { write(it, value) }
+        }
+
+        override fun propertyChange(event: PropertyChangeEvent) {
+            component.caret?.let { write(it, declared) }
+        }
+
+        override fun onDetach() {
+            val component = component
+            component.removePropertyChangeListener("caret", this)
+            component.removePropertyChangeListener("UI", this)
+            readFrom?.let { write(it, original) }
+        }
+    }
 }
 
 /**
@@ -157,7 +231,21 @@ private class CaretElement(
         }
 
         override fun onDetach() {
-            component.caret = restored
+            val component = component
+            val declared = component.caret
+            val original = restored
+            if (declared === original) return
+
+            // Installing a caret puts it at offset 0 and drops the selection. The selection and the
+            // caret position belong to the text, not to the caret object being taken off, so a removal
+            // carries them across.
+            val dot = declared?.dot ?: 0
+            val mark = declared?.mark ?: dot
+            component.caret = original
+            original?.let {
+                it.dot = mark
+                if (dot != mark) it.moveDot(dot)
+            }
         }
     }
 }

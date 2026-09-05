@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.beans.PropertyChangeListener
+import javax.swing.JFormattedTextField
 import javax.swing.text.AbstractDocument
 import javax.swing.text.DocumentFilter
 import javax.swing.text.JTextComponent
@@ -17,8 +18,10 @@ import javax.swing.text.JTextComponent
 /**
  * Installs [filter] on the text component's document so it can inspect, reject, or rewrite every
  * insert, remove, and replace before it is applied. A `null` filter clears any filter the modifier
- * previously installed. Requires a [JTextComponent] target whose document is an [AbstractDocument]
- * (the default document of `JTextField`, `JTextArea`, `JFormattedTextField`, ...).
+ * previously installed. Requires a [JTextComponent] target whose document is an [AbstractDocument].
+ * A `JFormattedTextField` is rejected: its document filter belongs to its formatter, which returns
+ * it from `JFormattedTextField.AbstractFormatter.getDocumentFilter` and reinstalls it whenever the
+ * field reformats.
  *
  * The filter follows the component across document swaps: replacing the component's document - as a
  * `JEditorPane` does when it switches content type - moves the filter onto the new document so it
@@ -75,6 +78,11 @@ private class DocumentFilterElement(
 
         override fun onAttach() {
             val component = component
+            require(component !is JFormattedTextField) {
+                "documentFilter cannot be declared on a ${component.javaClass.name}: the field puts back the " +
+                    "filter its formatter returns from AbstractFormatter.getDocumentFilter every time it " +
+                    "reformats, so a declared filter would stop gating edits without saying so"
+            }
             val document = component.document as? AbstractDocument ?: return
             // Capture the document's pre-install filter, then install a listener that migrates whatever
             // filter is current onto a replacement document and clears the one being left.
