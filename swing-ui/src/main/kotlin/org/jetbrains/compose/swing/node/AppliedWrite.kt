@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.node
 
-import org.jetbrains.compose.swing.core.reportCallerFailure
+import org.jetbrains.compose.swing.core.ContainedCallerFailure
+import org.jetbrains.compose.swing.core.reportUncaught
 
 /**
  * A reentrancy guard marking the wrapper's own writes to its widget, so a listener can tell them from
@@ -49,7 +50,7 @@ internal class AppliedWrite {
         try {
             block()
         } catch (failure: Throwable) {
-            reportCallerFailure(failure)
+            reportUncaught(ContainedCallerFailure(failure))
         } finally {
             writeDepth--
         }

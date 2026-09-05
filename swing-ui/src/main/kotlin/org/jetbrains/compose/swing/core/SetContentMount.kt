@@ -210,7 +210,8 @@ private class SetContentMountState(
      * resolves one, so accepting a second would compose two of them into the container then. Presence is
      * judged by the registration a mount keeps installed from [start] to [dispose] rather than by the
      * context it publishes, which a pending mount does not carry yet and a live one withdraws mid-move.
-     * A container whose content composition was disposed takes content again.
+     * A container whose content composition was disposed, or threw on its first pass, takes content
+     * again.
      *
      * @param namedParent the parent the caller named, or `null` to resolve one from where [component]
      *   hangs in the Swing tree. Taken as a parameter rather than held as a field, so neither the
@@ -252,7 +253,8 @@ private class SetContentMountState(
         // container of this content has to find this context already standing.
         this.parentContext = parent.context
         registration.context = parent.context
-        composition = compose(parent, statedWindow)
+        // What was registered above is withdrawn before a failure reaches whoever composed.
+        composition = disposingOnFailure(::dispose) { compose(parent, statedWindow) }
         phase = MountPhase.Mounted
         // The recomposer the content composes under: the window whose own context the parent is, or, for
         // a parent published by a host composition, the recomposer of the window the container hangs in.
@@ -346,6 +348,7 @@ private class SetContentMountState(
         val parent = parentToRejoin()
         if (parent != null) {
             composition?.dispose()
+            composition = null
             composeUnder(parent)
         } else if (phase == MountPhase.Mounted) {
             // Nothing to compose again under: the container is back in the window it stood in, or out

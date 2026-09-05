@@ -1,12 +1,16 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.window.LocalWindow
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
@@ -88,6 +92,158 @@ class SetContentMisuseTest {
             panel.setContent(parent = recomposer.compositionContext) { Label(text = "second") }
 
             assertEquals(1, panel.componentCount, "the container should hold the content mounted second")
+        } finally {
+            recomposer.dispose()
+        }
+    }
+
+    @Test
+    fun aContainerWhoseContentThrewOnItsFirstPassTakesContentAgain() = runSwingTest {
+        val panel = JPanel()
+        val recomposer = SwingRecomposer.create(panel)
+        try {
+            val failure =
+                assertFailsWith<IllegalStateException> {
+                    panel.setContent(parent = recomposer.compositionContext) { error("boom") }
+                }
+            assertEquals("boom", failure.message, "the first pass's failure reaches the caller as it is")
+            assertEquals(0, panel.componentCount, "a mount that failed its first pass leaves the container empty")
+            assertEquals(
+                0,
+                panel.hierarchyListeners.size,
+                "a mount that failed its first pass leaves no listener behind",
+            )
+
+            // The failed call composed nothing and handed its caller no handle, so nothing stands in
+            // the way of the next one.
+            panel.setContent(parent = recomposer.compositionContext) { Label(text = "second") }
+
+            assertEquals(1, panel.componentCount, "the container should hold the content mounted second")
+        } finally {
+            recomposer.dispose()
+        }
+    }
+
+    @Test
+    fun aContainerWhoseContentThrewAsItReachedAWindowTakesContentAgain() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val frame = realizedFrame()
+        try {
+            // No parent named and no window, so the mount waits: the content composes for the first
+            // time inside the hierarchy event the add below fires, and that pass throws.
+            val panel = JPanel()
+            var passes = 0
+            panel.setContent {
+                passes++
+                error("boom")
+            }
+            assertEquals(0, passes, "a mount waiting for a window composes nothing until it reaches one")
+
+            val failure = assertFailsWith<IllegalStateException> { frame.contentPane.add(panel) }
+
+            assertEquals("boom", failure.message, "the failure reaches whoever put the container in the window")
+            assertEquals(1, passes, "the content composes once, as its container arrives")
+            assertEquals(0, panel.componentCount, "a mount that threw on arrival leaves the container empty")
+            assertEquals(
+                0,
+                panel.hierarchyListeners.size,
+                "a mount that threw on arrival leaves no listener behind",
+            )
+
+            // The window is then free to hand out a fresh recomposer, which lets the container hold
+            // content that goes on recomposing.
+            awaitUntil("the recomposer that recorded the failure ends") { frame.swingRecomposerOrNull() == null }
+            assertEquals(1, passes, "the content that threw is gone and never composes again")
+
+            var caption by mutableStateOf("first")
+            panel.setContent { Label(text = caption) }
+            assertEquals(listOf("first"), labelTexts(panel), "the container takes content again")
+
+            caption = "second"
+            awaitUntil("the content mounted again recomposes") { labelTexts(panel) == listOf("second") }
+        } finally {
+            frame.dispose()
+        }
+    }
+
+    @Test
+    fun aContainerWhoseContentThrewOnItsRejoinTakesContentAgain() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        val thread = Thread.currentThread()
+        val enclosingHandler = thread.uncaughtExceptionHandler
+        val reported = mutableListOf<Throwable>()
+        try {
+            // Composed in one window and then moved to another, which queues a rejoin that composes the
+            // content again. The window the content reads is what makes it throw, so the rejoin's own
+            // pass is the only one that can: a move states the new window nowhere but in the rejoin.
+            val panel = JPanel().also { first.contentPane.add(it) }
+            var passes = 0
+            panel.setContent {
+                passes++
+                if (LocalWindow.current === second) error("boom")
+                Label(text = "content")
+            }
+            assertEquals(listOf("content"), labelTexts(panel), "the content composes in the window it starts in")
+
+            thread.setUncaughtExceptionHandler { _, raised -> reported += raised }
+            second.contentPane.add(panel)
+
+            // The rejoin runs behind the move, so its failure is raised under the event pump rather
+            // than at any caller.
+            awaitUntil("the failed rejoin is reported to the thread's uncaught-exception handler") {
+                reported.isNotEmpty()
+            }
+            assertEquals("boom", reported.single().message, "the failure reported is the one the pass raised")
+            assertEquals(emptyList(), labelTexts(panel), "the composition the move left behind is gone")
+            assertEquals(
+                0,
+                panel.hierarchyListeners.size,
+                "a rejoin that threw leaves no listener behind",
+            )
+
+            awaitUntil("the recomposer that recorded the failure ends") { second.swingRecomposerOrNull() == null }
+            assertEquals(2, passes, "the content that threw is gone and never composes again")
+
+            var caption by mutableStateOf("first")
+            panel.setContent { Label(text = caption) }
+            assertEquals(listOf("first"), labelTexts(panel), "the container takes content again")
+
+            caption = "second"
+            awaitUntil("the content mounted again recomposes") { labelTexts(panel) == listOf("second") }
+        } finally {
+            thread.setUncaughtExceptionHandler(enclosingHandler)
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
+    fun contentSetAfterAFirstPassThrewInTheSameEventComposesOnceAndTheRecomposerEnds() = runSwingTest {
+        val panel = JPanel()
+        val recomposer = SwingRecomposer.create(panel)
+        try {
+            // The failure lands in the event the recomposer was created in, before its coroutine has had
+            // a turn: the recomposer must still end, and nothing may recompose under it in between.
+            assertFailsWith<IllegalStateException> {
+                panel.setContent(parent = recomposer.compositionContext) { error("boom") }
+            }
+
+            var caption by mutableStateOf("first")
+            var passes = 0
+            val second = JPanel()
+            second.setContent(parent = recomposer.compositionContext) {
+                passes++
+                Label(text = caption)
+            }
+            assertEquals(1, passes, "content set after the failure composes once")
+
+            caption = "second"
+            awaitUntil("the recomposer that recorded the failure ends") { recomposer.isDisposed }
+            repeat(4) { yield() }
+
+            assertEquals(1, passes, "a recomposer that has recorded a failure recomposes nothing")
         } finally {
             recomposer.dispose()
         }

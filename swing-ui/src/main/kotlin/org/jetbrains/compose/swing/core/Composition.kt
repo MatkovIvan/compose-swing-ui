@@ -82,6 +82,31 @@ internal fun checkEventDispatchThread() {
 }
 
 /**
+ * Runs [block] in a mutable snapshot that reports its reads to [readObserver] and its writes to
+ * [writeObserver], then applies what it wrote.
+ *
+ * A [block] that throws publishes nothing: the snapshot is dropped, so the state the failed pass wrote
+ * is not what anything reads next.
+ *
+ * This is [Snapshot.withMutableSnapshot] with observers, which that helper does not take, and with the
+ * snapshot disposed even where applying it conflicts, which that helper leaves undone.
+ */
+private inline fun <R> withMutableSnapshot(
+    noinline readObserver: (Any) -> Unit,
+    noinline writeObserver: (Any) -> Unit,
+    block: () -> R,
+): R {
+    val snapshot = Snapshot.takeMutableSnapshot(readObserver, writeObserver)
+    return try {
+        val result = snapshot.enter(block)
+        snapshot.apply().check()
+        result
+    } finally {
+        snapshot.dispose()
+    }
+}
+
+/**
  * A single content composition - a [Composition] rooted on a Swing container, mounted as a child of a
  * [CompositionContext].
  *
@@ -129,8 +154,16 @@ internal class SwingContentComposition private constructor(
     /** Whether this composition records where it declared each component. */
     private val inspection = InspectionGate()
 
+    /**
+     * Composes [content] as this composition's content, on the call.
+     *
+     * A first pass that throws leaves nothing standing: this composition is disposed - its observer
+     * withdrawn from the global apply observers with it - before the failure reaches the caller.
+     */
     fun setContent(content: @Composable () -> Unit) {
-        composition.setContent { InspectedContent(host, inspection.isRecording, content) }
+        disposingOnFailure(::dispose) {
+            composition.setContent { InspectedContent(host, inspection.isRecording, content) }
+        }
     }
 
     /**
@@ -151,6 +184,12 @@ internal class SwingContentComposition private constructor(
      * passes), so this call must stay safe to make on a disposed composition. [writeState] is skipped
      * too, since recording reads and writes against a disposed composition is dead work.
      *
+     * A pass that throws publishes none of its writes. Composing leaves the composition invalidated - the
+     * runtime restores the invalidations a failed pass was going to answer - so the parent recomposer
+     * recomposes it on a frame of its own, reading whatever the pass published. Published, that is the
+     * state the throw came out of, so the throw happens again inside the recomposer and ends it. Dropped,
+     * the failure reaches the caller that provoked it and nothing else composes the state it failed on.
+     *
      * Must be called on the Event Dispatch Thread.
      */
     fun recomposeSynchronously(writeState: () -> Unit) {
@@ -160,25 +199,17 @@ internal class SwingContentComposition private constructor(
             writeState()
             return
         }
-        // Recompose inside a mutable snapshot whose observers feed this composition, the way a
-        // recomposer wraps a composition it drives. A composition only re-records the state it reads
-        // when composed under such a snapshot: without this, a second stamp would find nothing observing
-        // the row inputs and skip recomposing, freezing the cell on the first row's value.
-        val snapshot =
-            Snapshot.takeMutableSnapshot(
-                readObserver = { controlled.recordReadOf(it) },
-                writeObserver = { controlled.recordWriteOf(it) },
-            )
-        try {
-            snapshot.enter {
-                writeState()
-                if (controlled.recompose()) {
-                    controlled.applyChanges()
-                }
+        // The observers are what make this composition re-record the state it reads, the way a recomposer
+        // wraps a composition it drives: without them a second stamp would find nothing observing the row
+        // inputs and skip recomposing, freezing the cell on the first row's value.
+        withMutableSnapshot(
+            readObserver = { controlled.recordReadOf(it) },
+            writeObserver = { controlled.recordWriteOf(it) },
+        ) {
+            writeState()
+            if (controlled.recompose()) {
+                controlled.applyChanges()
             }
-        } finally {
-            snapshot.apply().check()
-            snapshot.dispose()
         }
     }
 
@@ -225,3 +256,23 @@ internal class SwingContentComposition private constructor(
         }
     }
 }
+
+/**
+ * Runs [firstPass] - the pass that composes a composition's content for the first time - and runs
+ * [dispose] before letting a failure out of it reach the caller.
+ *
+ * A first pass that throws composed nothing and hands its caller no handle, so there is nothing for
+ * them to dispose what was already registered with. Every type is caught because what the content
+ * throws is the caller's to choose.
+ */
+@Suppress("TooGenericExceptionCaught")
+internal inline fun <R> disposingOnFailure(
+    dispose: () -> Unit,
+    firstPass: () -> R,
+): R =
+    try {
+        firstPass()
+    } catch (failure: Throwable) {
+        dispose()
+        throw failure
+    }

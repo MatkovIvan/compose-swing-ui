@@ -17,7 +17,8 @@ import javax.swing.RootPaneContainer
  *
  * Content mounted under it recomposes together with the rest of this window's content, on one
  * recomposition scope whose frame-driven work is paced by the display the window is on. The context ends
- * with the last content composed under it, and with the window; a call after that hands out a fresh one.
+ * with the last content composed under it, with the window, and with a failure - see
+ * [SwingRecomposer]; a call after that hands out a fresh one.
  *
  * Pass it as the parent context of a mount to join this window's composition - which is what a mount on
  * a container already under this window resolves to on its own. Creating is what this is for: a caller
