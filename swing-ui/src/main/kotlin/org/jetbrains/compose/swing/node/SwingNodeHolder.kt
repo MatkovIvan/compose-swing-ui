@@ -69,8 +69,8 @@ internal class DeclaredSlot(
  * component there.
  *
  * [name] is nullable where [DeclaredSlot.name] is not: a component the applier installs through the
- * composition's own root slot fills no region any chain declared, so it carries an attachment and an
- * uninstall action but no name. A component installed through a region its chain named takes that
+ * composition's own root slot fills no region any modifier declared, so it carries an attachment and an
+ * uninstall action but no name. A component installed through a region its modifier named takes that
  * region's name instead.
  *
  * @property attachment the attachment that installed the component
@@ -112,15 +112,20 @@ internal class SwingNodeHolder<out T : Component>
         internal var constraint: Any? = null
             private set
 
-        /** Places this node under [value], the constraint its modifier chain declares, or `null` for none. */
+        /**
+         * Places this node under [value], the constraint its modifier chain declares, or `null` for none.
+         *
+         * The value is what a parent's layout manager registers the component under. A manager that does
+         * not read it lays the component out as one placed by index alone.
+         */
         internal fun applyConstraint(value: Any?) {
             if (value == constraint) return
             constraint = value
-            reregisterWithLayout(value)
+            reapplyConstraint()
         }
 
         /**
-         * Tells the parent's layout manager that the component now uses [constraint].
+         * Tells the parent's layout manager that the component uses [constraint].
          *
          * The component is never removed from its parent, so it keeps its position, its focus and its
          * native resources. Only the placement changes.
@@ -130,15 +135,21 @@ internal class SwingNodeHolder<out T : Component>
          *
          * A node that is not attached yet is placed by the applier's own add instead, and a parent
          * with no layout manager has nothing to register.
+         *
+         * Called on its own where a look and feel re-registers a component of its own accord -
+         * `BasicToolBarUI` docking a tool bar onto the edge the user dropped it on - which changes what
+         * the manager holds without changing what the composition declares. [applyConstraint] writes
+         * only what changed and so has nothing to say there.
          */
-        private fun reregisterWithLayout(constraint: Any?) {
+        internal fun reapplyConstraint() {
             val parent = component.parent ?: return
             val manager = parent.layout ?: return
             manager.removeLayoutComponent(component)
+            val declared = constraint
             if (manager is LayoutManager2) {
-                manager.addLayoutComponent(component, constraint)
-            } else if (constraint is String) {
-                manager.addLayoutComponent(constraint, component)
+                manager.addLayoutComponent(component, declared)
+            } else if (declared is String) {
+                manager.addLayoutComponent(declared, component)
             }
             parent.revalidate()
         }
@@ -157,10 +168,10 @@ internal class SwingNodeHolder<out T : Component>
             get() = modifierState?.applied ?: SwingModifier
 
         /**
-         * The region this node's modifier chain declares, or `null` when the chain installs the
+         * The region this node's modifier chain declares, or `null` when the modifier installs the
          * component through `Container.add` instead of a host's own method.
          *
-         * The chain sets it before the applier attaches the component. It says where the composition
+         * The modifier sets it before the applier attaches the component. It says where the composition
          * wants the component. [installedSlot] says where the applier put it.
          */
         internal var declaredSlot: DeclaredSlot? = null
@@ -324,7 +335,7 @@ internal class SwingNodeHolder<out T : Component>
          * Puts the node back to the state a new node starts from.
          *
          * It removes the subcomposition stamp, detaches the listeners the modifier chain installed,
-         * restores the properties the chain changed, drops the settle held against this node's children,
+         * restores the properties the modifier changed, drops the settle held against this node's children,
          * and drops the component's tracked reads from the owner's observer. A settle left standing would
          * be run against a declaration the composition no longer makes; an update that still declares one
          * hands it over again on the pass that follows. The detach covers every modifier-installed
@@ -391,10 +402,14 @@ internal class SwingNodeHolder<out T : Component>
     }
 
 /**
- * Whether this child's component really stands in its host's container, which is what a position among
- * a host's children is counted over. A child the pass has taken in but not attached yet is not there
- * yet, and a parked one is not there any more - the runtime keeps its place in the composition, so it
- * goes on standing in [SwingNodeHolder.children] with its component already detached.
+ * Whether the applier has attached this child to its host and not parked it since. A child the pass has
+ * taken in but not attached yet was never attached, and a parked one is not attached any more - the
+ * runtime keeps its place in the composition, so it goes on standing in [SwingNodeHolder.children] with
+ * its component already detached.
+ *
+ * It says nothing about where the component stands now: a look and feel moves one out of the container
+ * it was declared in - a tool bar dragged into a window of its own - without the composition hearing of
+ * it.
  */
 internal val SwingNodeHolder<*>.attachedToHost: Boolean
     get() = !awaitingAttachment && !deactivated

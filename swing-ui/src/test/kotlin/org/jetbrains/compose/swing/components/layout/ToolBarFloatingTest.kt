@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.underMetal
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.BorderLayout
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
 import javax.swing.JPanel
@@ -44,8 +45,10 @@ class ToolBarFloatingTest {
     fun aBarWithNoWindowStaysDockedAndReportsThat() = runComposeSwingTest {
         val reported = mutableListOf<Boolean>()
         setContent {
-            ToolBar(floating = true, onFloatingChange = { reported += it }) {
-                Button(text = "New", onClick = {})
+            BorderPanel {
+                ToolBar(floating = true, onFloatingChange = { reported += it }) {
+                    Button(text = "New", onClick = {})
+                }
             }
         }
 
@@ -239,6 +242,9 @@ class ToolBarFloatingTest {
      * that mounts content into that container. A body that wants the container in the frame puts it
      * there itself, which is what makes where a bar stands something a case can decide.
      *
+     * That container is laid out by a `BorderLayout`, which is where a bar the user can drag out has to
+     * stand: it is the bar's host here.
+     *
      * Content is mounted under the frame's composition by name, which is what lets a case compose into
      * a container that hangs nowhere: content left to resolve its own parent waits for its container to
      * reach a window, so a container standing in none would compose nothing at all. A container already
@@ -262,7 +268,7 @@ class ToolBarFloatingTest {
                         setBounds(0, 0, FRAME_SIZE, FRAME_SIZE)
                         pack()
                     }
-                val composition = JPanel()
+                val composition = JPanel(BorderLayout())
                 // Shown before anything composes into it: a bar that floats while its frame is still
                 // hidden leaves the look and feel waiting on the frame's opening to show the bar's own
                 // window, and that pending show would realize a window this teardown has already disposed.

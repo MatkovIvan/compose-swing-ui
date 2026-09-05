@@ -13,9 +13,9 @@ import java.awt.Component
  * `CardLayout` card name, or whatever the enclosing container's layout manager understands.
  *
  * The placement follows the value: change it and the component moves within the same parent, keeping its
- * position among its siblings. It reaches the node whose chain declares it and travels no further, so a
+ * position among its siblings. It reaches the node whose modifier declares it and travels no further, so a
  * container placed this way lays its own children out under the constraints each of them declares. The
- * last constraint declared in a chain wins, and a chain declaring none leaves the component placed by
+ * last constraint declared in a modifier chain wins, and a modifier declaring none leaves the component placed by
  * index alone.
  *
  * The placement is re-applied whenever the declared value does not compare equal to the one applied last,
@@ -29,7 +29,7 @@ import java.awt.Component
  * that takes no constraints places the component by index.
  *
  * @param constraint the placement the parent container's layout manager registers the component under.
- * @return this chain with the placement declared on it.
+ * @return this modifier with the placement declared on it.
  * @see java.awt.Container.add
  */
 public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
@@ -43,15 +43,15 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  *
  * A host that holds its children this way says so, through
  * [org.jetbrains.compose.swing.node.ChildPlacement] on its own node, and every child composed under it
- * names a region: a chain declaring none is refused there, and a chain declaring one is refused under a
- * host that adds its children by index. The last region declared in a chain wins, and a chain declaring
+ * names a region: a modifier declaring none is refused there, and a modifier declaring one is refused under a
+ * host that adds its children by index. The last region declared in a modifier chain wins, and a modifier declaring
  * a region as well as a [layoutConstraint] is refused, since a parent holds a child by one of the two.
  *
- * The placement follows the region named: a chain naming another region moves the component there,
+ * The placement follows the region named: a modifier naming another region moves the component there,
  * released from the region it fills through the [SlotAttachment] that filled it and installed through the
- * one named now, and a chain that stops naming a region releases the one its component fills. The move
+ * one named now, and a modifier that stops naming a region releases the one its component fills. The move
  * lands once the change pass that declared it has settled, so a pass that swaps what two regions hold
- * leaves each component in the region its own chain names, whichever order the two declarations reach the
+ * leaves each component in the region its own modifier names, whichever order the two declarations reach the
  * host in. The [attachment] is how the named region is filled rather than which region that is: one
  * carrying a declaration the host writes onto the region - a tab's title - re-declares that region's
  * contents without moving the component out of it. A node the host moves among its siblings keeps the
@@ -62,7 +62,7 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  *   the host's own, and it is what an error about that region prints, so a caller acts on that text by
  *   typing it.
  * @param attachment installs the component into the host and returns its uninstall action.
- * @return this chain with the region declared on it.
+ * @return this modifier with the region declared on it.
  */
 public fun SwingModifier.slot(
     name: String,
@@ -70,16 +70,18 @@ public fun SwingModifier.slot(
 ): SwingModifier = this then SlotElement(name, attachment)
 
 /**
- * A chain element declaring where the node is attached in its parent, rather than a property of the
- * component. [org.jetbrains.compose.swing.modifier.applyModifier] takes it off the chain and writes it
+ * A modifier element declaring where the node is attached in its parent, rather than a property of the
+ * component. [org.jetbrains.compose.swing.modifier.applyModifier] takes it off the modifier and writes it
  * onto the node holder before the element diff runs, so it never reaches a [SwingModifier.Node] and its
  * [create] and [update] are unreachable.
  *
- * A placement is keyed like any other property element, so the chain walk resolves last-wins for it and a
- * constraint and a slot occupy separate slots. Each subtype keeps the default key of its own class, which
- * is how [removeLayoutConstraint] and [removeSlot] find it among the elements the walk collected.
+ * A placement is keyed like any other property element, so the modifier walk resolves last-wins for it and a
+ * constraint and a slot occupy separate slots. Each subtype keeps the default key of its own class, so
+ * declaring the same one twice keeps the later. [removeSlot] finds its element by that key;
+ * [removeLayoutConstraint] takes every [ConstraintElement] instead, whatever key each carries, since the
+ * parts of one constraint are declared under keys of their own and fold together.
  */
-internal sealed class PlacementElement : SwingModifier.NodeElement<Component, SwingModifier.Node<Component>>() {
+internal abstract class PlacementElement : SwingModifier.NodeElement<Component, SwingModifier.Node<Component>>() {
     override val targetType: Class<Component> get() = Component::class.java
 
     override fun create(): Nothing = placementHasNoNode()
@@ -87,13 +89,38 @@ internal sealed class PlacementElement : SwingModifier.NodeElement<Component, Sw
     override fun update(node: SwingModifier.Node<Component>): Nothing = placementHasNoNode()
 }
 
-/** The layout constraint a node's parent container registers its component under. */
+/**
+ * A modifier element declaring the constraint the node's parent registers its component under. A modifier
+ * declares one: the [constraint] a caller names outright, or the one a container's own scope builds from
+ * what the child declares to it.
+ */
+internal abstract class ConstraintElement : PlacementElement() {
+    /**
+     * Folds what this element declares into [carried] - what the modifier has declared before it - and
+     * answers the constraint standing after it. The modifier is folded in declaration order, so an element
+     * that states the whole constraint replaces what came before and one that states a part adds to it.
+     */
+    abstract fun foldInto(carried: Any?): Any
+
+    /**
+     * Whether this element states the whole constraint rather than a part of it. A modifier mixing the two
+     * declares a placement in a parent that holds its children the other way, and is refused.
+     */
+    open val statesWholeConstraint: Boolean get() = false
+}
+
+/** The layout constraint a caller names outright, through [layoutConstraint]. */
 internal data class LayoutConstraintElement(
     val constraint: Any,
-) : PlacementElement() {
+) : ConstraintElement() {
     override val name: String get() = "layoutConstraint"
 
     override val declaredValues: Map<String, Any?> get() = mapOf("constraint" to constraint)
+
+    /** The whole constraint, so the last one a modifier names is what the component is registered under. */
+    override fun foldInto(carried: Any?): Any = constraint
+
+    override val statesWholeConstraint: Boolean get() = true
 }
 
 /**
@@ -124,25 +151,51 @@ internal class SlotElement(
 }
 
 /**
- * Takes the layout constraint this partitioned chain declares off it, leaving behind only the elements
- * the diff has nodes for. `null` where the chain declares none, which is what puts a node that has given
+ * Takes the layout constraint this partitioned modifier declares off it, leaving behind only the elements
+ * the diff has nodes for. `null` where the modifier declares none, which is what puts a node that has given
  * up its constraint back to placement by index.
+ *
+ * The elements declaring it are folded into the one value the component is registered under.
  */
-internal fun MutableMap<Any, SwingModifier.NodeElement<*, *>>.removeLayoutConstraint(): Any? =
-    (remove(LayoutConstraintElement::class.java) as? LayoutConstraintElement)?.constraint
+internal fun MutableMap<Any, SwingModifier.NodeElement<*, *>>.removeLayoutConstraint(): Any? {
+    var carried: Any? = null
+    var whole = false
+    var part = false
+    val entries = entries.iterator()
+    while (entries.hasNext()) {
+        val element = entries.next().value as? ConstraintElement ?: continue
+        entries.remove()
+        if (element.statesWholeConstraint) whole = true else part = true
+        carried = element.foldInto(carried)
+    }
+    // Walked and folded in place: a modifier declaring no constraint is the common one, and it leaves here
+    // having allocated nothing.
+    require(!(whole && part)) { twoKindsOfConstraint() }
+    return carried
+}
 
 /**
- * Takes the host slot this partitioned chain declares off it, the way [removeLayoutConstraint] does,
+ * Why a modifier naming a constraint outright as well as declaring one to a container's own scope is
+ * refused.
+ */
+private fun twoKindsOfConstraint(): String =
+    "A parent registers a child under one layout constraint, and this modifier declares two kinds: one " +
+        "named with layoutConstraint(), and one declared to the container's own scope - weight(), " +
+        "align() or a cross-axis fill. Declare the one the enclosing container places its children by, " +
+        "and drop the other."
+
+/**
+ * Takes the host slot this partitioned modifier declares off it, the way [removeLayoutConstraint] does,
  * naming the region as well as the attachment that fills it.
  */
 internal fun MutableMap<Any, SwingModifier.NodeElement<*, *>>.removeSlot(): SlotElement? =
     remove(SlotElement::class.java) as? SlotElement
 
 /**
- * Refuses a chain declaring both kinds of placement, before either is written onto the node. A parent
+ * Refuses a modifier declaring both kinds of placement, before either is written onto the node. A parent
  * holds a child either under a constraint its layout manager registers the component by, or in a region
  * of its own reached through a setter written for that region, and the two are what different containers
- * offer: a chain declaring one of each names a place in a parent that holds children the other way.
+ * offer: a modifier declaring one of each names a place in a parent that holds children the other way.
  */
 internal fun checkOnePlacement(
     slot: SlotElement?,
@@ -152,13 +205,13 @@ internal fun checkOnePlacement(
     error(
         "A parent holds a child either under a layout constraint its layout manager registers the " +
             "component by, or in a region of its own reached through a setter written for that region, " +
-            "and this chain declares both: layoutConstraint($constraint) and ${slot.regionName}. Declare " +
+            "and this modifier declares both: layoutConstraint($constraint) and ${slot.regionName}. Declare " +
             "the one the enclosing container holds its children by, and drop the other.",
     )
 }
 
 private fun placementHasNoNode(): Nothing =
     error(
-        "A placement is consumed by the node holder, which takes it off the chain and writes it onto the " +
+        "A placement is consumed by the node holder, which takes it off the modifier and writes it onto the " +
             "node before the element diff runs, so it never becomes a modifier node.",
     )

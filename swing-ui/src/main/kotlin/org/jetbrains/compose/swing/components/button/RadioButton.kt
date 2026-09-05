@@ -7,11 +7,11 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.node.report
 import java.awt.event.ActionListener
 import javax.swing.JRadioButton
 
@@ -27,7 +27,7 @@ import javax.swing.JRadioButton
  *
  * @param text the text to display next to the radio button
  * @param selected whether the radio button is selected
- * @param onSelectedChange callback invoked with the new selected state when the button is activated
+ * @param onSelectedChange callback invoked with the selected state when the button is activated
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JRadioButton
  */
@@ -43,7 +43,7 @@ public fun RadioButton(
         text = text,
         modifier =
             modifier.actionListener<JRadioButton> {
-                mirror.report(isSelected, onSelectedChange)
+                mirror.report { onSelectedChange(isSelected) }
             },
         selected = selected,
         mirror = mirror,
@@ -72,9 +72,7 @@ public fun RadioButton(
     RadioButtonNode(
         text = text,
         modifier =
-            modifier
-                .actionListener(actionListener)
-                .itemListener<JRadioButton> { mirror.observed(isSelected) },
+            modifier.actionListener(actionListener),
         selected = selected,
         mirror = mirror,
     )
@@ -100,6 +98,7 @@ private inline fun RadioButtonNode(
         modifier = modifier,
         update = {
             set(text) { this.text = it }
+            init { addItemListener { mirror.observed(isSelected) } }
             declare(selected, mirror, JRadioButton::isSelected, JRadioButton::setSelected)
         },
     )

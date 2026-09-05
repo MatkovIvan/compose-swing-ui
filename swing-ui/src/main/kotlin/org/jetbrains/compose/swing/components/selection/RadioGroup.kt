@@ -64,6 +64,7 @@ public fun RadioGroup(
                     modifier = optionModifier,
                     update = {
                         set(option.text) { this.text = it }
+                        init { addItemListener { mirror.observed(isSelected) } }
                         declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
                     },
                 )

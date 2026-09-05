@@ -12,7 +12,7 @@ import java.lang.reflect.Modifier
  * library holds some components in subclasses of its own, which a caller never declares and an error
  * naming one would send them looking for a class they cannot find.
  */
-private val Component.declaredName: String
+internal val Component.declaredName: String
     get() =
         generateSequence(javaClass as Class<*>) { it.superclass }
             .first { Modifier.isPublic(it.modifiers) }
@@ -103,6 +103,6 @@ private fun ChildPlacement.regionCalls(): List<String> =
         is ChildPlacement.OrderedSlots -> listOf(name)
     }
 
-/** The region this node's chain names, as an error refers to it. */
+/** The region this node's modifier names, as an error refers to it. */
 private fun SwingNodeHolder<*>.namedRegion(): String =
     declaredSlot?.name?.let { "the region $it" } ?: "a region of its own"

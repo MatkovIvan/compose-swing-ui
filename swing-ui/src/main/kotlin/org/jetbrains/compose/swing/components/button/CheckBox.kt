@@ -7,11 +7,11 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.node.report
 import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 
@@ -25,7 +25,7 @@ import javax.swing.JCheckBox
  *
  * @param text the text to display next to the checkbox
  * @param checked the checked state the box is held at
- * @param onCheckedChange callback invoked with the new checked state when the user toggles the box
+ * @param onCheckedChange callback invoked with the checked state when the box is activated
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JCheckBox
  */
@@ -41,7 +41,7 @@ public fun CheckBox(
         text = text,
         modifier =
             modifier.actionListener<JCheckBox> {
-                mirror.report(isSelected, onCheckedChange)
+                mirror.report { onCheckedChange(isSelected) }
             },
         checked = checked,
         mirror = mirror,
@@ -70,9 +70,7 @@ public fun CheckBox(
     CheckBoxNode(
         text = text,
         modifier =
-            modifier
-                .actionListener(actionListener)
-                .itemListener<JCheckBox> { mirror.observed(isSelected) },
+            modifier.actionListener(actionListener),
         checked = checked,
         mirror = mirror,
     )
@@ -98,6 +96,7 @@ private inline fun CheckBoxNode(
         modifier = modifier,
         update = {
             set(text) { this.text = it }
+            init { addItemListener { mirror.observed(isSelected) } }
             declare(checked, mirror, JCheckBox::isSelected, JCheckBox::setSelected)
         },
     )

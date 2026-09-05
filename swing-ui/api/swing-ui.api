@@ -233,6 +233,9 @@ public final class org/jetbrains/compose/swing/components/layout/LayoutComponent
 	public static final fun rememberScrollState (IILandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/layout/ScrollState;
 }
 
+public abstract interface annotation class org/jetbrains/compose/swing/components/layout/LayoutScopeMarker : java/lang/annotation/Annotation {
+}
+
 public abstract interface class org/jetbrains/compose/swing/components/layout/RowScope {
 	public abstract fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/layout/Alignment$Vertical;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun fillHeight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -902,6 +905,7 @@ public final class org/jetbrains/compose/swing/node/NodeKt {
 	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun rememberMirrorState (Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/node/MirrorState;
+	public static final fun report (Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function0;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/node/SlotAttachment {

@@ -35,8 +35,6 @@ class MenuItemSelectionTest {
         awaitIdle()
         assertFalse(item.isSelected, "the click leaves the item showing the declared state")
 
-        // An unrelated recomposition changes nothing here: the item was already showing the declared
-        // state right after the click, not just once this pass ran.
         text = "Wrap lines"
         awaitIdle()
         assertFalse(item.isSelected, "the declared state keeps standing")

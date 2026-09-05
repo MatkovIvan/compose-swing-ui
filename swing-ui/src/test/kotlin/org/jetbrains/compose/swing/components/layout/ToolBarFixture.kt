@@ -5,6 +5,13 @@ import javax.swing.JFrame
 import javax.swing.JToolBar
 import javax.swing.plaf.basic.BasicToolBarUI
 
+/**
+ * The look and feel's own tool bar UI, through which a case makes the moves a drag would make: floating
+ * the bar out, and docking it back on an edge of the container it came from.
+ */
+internal val JToolBar.toolBarUi: BasicToolBarUI
+    get() = ui as BasicToolBarUI
+
 /** Whether the bar stands in a window of its own, read the way the wrapper itself reads it. */
 internal val JToolBar.isFloatingNow: Boolean
     get() = (ui as? BasicToolBarUI)?.isFloating == true

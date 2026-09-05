@@ -185,15 +185,19 @@ public class MirrorState<V>
             onChanged: (V) -> Unit,
         ) {
             if (!observed(published)) return
-            val reportingOwner =
+            val reportingOwner = reportingOwner
+            onChanged(published)
+            reportingOwner.settleNow()
+        }
+
+        /** The owner this mirror settles through, which it has only once applied to a node. */
+        internal val reportingOwner: SwingCompositionOwner
+            get() =
                 checkNotNull(owner) {
                     "This mirror has not been applied to a node. Declare the property with declare(), " +
                         "which applies it, or apply it directly with applyMirror() in the update block " +
                         "of the node the mirror settles."
                 }
-            onChanged(published)
-            reportingOwner.settleNow()
-        }
 
         /**
          * Whether a write of this wrapper's own to its widget is currently in flight. It is true only for
@@ -460,6 +464,28 @@ public class MirrorState<V>
  */
 @Composable
 public fun <V> rememberMirrorState(initial: V): MirrorState<V> = remember { MirrorState(initial) }
+
+/**
+ * Carries to the caller a change the widget published on one channel and reports on another: [onChanged]
+ * runs and the settling pass follows it, as in [MirrorState.report], but the value itself was mirrored
+ * through [MirrorState.observed] when the earlier channel carried it.
+ *
+ * A toggle is the shape that needs this. It publishes its selection to its item listener before it
+ * publishes the user's activation to its action listener, so a mirror riding the item channel has
+ * already recorded the change by the time the caller hears about it, and [MirrorState.report] would be
+ * answering a change [MirrorState.observed] has taken. Mirror on the earlier channel with
+ * [MirrorState.observed], and report on the later one with this.
+ *
+ * Runs on the event dispatch thread.
+ *
+ * @param onChanged run before the pass, so a caller that adopts the change is settled on what it wrote
+ *   and one that does not is settled back onto its standing declaration.
+ */
+public fun MirrorState<*>.report(onChanged: () -> Unit) {
+    val reportingOwner = reportingOwner
+    onChanged()
+    reportingOwner.settleNow()
+}
 
 /**
  * Declares [value] onto a widget property the user can also change, keeping [mirror] in sync with it.

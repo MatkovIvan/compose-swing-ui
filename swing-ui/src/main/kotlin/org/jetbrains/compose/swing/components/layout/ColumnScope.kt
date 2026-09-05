@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * }
  * ```
  */
+@LayoutScopeMarker
 public sealed interface ColumnScope {
     /**
      * Claims [weight] shares of the height the column has left over once every child that claims none
@@ -25,7 +26,7 @@ public sealed interface ColumnScope {
      *
      * @param weight the share claimed, greater than zero
      * @param fill whether the child occupies the whole height it is granted; `true` by default
-     * @return this chain with the height share declared on it.
+     * @return this modifier with the height share declared on it.
      */
     public fun SwingModifier.weight(
         weight: Float,
@@ -37,7 +38,7 @@ public sealed interface ColumnScope {
      * `horizontalAlignment`.
      *
      * @param alignment where the child sits across the column
-     * @return this chain with the child's horizontal alignment declared on it.
+     * @return this modifier with the child's horizontal alignment declared on it.
      */
     public fun SwingModifier.align(alignment: Alignment.Horizontal): SwingModifier
 
@@ -50,19 +51,17 @@ public sealed interface ColumnScope {
 }
 
 /**
- * The [ColumnScope] one [Column] hands its content. It is remembered alongside the column, so the
- * placements a child declares outlive the pass that declared them.
+ * The [ColumnScope] one [Column] hands its content. What a child declares to it goes onto that child's
+ * own modifier, so the scope holds nothing itself and every column shares this one.
  */
-internal class ColumnScopeImpl : ColumnScope {
-    val placements: ChildPlacements = ChildPlacements()
-
+internal object ColumnScopeImpl : ColumnScope {
     override fun SwingModifier.weight(
         weight: Float,
         fill: Boolean,
-    ): SwingModifier = this then WeightElement(placements, weightPlacement(weight, fill))
+    ): SwingModifier = this then WeightElement(weightPlacement(weight, fill))
 
     override fun SwingModifier.align(alignment: Alignment.Horizontal): SwingModifier =
-        this then AlignElement(placements, HorizontalAxisAlignment(alignment))
+        this then AlignElement(HorizontalAxisAlignment(alignment))
 
-    override fun SwingModifier.fillWidth(): SwingModifier = this then FillElement(placements)
+    override fun SwingModifier.fillWidth(): SwingModifier = this then FillElement
 }

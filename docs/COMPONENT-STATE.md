@@ -30,6 +30,8 @@ These pieces work together. For why settling works this way, see
   whether the change is news, leaving the pass to arrive from the event queue a few cycles later. Use it
   where settling inside the event would be wrong - see below. Call it for every value the widget
   publishes, in the order it publishes them.
+- `mirror.report { ... }` - the one-argument form, taking no value - runs the block and settles for a
+  change `observed` already took on an earlier channel.
 - `declare(value, mirror, read, write)` in the `update` block settles the widget on `value`: it writes
   through `mirror` wherever `read()` does not already answer with it, and keeps the mirror in step with
   whatever the widget ends up holding. Unlike `set`, it runs again on the pass that follows a change
@@ -62,7 +64,8 @@ Report a discrete interaction that way: a click, a selection, a step. Two kinds 
 - **A change mirrored on one channel and reported on another.** A toggle publishes an item event before
   it publishes its action event, so a mirror riding the item channel has already recorded the change by
   the time the action channel reports it. Settling on the earlier channel would put the declaration back
-  before the caller heard about the change at all.
+  before the caller heard about the change at all. Mirror there with `observed`, and settle on the
+  reporting channel: `actionListener<JToggleButton> { mirror.report { onSelectedChange(isSelected) } }`.
 
 Neither choice leaves a change the user makes showing before it is settled: the runtime listens for the
 events a declared value changes on - key, mouse, motion, input method, and the focus loss a formatted
@@ -92,8 +95,8 @@ conditional `set` does.
 
 ### A worked example
 
-`CheckBox` is built exactly this way - a `checked` in, an `onCheckedChange` out - over the two-way
-`isSelected` property:
+This is the shape for a widget whose change arrives and reports on one channel - a checkbox outside a
+button group, `checked` in and `onCheckedChange` out over the two-way `isSelected` property:
 
 <!--- INCLUDE .*custom-state-01.*
 import androidx.compose.runtime.Composable

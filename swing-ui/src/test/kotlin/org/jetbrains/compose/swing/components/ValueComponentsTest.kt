@@ -313,6 +313,48 @@ class ValueComponentsTest {
     }
 
     @Test
+    fun progressBarReturnsToItsValueWhenANarrowedRangeIsRestored() = runComposeSwingTest {
+        var max by mutableIntStateOf(100)
+        setContent {
+            ProgressBar(value = 100, min = 0, max = max)
+        }
+        val bar = onNodeOfType<JProgressBar>().fetch()
+        assertEquals(100, bar.value, "the progress bar should start at its declared value")
+
+        max = 50
+        awaitIdle()
+        assertEquals(50, bar.maximum, "the progress bar should take the narrowed range")
+        assertEquals(50, bar.value, "a narrowed range should clamp the value it no longer admits")
+
+        max = 100
+        awaitIdle()
+        assertEquals(100, bar.maximum, "the progress bar should take the restored range")
+        assertEquals(100, bar.value, "a restored range should return the bar to its declared value")
+    }
+
+    @Test
+    fun progressBarReturnsToItsValueWhenARaisedMinimumIsLowered() = runComposeSwingTest {
+        var min by mutableIntStateOf(0)
+        // Declared above the widget's own starting value, so the bar standing on the declaration is what
+        // the first reading says rather than the value a bare `JProgressBar` already holds.
+        setContent {
+            ProgressBar(value = 20, min = min, max = 100)
+        }
+        val bar = onNodeOfType<JProgressBar>().fetch()
+        assertEquals(20, bar.value, "the progress bar should start at its declared value")
+
+        min = 30
+        awaitIdle()
+        assertEquals(30, bar.minimum, "the progress bar should take the raised minimum")
+        assertEquals(30, bar.value, "a raised minimum should clamp the value it no longer admits")
+
+        min = 0
+        awaitIdle()
+        assertEquals(0, bar.minimum, "the progress bar should take the lowered minimum")
+        assertEquals(20, bar.value, "a lowered minimum should return the bar to its declared value")
+    }
+
+    @Test
     fun anUndeclaredProgressBarIsTheWidgetsOwn() = runComposeSwingTest {
         setContent { ProgressBar(value = 0) }
         onNodeOfType<JProgressBar>().assertTreeMatches(JProgressBar())

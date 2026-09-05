@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
  * placement a `JScrollPane` or a `JSplitPane` states, where a setter of the host's puts the child there
  * and the composition order says nothing about where it sits.
  *
- * A region is what the child's own chain names, so these cases drive the chain as well as the applier.
+ * A region is what the child's own modifier names, so these cases drive the modifier as well as the applier.
  * The mutation math the applier shares with an index-holding host lives in [SwingApplierTest].
  */
 class SwingApplierRegionTest {
@@ -113,7 +113,7 @@ class SwingApplierRegionTest {
      * Hands [instance] to the applier the way the runtime hands over a node it relocates - a
      * `movableContent` invoked under another parent: bottom-up first and top-down after, back to back, with
      * nothing of the node's own in between. What the node carries as it arrives is therefore the placement
-     * it named at the host it is leaving; the chain that names its placement here runs later in the pass.
+     * it named at the host it is leaving; the modifier that names its placement here runs later in the pass.
      */
     private fun SwingApplier.relocateChild(
         index: Int,
@@ -238,7 +238,7 @@ class SwingApplierRegionTest {
         applier.onContainer(applier.root) { insertChild(0, host) }
         applier.onContainer(host) { insertChild(0, movedChild) }
         applier.onEndChanges()
-        assertSame(moved, pane.leftComponent, "the child should start on the side its chain named")
+        assertSame(moved, pane.leftComponent, "the child should start on the side its modifier named")
 
         // The child names the trailing side while a sibling arrives on the leading one. A JSplitPane
         // gives a side away by taking out whatever it holds there, so the arriving sibling takes the
@@ -268,7 +268,7 @@ class SwingApplierRegionTest {
         applier.onContainer(host) { insertChild(0, child) }
         applier.onEndChanges()
 
-        // The chain names no region at all any more. A JSplitPane holds every child on a side of its
+        // The modifier names no region at all any more. A JSplitPane holds every child on a side of its
         // own, so the side is released and the child, which the pane would hold and nobody would lay
         // out, is refused the way one arriving without a side is.
         applier.onBeginChanges()
@@ -424,10 +424,10 @@ class SwingApplierRegionTest {
         }
         applier.onContainer(leaving) { insertChild(0, child) }
         applier.onEndChanges()
-        assertSame(moved, leftPane.leftComponent, "the child should start on the side its chain named")
+        assertSame(moved, leftPane.leftComponent, "the child should start on the side its modifier named")
 
         // The composition moves the child to the other pane. It arrives still carrying the side it named
-        // at the pane it is leaving, and only afterwards does its chain name the side it fills here.
+        // at the pane it is leaving, and only afterwards does its modifier name the side it fills here.
         applier.onBeginChanges()
         applier.onContainer(leaving) { remove(0, 1) }
         applier.onContainer(arrivedAt) {
@@ -511,7 +511,7 @@ class SwingApplierRegionTest {
 
     @Test
     fun aChainNamingBothARegionAndALayoutConstraintIsRefused() {
-        // A parent holds a child by one of the two, so a chain declaring both says something no parent
+        // A parent holds a child by one of the two, so a modifier declaring both says something no parent
         // can carry out, and neither placement is recorded.
         val child = SwingNodeHolder(JLabel("placed twice"))
 
@@ -523,13 +523,13 @@ class SwingApplierRegionTest {
             }
 
         val message = failure.message.orEmpty()
-        assertTrue(message.contains("this chain declares both"), "the failure should say why: $message")
+        assertTrue(message.contains("this modifier declares both"), "the failure should say why: $message")
         assertTrue(
             message.contains("layoutConstraint(${BorderLayout.CENTER}) and $VIEWPORT_CALL"),
-            "the failure should name the two placements the chain declares: $message",
+            "the failure should name the two placements the modifier declares: $message",
         )
-        assertNull(child.declaredSlot, "a refused chain should leave no region recorded on the node")
-        assertNull(child.constraint, "a refused chain should leave no layout constraint recorded on the node")
+        assertNull(child.declaredSlot, "a refused modifier should leave no region recorded on the node")
+        assertNull(child.constraint, "a refused modifier should leave no layout constraint recorded on the node")
     }
 }
 

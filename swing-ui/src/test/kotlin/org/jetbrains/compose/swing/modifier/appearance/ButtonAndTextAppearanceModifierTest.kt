@@ -83,7 +83,7 @@ class ButtonAndTextAppearanceModifierTest {
         // that carries it with a button, so the modifier reaches each of them through its own accessor.
         setContent {
             ProgressBar(value = 50, modifier = SwingModifier.borderPainted(false))
-            ToolBar(modifier = SwingModifier.borderPainted(false))
+            ToolBar(modifier = SwingModifier.borderPainted(false), floatable = false)
         }
 
         assertFalse(onNodeOfType<JProgressBar>().fetch().isBorderPainted, "progress bar")

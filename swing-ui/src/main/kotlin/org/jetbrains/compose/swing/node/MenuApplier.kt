@@ -9,6 +9,7 @@ import javax.swing.JComponent
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JPopupMenu
+import javax.swing.MenuSelectionManager
 
 /**
  * Applier for the menu tree: `JMenuBar`/`JMenu`/`JPopupMenu` containers and `JMenuItem`/`JSeparator`
@@ -20,8 +21,8 @@ import javax.swing.JPopupMenu
  * Each node keeps its [SwingNodeHolder.children] in composition order, which is the index space the
  * runtime addresses. A parked child stands in that list with its component already detached - the
  * runtime keeps a deactivated group's place while the container no longer holds the item - so the
- * position handed to a container is counted over the siblings actually attached, and a remove or a
- * move addresses each child's component by identity rather than by container index.
+ * position handed to a container is counted over the siblings actually attached, and a remove or a move
+ * addresses each child's component by identity rather than by container index.
  *
  * The root is a [JMenuBar] for a window menu bar, or a [JPopupMenu] for a context menu.
  *
@@ -73,9 +74,9 @@ internal class MenuApplier(
         val container = parent.menuContainer("remove menu children")
         batch.holdForChildSettle(parent)
         // Each child leaves by component identity: a parked child's component is already detached, so
-        // the container holds nothing at that child's composition index, and `Container.remove(Component)`
-        // on a detached component is a no-op.
-        parent.removeChildRun(index, count) { container.remove(it.component) }
+        // the container holds nothing at that child's composition index, and removing a detached
+        // component is a no-op.
+        parent.removeChildRun(index, count) { container.removeMenuChild(it.component) }
         batch.markChanged(container)
     }
 
@@ -93,7 +94,7 @@ internal class MenuApplier(
             from,
             to,
             count,
-            detach = { container.remove(it.component) },
+            detach = { container.removeMenuChild(it.component) },
             place = { holder, index -> container.add(holder.component, parent.attachedSiblingsBefore(index)) },
         )
         batch.markChanged(container)
@@ -101,6 +102,11 @@ internal class MenuApplier(
 
     override fun onClear() {
         val rootMenu = root.component
+        // The whole tree goes at once, so the menu interaction it carried ends outright. The manager
+        // holds one selection for the toolkit, so only a selection that starts at this root is this
+        // composition's to end - another window's open menu is not.
+        val selection = MenuSelectionManager.defaultManager()
+        if (selection.selectedPath.firstOrNull() === rootMenu) selection.clearSelectedPath()
         removeAllChildren(rootMenu)
         root.children.clear()
         (rootMenu as? Container)?.let { batch.markChanged(it) }
@@ -143,6 +149,30 @@ internal class MenuApplier(
             else -> error("Cannot clear children of menu node $node")
         }
     }
+}
+
+/**
+ * Detaches [child] from this menu container, ending the menu interaction that ran through it first.
+ *
+ * A menu the user has open is a live selection in [MenuSelectionManager], and nothing on Swing's own
+ * removal path retires it: `JPopupMenu.setVisible(false)` clears the selection only for a standalone
+ * popup, never for a `JMenu`'s pulldown. The removed menu would stay selected, holding the mouse grab
+ * and the menu key bindings that `BasicPopupMenuUI` releases only on an empty selection. Cutting the
+ * selection first also takes the pulldown off screen, through `JPopupMenu.menuSelectionChanged`.
+ *
+ * The selection is cut back to [child]'s own place rather than dropped whole, so a submenu or an item
+ * leaving a menu that is still declared and still open closes only itself. A top-level menu is the
+ * exception: a `JMenuBar` on its own is no selection Swing ever makes, and Swing's own cancel collapses
+ * that to nothing.
+ */
+private fun Container.removeMenuChild(child: Component) {
+    val manager = MenuSelectionManager.defaultManager()
+    val selection = manager.selectedPath
+    val cut = selection.indexOfFirst { it === child }
+    if (cut >= 0) {
+        manager.selectedPath = selection.copyOfRange(0, if (cut == 1 && selection[0] is JMenuBar) 0 else cut)
+    }
+    remove(child)
 }
 
 /**

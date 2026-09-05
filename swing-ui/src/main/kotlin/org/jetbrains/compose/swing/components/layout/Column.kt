@@ -4,7 +4,6 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 
@@ -41,22 +40,18 @@ public fun Column(
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // Remembered with the column: children write weight/alignment into it for the layout manager to
-    // read each pass.
-    val scope = remember { ColumnScopeImpl() }
     val axisArrangement = VerticalAxisArrangement(verticalArrangement)
     val axisAlignment = HorizontalAxisAlignment(horizontalAlignment)
 
     SwingNode(
         factory = {
-            ScrollablePanel(LinearLayout(LayoutAxis.Vertical, scope.placements, axisArrangement, axisAlignment))
+            ScrollablePanel(LinearLayout(LayoutAxis.Vertical, axisArrangement, axisAlignment))
         },
         modifier = modifier,
         update = {
-            updateLayout<LinearLayout, _>(scope.placements) { this.placements = it }
             updateLayout<LinearLayout, _>(axisArrangement) { this.arrangement = it }
             updateLayout<LinearLayout, _>(axisAlignment) { this.alignment = it }
         },
-        content = { scope.content() },
+        content = { ColumnScopeImpl.content() },
     )
 }

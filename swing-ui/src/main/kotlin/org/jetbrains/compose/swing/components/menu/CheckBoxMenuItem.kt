@@ -7,11 +7,11 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.node.report
 import java.awt.event.ActionListener
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.KeyStroke
@@ -25,7 +25,7 @@ import javax.swing.KeyStroke
  *
  * @param text the text of the menu item
  * @param checked whether the item shows its checkmark
- * @param onCheckedChange callback invoked when the checked state changes
+ * @param onCheckedChange callback invoked with the checked state when the item is activated
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
@@ -44,7 +44,7 @@ public fun CheckBoxMenuItem(
         text = text,
         modifier =
             modifier.actionListener<JCheckBoxMenuItem> {
-                mirror.report(isSelected, onCheckedChange)
+                mirror.report { onCheckedChange(isSelected) }
             },
         checked = checked,
         accelerator = accelerator,
@@ -77,9 +77,7 @@ public fun CheckBoxMenuItem(
     CheckBoxMenuItemNode(
         text = text,
         modifier =
-            modifier
-                .actionListener(actionListener)
-                .itemListener<JCheckBoxMenuItem> { mirror.observed(isSelected) },
+            modifier.actionListener(actionListener),
         checked = checked,
         accelerator = accelerator,
         mirror = mirror,
@@ -107,6 +105,7 @@ private inline fun CheckBoxMenuItemNode(
         modifier = modifier,
         update = {
             set(text) { this.text = it }
+            init { addItemListener { mirror.observed(isSelected) } }
             declare(checked, mirror, JCheckBoxMenuItem::isSelected, JCheckBoxMenuItem::setSelected)
             set(accelerator) { this.accelerator = it }
         },

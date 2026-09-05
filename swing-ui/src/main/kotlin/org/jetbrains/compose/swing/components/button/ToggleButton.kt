@@ -7,11 +7,11 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.node.report
 import java.awt.event.ActionListener
 import javax.swing.JToggleButton
 
@@ -30,7 +30,7 @@ import javax.swing.JToggleButton
  *
  * @param text the text to display on the button
  * @param selected whether the button is in its selected state
- * @param onSelectedChange callback invoked with the new selected state when the button is toggled
+ * @param onSelectedChange callback invoked with the selected state when the button is activated
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JToggleButton
  */
@@ -46,7 +46,7 @@ public fun ToggleButton(
         text = text,
         modifier =
             modifier.actionListener<JToggleButton> {
-                mirror.report(isSelected, onSelectedChange)
+                mirror.report { onSelectedChange(isSelected) }
             },
         selected = selected,
         mirror = mirror,
@@ -75,9 +75,7 @@ public fun ToggleButton(
     ToggleButtonNode(
         text = text,
         modifier =
-            modifier
-                .actionListener(actionListener)
-                .itemListener<JToggleButton> { mirror.observed(isSelected) },
+            modifier.actionListener(actionListener),
         selected = selected,
         mirror = mirror,
     )
@@ -103,6 +101,7 @@ private inline fun ToggleButtonNode(
         modifier = modifier,
         update = {
             set(text) { this.text = it }
+            init { addItemListener { mirror.observed(isSelected) } }
             declare(selected, mirror, JToggleButton::isSelected, JToggleButton::setSelected)
         },
     )

@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
@@ -10,12 +11,15 @@ import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.menuItemTexts
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.JDialog
 import javax.swing.JFrame
@@ -23,11 +27,16 @@ import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JRadioButtonMenuItem
+import javax.swing.MenuElement
+import javax.swing.MenuSelectionManager
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Behavioral tests for the declarative menu bar of a [Window] and a [Dialog]: the declared menu tree
@@ -35,6 +44,11 @@ import kotlin.test.assertTrue
  * declaration leave the composition leaves the peer the bar it carried before - none of its own on a
  * window the library realizes, the caller's own on a window they provide - and a menu item reaches state
  * hoisted around the window just as the window's content does.
+ *
+ * A menu the user has open is part of that state too: a menu the declarations stop describing - or put
+ * at another place on the bar - ends the menu interaction it stood in, while the menus around it that
+ * are still declared stay as they were. The selection is the toolkit's one, so a menu open outside the
+ * composition is left standing whatever the declarations do.
  *
  * A window carries one menu bar, so the two shapes that reach one are pinned apart: a declaration
  * handing the window over to another across a recomposition is served, while two declarations composed
@@ -301,14 +315,17 @@ class WindowMenuBarTest {
         val scope = WindowScope.of(frame.rootPane)
         try {
             runComposeSwingTest {
-                runCatching {
-                    setContent {
-                        with(scope) {
-                            MenuBar { Menu("A") { MenuItem("First", onClick = {}) } }
-                            MenuBar { Menu("B") { MenuItem("Second", onClick = {}) } }
+                val failure =
+                    runCatching {
+                        setContent {
+                            with(scope) {
+                                MenuBar { Menu("A") { MenuItem("First", onClick = {}) } }
+                                MenuBar { Menu("B") { MenuItem("Second", onClick = {}) } }
+                            }
                         }
-                    }
-                }
+                    }.exceptionOrNull()
+
+                assertNotNull(failure, "two menu bars declared for one window should be refused")
             }
 
             // One declaration for a window is a legal state whatever came before it, so a window that
@@ -429,4 +446,244 @@ class WindowMenuBarTest {
             "the content should give up the strip the arriving bar occupies",
         )
     }
+
+    @Test
+    fun aMenuLeavingTheBarWhileOpenEndsTheMenuInteraction() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        var showEdit by mutableStateOf(true)
+        setContent {
+            Window(onCloseRequest = {}, title = "menu-bar-open-removed", visible = false) {
+                MenuBar {
+                    Menu("File") { MenuItem("Open", onClick = {}) }
+                    if (showEdit) {
+                        Menu("Edit") { MenuItem("Undo", onClick = {}) }
+                    }
+                }
+            }
+        }
+
+        val bar = onWindowWithTitle("menu-bar-open-removed").fetch<JFrame>().jMenuBar
+        val edit = bar.getMenu(1)
+        // The selection a click on a menu title leaves behind, which holds its pulldown open. The window
+        // is never shown, so the pulldown stays off screen while the selection stands.
+        val selection = MenuSelectionManager.defaultManager()
+        awaitWindowStandsStill("menu-bar-open-removed")
+        selection.selectedPath = arrayOf<MenuElement>(bar, edit, edit.popupMenu)
+        awaitIdle()
+        assertTrue(edit.isSelected, "the open menu should be the selected one before it is removed")
+
+        showEdit = false
+        awaitIdle()
+
+        assertEquals(1, bar.menuCount, "the menu that left the composition should be off the bar")
+        assertEquals(
+            emptyList<MenuElement>(),
+            selection.selectedPath.toList(),
+            "removing the open menu should end the menu interaction it stood in",
+        )
+        assertFalse(edit.isSelected, "and leave the removed menu unselected")
+    }
+
+    @Test
+    fun aSubmenuLeavingAMenuThatIsOpenClosesOnlyItself() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        var showExport by mutableStateOf(true)
+        setContent {
+            Window(onCloseRequest = {}, title = "menu-bar-open-submenu", visible = false) {
+                MenuBar {
+                    Menu("File") {
+                        MenuItem("Open", onClick = {})
+                        if (showExport) {
+                            Menu("Export") { MenuItem("PDF", onClick = {}) }
+                        }
+                    }
+                }
+            }
+        }
+
+        val bar = onWindowWithTitle("menu-bar-open-submenu").fetch<JFrame>().jMenuBar
+        val file = bar.getMenu(0)
+        val export = file.getItem(1) as JMenu
+        // The selection standing while the user is in the submenu of an open menu.
+        val selection = MenuSelectionManager.defaultManager()
+        awaitWindowStandsStill("menu-bar-open-submenu")
+        selection.selectedPath = arrayOf<MenuElement>(bar, file, file.popupMenu, export, export.popupMenu)
+        awaitIdle()
+
+        showExport = false
+        awaitIdle()
+
+        assertEquals(
+            listOf<MenuElement>(bar, file, file.popupMenu),
+            selection.selectedPath.toList(),
+            "a submenu leaving a menu the caller still declares should close itself and leave that menu open",
+        )
+    }
+
+    @Test
+    fun aMenuBarLeavingTheCompositionWhileOpenEndsTheMenuInteraction() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        var showMenu by mutableStateOf(true)
+        setContent {
+            Window(onCloseRequest = {}, title = "menu-bar-open-withdrawn", visible = false) {
+                if (showMenu) {
+                    MenuBar { Menu("File") { MenuItem("New", onClick = {}) } }
+                }
+            }
+        }
+
+        val frame = onWindowWithTitle("menu-bar-open-withdrawn").fetch<JFrame>()
+        val bar = frame.jMenuBar
+        val file = bar.getMenu(0)
+        val selection = MenuSelectionManager.defaultManager()
+        awaitWindowStandsStill("menu-bar-open-withdrawn")
+        selection.selectedPath = arrayOf<MenuElement>(bar, file, file.popupMenu)
+        awaitIdle()
+
+        showMenu = false
+        awaitIdle()
+
+        assertNull(frame.jMenuBar, "a menu bar that leaves the composition should be taken off the window")
+        assertEquals(
+            emptyList<MenuElement>(),
+            selection.selectedPath.toList(),
+            "the whole menu bar leaving should end the menu interaction it carried",
+        )
+    }
+
+    @Test
+    fun aMenuBarLeavingTheCompositionLeavesAMenuOpenOutsideItStanding() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        // A window of the test's own with a menu open on it. The selection manager holds one selection for
+        // the whole toolkit, so this stands while the composition below runs, and it is not the
+        // composition's to end.
+        val outsideBar = JMenuBar()
+        val outsideMenu = JMenu("Other")
+        outsideBar.add(outsideMenu)
+        val outsideFrame = JFrame("menu-bar-elsewhere").apply { jMenuBar = outsideBar }
+        val outsidePath = listOf<MenuElement>(outsideBar, outsideMenu, outsideMenu.popupMenu)
+        val selection = MenuSelectionManager.defaultManager()
+        try {
+            var showMenu by mutableStateOf(true)
+            setContent {
+                Window(onCloseRequest = {}, title = "menu-bar-open-elsewhere", visible = false) {
+                    if (showMenu) {
+                        MenuBar { Menu("File") { MenuItem("New", onClick = {}) } }
+                    }
+                }
+            }
+
+            val frame = onWindowWithTitle("menu-bar-open-elsewhere").fetch<JFrame>()
+            val composedBar = frame.jMenuBar
+            awaitWindowStandsStill("menu-bar-open-elsewhere")
+            selection.selectedPath = outsidePath.toTypedArray()
+            awaitIdle()
+            assertEquals(
+                outsidePath,
+                selection.selectedPath.toList(),
+                "the menu outside the composition should be the open one before the bar leaves",
+            )
+
+            showMenu = false
+            awaitIdle()
+
+            assertNull(frame.jMenuBar, "the menu bar that left the composition should be off the window")
+            // Emptying the bar and answering the selection are one pass in the applier, so an emptied
+            // bar shows that pass ran.
+            assertEquals(
+                0,
+                composedBar.menuCount,
+                "the menus the composition declared should be off the bar it left behind",
+            )
+            assertEquals(
+                outsidePath,
+                selection.selectedPath.toList(),
+                "a menu bar leaving should end only a menu interaction of its own, and leave one that " +
+                    "runs through another window's bar standing",
+            )
+            assertTrue(outsideMenu.isSelected, "and the menu open outside the composition should stay open")
+        } finally {
+            selection.clearSelectedPath()
+            outsideFrame.dispose()
+        }
+    }
+
+    @Test
+    fun aMenuMovedOnTheBarWhileOpenEndsTheMenuInteraction() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        var order by mutableStateOf(listOf("File", "Edit", "Help"))
+        setContent {
+            Window(onCloseRequest = {}, title = "menu-bar-open-moved", visible = false) {
+                MenuBar {
+                    for (name in order) {
+                        key(name) { Menu(name) { MenuItem("$name item", onClick = {}) } }
+                    }
+                }
+            }
+        }
+
+        val bar = onWindowWithTitle("menu-bar-open-moved").fetch<JFrame>().jMenuBar
+        val help = bar.getMenu(2)
+        val openPath = listOf<MenuElement>(bar, help, help.popupMenu)
+        val selection = MenuSelectionManager.defaultManager()
+        awaitWindowStandsStill("menu-bar-open-moved")
+        selection.selectedPath = openPath.toTypedArray()
+        awaitIdle()
+        assertEquals(openPath, selection.selectedPath.toList(), "the last menu should be the open one before it moves")
+
+        // The same menus in a new order, with the open one taking the first place: a keyed reorder
+        // reaches the bar as a move of that menu, which takes it off the bar and puts it back.
+        order = listOf("Help", "File", "Edit")
+        awaitIdle()
+
+        assertEquals(
+            listOf("Help", "File", "Edit"),
+            (0 until bar.menuCount).map { bar.getMenu(it).text },
+            "the bar should carry the menus in the order declared",
+        )
+        assertSame(help, bar.getMenu(0), "the reordered menu should be moved on the bar rather than built again")
+        assertEquals(
+            emptyList<MenuElement>(),
+            selection.selectedPath.toList(),
+            "a menu moved to another place on the bar should end the menu interaction it stood in: it " +
+                "leaves the bar for the move, and the selection running through it cannot outlive that",
+        )
+        assertFalse(help.isSelected, "and the moved menu should be left unselected")
+    }
 }
+
+/**
+ * Waits until the window titled [title] reports no move and no resize between two checks.
+ *
+ * A window lays out as its menu bar arrives and reports the reshape on a dispatch of its own, which
+ * settling the composition does not wait for. A look and feel may cancel an open menu when the window
+ * under it reshapes, so a case that opens one waits for the window to stand still first.
+ */
+private suspend fun ComposeSwingTest.awaitWindowStandsStill(title: String) {
+    val frame = onWindowWithTitle(title).fetch<JFrame>()
+    var lastReshape = System.nanoTime()
+    val listener =
+        object : ComponentAdapter() {
+            override fun componentResized(event: ComponentEvent) {
+                lastReshape = System.nanoTime()
+            }
+
+            override fun componentMoved(event: ComponentEvent) {
+                lastReshape = System.nanoTime()
+            }
+        }
+    frame.addComponentListener(listener)
+    try {
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) {
+            System.nanoTime() - lastReshape >= WINDOW_QUIET_PERIOD.inWholeNanoseconds
+        }
+    } finally {
+        frame.removeComponentListener(listener)
+    }
+}
+
+/**
+ * How long a window must report no move and no resize before a case opens a menu over it. Raise this
+ * if a case still finds its menu cancelled.
+ */
+private val WINDOW_QUIET_PERIOD = 250.milliseconds

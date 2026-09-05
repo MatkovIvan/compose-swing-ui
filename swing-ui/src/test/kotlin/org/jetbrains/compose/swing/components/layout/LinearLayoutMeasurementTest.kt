@@ -93,7 +93,6 @@ private fun inRealizedRow(
                 JPanel(
                     LinearLayout(
                         axis = LayoutAxis.Horizontal,
-                        placements = ChildPlacements(),
                         arrangement = HorizontalAxisArrangement(Arrangement.Start),
                         alignment = VerticalAxisAlignment(Alignment.Top),
                     ),

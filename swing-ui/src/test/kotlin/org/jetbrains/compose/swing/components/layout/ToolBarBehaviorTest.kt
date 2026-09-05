@@ -31,12 +31,16 @@ import kotlin.test.assertTrue
  * [JToolBar] sees: the declared items - separators among them - become its children in order,
  * orientation, floatable and rollover map through, and items added or removed in the composition
  * appear and disappear from the tool bar.
+ *
+ * A bar the user can drag out has to stand in a [BorderPanel], so a case that leaves the floatable
+ * choice to the bar holds it in one. Every other case declares `floatable = false`, which says that
+ * where the bar stands is not what it measures.
  */
 class ToolBarBehaviorTest {
     @Test
     fun declaredItemsBecomeToolBarChildrenInOrder() = runComposeSwingTest {
         setContent {
-            ToolBar {
+            ToolBar(floatable = false) {
                 Button(text = "New", onClick = {})
                 Button(text = "Open", onClick = {})
             }
@@ -50,7 +54,7 @@ class ToolBarBehaviorTest {
 
     @Test
     fun anUndeclaredToolBarIsTheWidgetsOwn() = runComposeSwingTest {
-        setContent { ToolBar() }
+        setContent { BorderPanel { ToolBar() } }
         onNodeOfType<JToolBar>().assertTreeMatches(JToolBar())
     }
 
@@ -64,7 +68,7 @@ class ToolBarBehaviorTest {
     fun orientationMapsThrough() = runComposeSwingTest {
         var orientation by mutableStateOf(SwingConstants.HORIZONTAL)
         setContent {
-            ToolBar(orientation = orientation) {
+            ToolBar(orientation = orientation, floatable = false) {
                 Label(text = "Item")
             }
         }
@@ -85,8 +89,10 @@ class ToolBarBehaviorTest {
     fun floatableMapsThrough() = runComposeSwingTest {
         var floatable by mutableStateOf(true)
         setContent {
-            ToolBar(floatable = floatable) {
-                Label(text = "Item")
+            BorderPanel {
+                ToolBar(floatable = floatable) {
+                    Label(text = "Item")
+                }
             }
         }
 
@@ -106,7 +112,7 @@ class ToolBarBehaviorTest {
     fun itemsAddedAndRemovedInCompositionAppearAndDisappear() = runComposeSwingTest {
         var showSecond by mutableStateOf(false)
         setContent {
-            ToolBar {
+            ToolBar(floatable = false) {
                 Button(text = "First", onClick = {})
                 if (showSecond) {
                     Button(text = "Second", onClick = {})
@@ -134,7 +140,7 @@ class ToolBarBehaviorTest {
     @Test
     fun aSeparatorTakesItsDeclaredPlaceAmongTheItems() = runComposeSwingTest {
         setContent {
-            ToolBar {
+            ToolBar(floatable = false) {
                 Button(text = "New", onClick = {})
                 ToolBarSeparator()
                 Button(text = "Delete", onClick = {})
@@ -152,7 +158,7 @@ class ToolBarBehaviorTest {
     fun aDeclaredSeparatorSizeMapsThrough() = runComposeSwingTest {
         var size by mutableStateOf<Dimension?>(null)
         setContent {
-            ToolBar {
+            ToolBar(floatable = false) {
                 ToolBarSeparator(size = size)
             }
         }
@@ -188,7 +194,7 @@ class ToolBarBehaviorTest {
             withLookAndFeelDefault(SEPARATOR_SIZE_KEY, Dimension(7, 19)) {
                 var size by mutableStateOf<Dimension?>(Dimension(24, 30))
                 setContent {
-                    ToolBar {
+                    ToolBar(floatable = false) {
                         ToolBarSeparator(size = size)
                     }
                 }
@@ -228,7 +234,7 @@ class ToolBarBehaviorTest {
             withoutLookAndFeelDefault(SEPARATOR_SIZE_KEY) {
                 var size by mutableStateOf<Dimension?>(Dimension(24, 30))
                 setContent {
-                    ToolBar {
+                    ToolBar(floatable = false) {
                         ToolBarSeparator(size = size)
                     }
                 }
@@ -256,7 +262,7 @@ class ToolBarBehaviorTest {
     @Test
     fun anUndeclaredSeparatorSizeLeavesTheLookAndFeelsChoiceInPlace() = runComposeSwingTest {
         setContent {
-            ToolBar {
+            ToolBar(floatable = false) {
                 ToolBarSeparator()
             }
         }
@@ -275,9 +281,14 @@ class ToolBarBehaviorTest {
     @Test
     fun aSeparatorFollowsTheToolBarsOrientation() = runComposeSwingTest {
         var orientation by mutableStateOf(SwingConstants.HORIZONTAL)
+        // Held in a panel rather than declared unfloatable: the bar is left facing the way the turn below
+        // put it, which moves the grip in its border, and a departing floatable declaration answers for
+        // every property its own write landed on - that border among them.
         setContent {
-            ToolBar(orientation = orientation) {
-                ToolBarSeparator()
+            BorderPanel {
+                ToolBar(orientation = orientation) {
+                    ToolBarSeparator()
+                }
             }
         }
 
@@ -303,7 +314,7 @@ class ToolBarBehaviorTest {
         // only an asserted true - and a later flip back to false - shows the declared value arriving.
         var rollover by mutableStateOf(true)
         setContent {
-            ToolBar(rollover = rollover) {
+            ToolBar(floatable = false, rollover = rollover) {
                 Label(text = "Item")
             }
         }
@@ -328,7 +339,7 @@ class ToolBarBehaviorTest {
         underMetal {
             var rollover by mutableStateOf<Boolean?>(false)
             setContent {
-                ToolBar(rollover = rollover) {
+                ToolBar(floatable = false, rollover = rollover) {
                     Button(text = "New", onClick = {})
                 }
             }
@@ -361,7 +372,7 @@ class ToolBarBehaviorTest {
         underMetal {
             var rollover by mutableStateOf<Boolean?>(false)
             setContent {
-                ToolBar(rollover = rollover) {
+                ToolBar(floatable = false, rollover = rollover) {
                     Button(text = "New", onClick = {})
                 }
             }
@@ -404,7 +415,7 @@ class ToolBarBehaviorTest {
         // and the oracle is a tool bar that was never told either way.
         underMetal {
             setContent {
-                ToolBar {
+                ToolBar(floatable = false) {
                     Button(text = "New", onClick = {})
                 }
             }
@@ -436,7 +447,7 @@ class ToolBarBehaviorTest {
     fun anUndeclaredRolloverChoiceKeepsFollowingALookAndFeelTakingOver() = runComposeSwingTest {
         underMetal {
             setContent {
-                ToolBar {
+                ToolBar(floatable = false) {
                     Button(text = "New", onClick = {})
                 }
             }

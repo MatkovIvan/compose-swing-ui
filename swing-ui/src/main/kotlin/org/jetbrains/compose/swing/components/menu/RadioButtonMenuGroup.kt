@@ -61,6 +61,7 @@ public fun RadioButtonMenuGroup(
                 update = {
                     set(option.text) { this.text = it }
                     set(option.accelerator) { this.accelerator = it }
+                    init { addItemListener { mirror.observed(isSelected) } }
                     declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
                 },
             )

@@ -20,15 +20,14 @@ import kotlin.math.sign
  * declared alignment puts it, or [alignment] when it declared none. A child that declared a cross-axis
  * fill takes the container's whole extent instead, leaving no room for either alignment to place it.
  *
- * [placements], [arrangement] and [alignment] are the values the current composition declares; the
- * container that owns this manager writes them as they change.
+ * [arrangement] and [alignment] are the values the current composition declares; the container that
+ * owns this manager writes them as they change.
  *
  * One manager lays out the one container it belongs to: a row and a column each build one alongside the
  * panel they create.
  */
 internal class LinearLayout(
     val axis: LayoutAxis,
-    var placements: ChildPlacements,
     var arrangement: AxisArrangement,
     var alignment: AxisAlignment,
 ) : LayoutManager2 {
@@ -41,32 +40,39 @@ internal class LinearLayout(
      */
     private val measured = IdentityHashMap<Component, Dimension>()
 
+    /**
+     * What each child was registered under. A child added under nothing carries none, and is laid out
+     * at the size it prefers, where the container's own alignment puts it.
+     */
+    internal val declared = IdentityHashMap<Component, LinearConstraint>()
+
     /** The working room a pass takes, kept for the next one - see [PassRoom]. */
     internal val room: PassRoom = PassRoom()
 
-    /** Children arrive with no constraint; a child's own declarations reach the manager as placements. */
+    /**
+     * Takes what [component] was registered under, and refuses a constraint of any other kind the way
+     * `BorderLayout` and `GridBagLayout` refuse one they cannot read.
+     */
     override fun addLayoutComponent(
         component: Component,
         constraints: Any?,
     ) {
-        require(constraints == null) {
-            "A Row or Column places a child by the arrangement and alignment it is declared with, and " +
-                "by weight() / align() on the child's own modifier, so '$component' can carry no layout " +
-                "constraint, but it was added with '$constraints'."
+        when (constraints) {
+            null -> declared.remove(component)
+            is LinearConstraint -> declared[component] = constraints
+            else -> throw IllegalArgumentException(foreignConstraint(component, constraints))
         }
     }
 
     override fun addLayoutComponent(
         name: String?,
         component: Component,
-    ): Unit = addLayoutComponent(component, name)
+    ): Unit = Unit
 
-    /**
-     * A child's declarations belong to the child's modifier chain, which releases them on its own. Its
-     * measured extent is this manager's, and an entry left in [measured] would outlive the child.
-     */
+    /** Gives up what [component] was registered under, and the extent measured for it. */
     override fun removeLayoutComponent(component: Component) {
         measured.remove(component)
+        declared.remove(component)
     }
 
     override fun invalidateLayout(target: Container): Unit = measured.clear()
@@ -119,7 +125,7 @@ internal class LinearLayout(
         arrangement.arrange(availableMain, sizes, orientation, positions)
         children.forEachIndexed { index, child ->
             val crossSize = crossSize(child, availableCross)
-            val crossAlignment = placements.alignmentOf(child) ?: alignment
+            val crossAlignment = declared[child]?.alignment ?: alignment
             axis.place(
                 component = child,
                 main = axis.mainOrigin(inner) + positions[index],
@@ -131,6 +137,15 @@ internal class LinearLayout(
     }
 }
 
+/** The message refusing a constraint a row or a column cannot read. */
+private fun foreignConstraint(
+    child: Component,
+    constraint: Any,
+): String =
+    "A Row or Column places a child by the arrangement and alignment it is declared with, and by " +
+        "weight() / align() on the child's own modifier, so '$child' can carry no layout constraint, " +
+        "but it was added under '$constraint'."
+
 /**
  * The extent [child] occupies across the axis, of the [available] extent: the whole of it where the child
  * declared a cross-axis fill, otherwise the extent it prefers, and in either case no more than an explicit
@@ -141,7 +156,7 @@ private fun LinearLayout.crossSize(
     available: Int,
 ): Int {
     val requested =
-        if (placements.fillsCrossAxis(child)) {
+        if (declared[child]?.fillsCrossAxis == true) {
             available
         } else {
             axis.cross(preferredSizeOf(child)).coerceAtMost(available)
@@ -196,7 +211,7 @@ private fun LinearLayout.measureMainAxis(
     var claimed = 0
     var weightedCount = 0
     children.forEachIndexed { index, child ->
-        val weighted = placements.weightOf(child)
+        val weighted = declared[child]?.weight
         if (weighted == null) {
             val unclaimed = (available - claimed).coerceAtLeast(0)
             val size = axis.main(preferredSizeOf(child)).coerceAtMost(unclaimed)
@@ -230,17 +245,17 @@ private fun LinearLayout.distributeWeights(
 ) {
     var totalWeight = 0.0
     for (child in children) {
-        totalWeight += (placements.weightOf(child) ?: continue).weight.toDouble()
+        totalWeight += (declared[child]?.weight ?: continue).weight.toDouble()
     }
     val unit = share / totalWeight
     var remainder = share
     for (child in children) {
-        val weighted = placements.weightOf(child) ?: continue
+        val weighted = declared[child]?.weight ?: continue
         remainder -= (unit * weighted.weight).roundToInt()
     }
     for (index in children.indices) {
         val child = children[index]
-        val weighted = placements.weightOf(child) ?: continue
+        val weighted = declared[child]?.weight ?: continue
         val correction = remainder.sign
         remainder -= correction
         val granted = ((unit * weighted.weight).roundToInt() + correction).coerceAtLeast(0)

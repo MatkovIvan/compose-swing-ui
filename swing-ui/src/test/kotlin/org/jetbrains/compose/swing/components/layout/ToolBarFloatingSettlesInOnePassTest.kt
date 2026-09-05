@@ -73,8 +73,10 @@ class ToolBarFloatingSettlesInOnePassTest {
         // measurement, and it applies without one.
         mainClock.autoAdvance = false
         setContent {
-            ToolBar(floating = true, onFloatingChange = { reported += it }) {
-                Button(text = "New", onClick = {})
+            BorderPanel {
+                ToolBar(floating = true, onFloatingChange = { reported += it }) {
+                    Button(text = "New", onClick = {})
+                }
             }
         }
 

@@ -184,7 +184,7 @@ private inline fun TabbedPaneImpl(
             // changes the strip: a tab arriving is what can turn a standing declaration into one the pane
             // can honor, and a tab leaving is what drops the pane onto a neighbor nobody declared.
             settleWithChildren {
-                settleSelection(this, selectedIndex, mirror, reportedSelection, changeListener)
+                settleSelection(component, selectedIndex, mirror, reportedSelection, changeListener)
             }
         },
         // A pane holds every child as the page of a tab, through `insertTab` rather than by index, and

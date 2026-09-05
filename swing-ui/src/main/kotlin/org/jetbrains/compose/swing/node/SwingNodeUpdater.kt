@@ -133,11 +133,13 @@ public value class SwingNodeUpdater<T : Component>
          * declaration can become one the widget answers differently. See [SwingNodeHolder.childSettle]
          * for why the block held from an earlier pass still applies.
          *
-         * Runs on every composition like [reconcile].
+         * Runs on every composition like [reconcile]. The block runs against this node's holder, so a
+         * settle reaches the node's own placement - where the composition holds the component - as well
+         * as the component itself.
          */
-        internal fun settleWithChildren(block: T.() -> Unit): Unit =
+        internal fun settleWithChildren(block: SwingNodeHolder<T>.() -> Unit): Unit =
             updater.reconcile {
-                childSettle = { component.block() }
+                childSettle = { block() }
                 requireOwner().updateBatch.holdForChildSettle(this)
             }
 

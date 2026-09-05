@@ -220,8 +220,8 @@ ToggleButton("Pin", selected = pinned, onSelectedChange = { pinned = it })
 A `RadioGroup` owns the button group, so you declare the options and the selected index rather than
 wiring exclusivity yourself. The index is the composition's state on every pass, so a pick the caller
 does not adopt goes back to the declared option - including the option the group cleared without it
-being clicked, which a grouped button loses in silence. `RadioButtonMenuGroup` behaves the same way in
-a menu. Individual `RadioButton`s remain available for a layout the group's own axis does not cover.
+being clicked. `RadioButtonMenuGroup` behaves the same way in a menu. Individual `RadioButton`s remain
+available for a layout the group's own axis does not cover.
 
 ```kotlin
 var theme by remember { mutableStateOf(0) }
@@ -735,9 +735,11 @@ ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
 
 <!--- CLEAR -->
 
-A `ToolBar` is horizontal and floatable by default. `floating` declares whether the bar stands in a
-window of its own, and `onFloatingChange` reports where the user dragged it - or hands back the docked
-state a bar that cannot float settles for.
+A `ToolBar` is horizontal and floatable by default. A bar the user can drag out has to stand in a
+container laid out by a `BorderLayout` - a `BorderPanel`, or a window's own content - and is refused as
+it is composed anywhere else, so declare `floatable = false` there. `floating` declares whether the bar
+stands in a window of its own, and `onFloatingChange` reports where the user dragged it - or hands back
+the docked state a bar that cannot float settles for.
 
 ```kotlin
 ToolBar(floatable = false, rollover = true) {

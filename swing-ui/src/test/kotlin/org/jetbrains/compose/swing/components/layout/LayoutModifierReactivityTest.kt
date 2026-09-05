@@ -136,7 +136,7 @@ class LayoutModifierReactivityTest {
     @Test
     fun aToolBarFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("ToolBar") { modifier ->
-            ToolBar(modifier = modifier) { Label("child") }
+            ToolBar(modifier = modifier, floatable = false) { Label("child") }
         }
     }
 
@@ -146,7 +146,7 @@ class LayoutModifierReactivityTest {
             subject = "ToolBarSeparator",
             target = { onNodeOfType<JToolBar.Separator>().fetch() },
         ) { modifier ->
-            ToolBar { ToolBarSeparator(modifier = modifier) }
+            ToolBar(floatable = false) { ToolBarSeparator(modifier = modifier) }
         }
     }
 

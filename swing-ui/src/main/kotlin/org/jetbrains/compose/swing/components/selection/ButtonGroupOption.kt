@@ -6,10 +6,9 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.rememberMirrorState
-import java.awt.event.ItemEvent
+import org.jetbrains.compose.swing.node.report
 import javax.swing.AbstractButton
 import javax.swing.ButtonGroup
 
@@ -42,7 +41,7 @@ internal fun rememberButtonGroup(): ButtonGroup = remember { ButtonGroup() }
  * @param selected whether this option is the one the composition declares as selected
  * @param onSelectionChange callback invoked with [index] when the user selects this option
  * @param content receives the [SwingModifier] the option's node has to apply - [modifier], the
- *   listeners watching the option, and the membership that enrolls the node in [group] - along with the
+ *   listener watching the option, and the membership that enrolls the node in [group] - along with the
  *   [MirrorState] its node settles [selected] against
  */
 @Composable
@@ -59,9 +58,8 @@ internal fun ButtonGroupOption(
         content(
             modifier
                 .actionListener<AbstractButton> {
-                    if (isSelected) onSelectionChange(index)
-                }.itemListener { event -> mirror.observed(event.stateChange == ItemEvent.SELECTED) }
-                .buttonGroup(group),
+                    if (isSelected) mirror.report { onSelectionChange(index) }
+                }.buttonGroup(group),
             mirror,
         )
     }

@@ -50,10 +50,17 @@ public fun ProgressBar(
         stringPainted = stringPainted,
         string = string,
     ) {
-        // The range bounds the value, so it goes in first: a recomposition that moves both lands the
-        // declared value rather than the one the old range admits.
-        set(min) { this.minimum = it }
-        set(max) { this.maximum = it }
+        // A range write clamps the model's value to the range it leaves behind
+        // (DefaultBoundedRangeModel.setMinimum and setMaximum), and nothing else moves the bar off its
+        // declaration, so each range write writes the value again.
+        set(min) {
+            this.minimum = it
+            this.value = value
+        }
+        set(max) {
+            this.maximum = it
+            this.value = value
+        }
         set(value) { this.value = it }
     }
 }

@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * }
  * ```
  */
+@LayoutScopeMarker
 public sealed interface RowScope {
     /**
      * Claims [weight] shares of the width the row has left over once every child that claims none has
@@ -25,7 +26,7 @@ public sealed interface RowScope {
      *
      * @param weight the share claimed, greater than zero
      * @param fill whether the child occupies the whole width it is granted; `true` by default
-     * @return this chain with the width share declared on it.
+     * @return this modifier with the width share declared on it.
      */
     public fun SwingModifier.weight(
         weight: Float,
@@ -37,7 +38,7 @@ public sealed interface RowScope {
      * `verticalAlignment`.
      *
      * @param alignment where the child sits across the row
-     * @return this chain with the child's vertical alignment declared on it.
+     * @return this modifier with the child's vertical alignment declared on it.
      */
     public fun SwingModifier.align(alignment: Alignment.Vertical): SwingModifier
 
@@ -50,19 +51,17 @@ public sealed interface RowScope {
 }
 
 /**
- * The [RowScope] one [Row] hands its content. It is remembered alongside the row, so the placements a
- * child declares outlive the pass that declared them.
+ * The [RowScope] one [Row] hands its content. What a child declares to it goes onto that child's own
+ * modifier, so the scope holds nothing itself and every row shares this one.
  */
-internal class RowScopeImpl : RowScope {
-    val placements: ChildPlacements = ChildPlacements()
-
+internal object RowScopeImpl : RowScope {
     override fun SwingModifier.weight(
         weight: Float,
         fill: Boolean,
-    ): SwingModifier = this then WeightElement(placements, weightPlacement(weight, fill))
+    ): SwingModifier = this then WeightElement(weightPlacement(weight, fill))
 
     override fun SwingModifier.align(alignment: Alignment.Vertical): SwingModifier =
-        this then AlignElement(placements, VerticalAxisAlignment(alignment))
+        this then AlignElement(VerticalAxisAlignment(alignment))
 
-    override fun SwingModifier.fillHeight(): SwingModifier = this then FillElement(placements)
+    override fun SwingModifier.fillHeight(): SwingModifier = this then FillElement
 }

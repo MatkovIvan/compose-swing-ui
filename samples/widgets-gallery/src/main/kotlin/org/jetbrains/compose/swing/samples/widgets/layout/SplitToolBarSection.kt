@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.ToggleButton
+import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.SplitPane
@@ -127,16 +128,20 @@ private fun ColumnScope.ToolBarCard() {
             CheckBox(text = "Rollover", checked = rollover, onCheckedChange = { rollover = it })
         }
         Label("New clicks: $clicks   Bold: ${if (bold) "on" else "off"}   Floating: $floating")
-        ToolBar(
-            orientation = if (vertical) SwingConstants.VERTICAL else SwingConstants.HORIZONTAL,
-            floatable = floatable,
-            floating = floating,
-            onFloatingChange = { floating = it },
-            rollover = rollover,
-        ) {
-            Button("New", onClick = { clicks++ })
-            ToolBarSeparator()
-            ToggleButton(text = "Bold", selected = bold, onSelectedChange = { bold = it })
+        // A bar the user can drag out stands in a BorderPanel, on the edge it faces along.
+        BorderPanel {
+            ToolBar(
+                modifier = if (vertical) SwingModifier.west() else SwingModifier.north(),
+                orientation = if (vertical) SwingConstants.VERTICAL else SwingConstants.HORIZONTAL,
+                floatable = floatable,
+                floating = floating,
+                onFloatingChange = { floating = it },
+                rollover = rollover,
+            ) {
+                Button("New", onClick = { clicks++ })
+                ToolBarSeparator()
+                ToggleButton(text = "Bold", selected = bold, onSelectedChange = { bold = it })
+            }
         }
     }
 }

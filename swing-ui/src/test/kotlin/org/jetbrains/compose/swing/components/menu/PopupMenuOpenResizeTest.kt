@@ -7,10 +7,16 @@ import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
+import org.jetbrains.compose.swing.window.WindowPosition
+import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.window.assertReaches
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
+import java.awt.Point
+import javax.swing.JFrame
 import javax.swing.JPopupMenu
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,14 +38,16 @@ class PopupMenuOpenResizeTest {
     fun anItemAddedWhileTheMenuIsOpenGrowsThePopup() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var captured: JPopupMenu? = null
+        var opened by mutableStateOf(false)
         var extra by mutableStateOf(false)
+        val state = WindowState(position = WindowPosition.Absolute(MENU_WINDOW_X, MENU_WINDOW_Y))
         setContent {
-            Window(onCloseRequest = {}, title = "popup-menu-open-resize-test") {
+            Window(onCloseRequest = {}, state = state, title = "popup-menu-open-resize-test") {
                 val anchor = rememberPopupAnchor()
                 Label("target", modifier = SwingModifier.popupAnchor(anchor))
                 PopupMenu(
                     anchor,
-                    expanded = true,
+                    expanded = opened,
                     display = { popup, invoker, x, y ->
                         captured = popup
                         popup.show(invoker, x, y)
@@ -51,6 +59,18 @@ class PopupMenuOpenResizeTest {
                 }
             }
         }
+        awaitIdle()
+
+        // The menu opens once the window has taken its place. A look and feel may cancel an open menu
+        // when the window under it moves, and a placement is reported on a dispatch of its own that
+        // settling the composition does not wait for, so a menu opened before the window stands still
+        // would be closed before it is ever asked about.
+        val frame = onWindow().fetch<JFrame>()
+        assertReaches(Point(MENU_WINDOW_X, MENU_WINDOW_Y), "the window should take the place it declares") {
+            frame.location
+        }
+
+        opened = true
         awaitIdle()
         val popup = captured ?: error("the menu did not open")
         assertTrue(popup.isShowing, "the menu must be on screen the way the user sees it")
@@ -73,3 +93,6 @@ class PopupMenuOpenResizeTest {
         )
     }
 }
+
+private const val MENU_WINDOW_X = 120
+private const val MENU_WINDOW_Y = 90

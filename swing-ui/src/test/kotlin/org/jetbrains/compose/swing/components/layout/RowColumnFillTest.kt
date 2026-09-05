@@ -260,12 +260,12 @@ class RowColumnFillTest {
 
     @Test
     fun everyRowAndColumnBuilderAppendsToTheChainWithoutRepeatingIt() {
-        with(RowScopeImpl()) {
+        with(RowScopeImpl) {
             assertDeclaredChainCarriedOnce { weight(1f) }
             assertDeclaredChainCarriedOnce { align(Alignment.CenterVertically) }
             assertDeclaredChainCarriedOnce { fillHeight() }
         }
-        with(ColumnScopeImpl()) {
+        with(ColumnScopeImpl) {
             assertDeclaredChainCarriedOnce { weight(1f) }
             assertDeclaredChainCarriedOnce { align(Alignment.CenterHorizontally) }
             assertDeclaredChainCarriedOnce { fillWidth() }

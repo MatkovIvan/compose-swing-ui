@@ -6,9 +6,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
+import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
+import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isSelected
@@ -17,11 +21,14 @@ import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.ButtonGroup
 import javax.swing.DefaultButtonModel
+import javax.swing.JCheckBoxMenuItem
 import javax.swing.JRadioButton
+import javax.swing.JRadioButtonMenuItem
 import javax.swing.JToggleButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -29,8 +36,8 @@ import kotlin.test.assertTrue
 /**
  * Behavioral coverage for the button-group membership a caller declares on buttons it lays out itself.
  * Each test asserts what an observer of the live Swing tree sees: which buttons are one choice, which
- * group a button's model belongs to, and that a button stops taking part in the exclusion once it no
- * longer declares the group.
+ * group a button's model belongs to, that a button stops taking part in the exclusion once it no
+ * longer declares the group, and what a member reports when the user clicks it.
  */
 class ButtonGroupModifierTest {
     @Test
@@ -67,6 +74,277 @@ class ButtonGroupModifierTest {
         onNodeWithText("Large").performClick()
         awaitIdle()
         onAllNodesOfType<JRadioButton>().filterToOne(isSelected()).assertTextEquals("Large")
+    }
+
+    @Test
+    fun aPickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        setContent {
+            val group = remember { ButtonGroup() }
+            Column {
+                RadioButton(
+                    text = "A",
+                    selected = true,
+                    onSelectedChange = {},
+                    modifier = SwingModifier.buttonGroup(group),
+                )
+                RadioButton(
+                    text = "B",
+                    selected = false,
+                    onSelectedChange = {},
+                    modifier = SwingModifier.buttonGroup(group),
+                )
+            }
+        }
+        onNodeWithText("A").assert(isSelected())
+
+        onNodeWithText("B").performClick()
+        awaitIdle()
+
+        // The group clears the member that held the selection without that member being clicked, so
+        // the declaration standing on it is what takes the selection back.
+        onNodeWithText("A").assert(isSelected())
+        onNodeWithText("B").assert(isSelected(false))
+    }
+
+    @Test
+    fun aButtonComposedSelectedTakesTheSelectionAsItJoins() = runComposeSwingTest {
+        var choice by mutableStateOf("A")
+        setContent {
+            val group = remember { ButtonGroup() }
+            Column {
+                RadioButton(
+                    text = "A",
+                    selected = choice == "A",
+                    onSelectedChange = { choice = "A" },
+                    modifier = SwingModifier.buttonGroup(group),
+                )
+                if (choice == "C") {
+                    RadioButton(
+                        text = "C",
+                        selected = true,
+                        onSelectedChange = { choice = "C" },
+                        modifier = SwingModifier.buttonGroup(group),
+                    )
+                }
+            }
+        }
+        onNodeWithText("A").assert(isSelected())
+
+        choice = "C"
+        awaitIdle()
+
+        // A group clears a member that arrives selected while another one still holds the selection, so
+        // what the newcomer declares would be lost the moment it joined.
+        onNodeWithText("C").assert(isSelected())
+        onNodeWithText("A").assert(isSelected(false))
+    }
+
+    @Test
+    fun clickingTheMemberThatHoldsTheSelectionReportsItStillSelected() = runComposeSwingTest {
+        var choice by mutableStateOf("A")
+        val reports = mutableListOf<Pair<String, Boolean>>()
+        setContent {
+            val group = remember { ButtonGroup() }
+            Column {
+                listOf("A", "B").forEach { text ->
+                    RadioButton(
+                        text = text,
+                        selected = choice == text,
+                        onSelectedChange = {
+                            reports += text to it
+                            choice = text
+                        },
+                        modifier = SwingModifier.buttonGroup(group),
+                    )
+                }
+            }
+        }
+
+        onNodeWithText("B").performClick()
+        awaitIdle()
+        assertEquals(
+            listOf("B" to true),
+            reports,
+            "the member the group moves the selection to should report it selected",
+        )
+
+        onNodeWithText("B").performClick()
+        awaitIdle()
+
+        // A group only ever moves its selection, so a click on the member already holding it changes
+        // nothing and Swing fires the activation alone. The button reports that activation with the
+        // selection it stands on, rather than with a clearing the group never made. The member the
+        // group cleared on the first click reports nothing: it was never activated.
+        assertEquals(
+            listOf("B" to true, "B" to true),
+            reports,
+            "the second click on the member holding the selection should report it as still selected",
+        )
+        onNodeWithText("B").assert(isSelected())
+        onNodeWithText("A").assert(isSelected(false))
+    }
+
+    @Test
+    fun aGroupedCheckBoxClickedAgainStaysChecked() = runComposeSwingTest {
+        var choice by mutableStateOf("Metric")
+        val reports = mutableListOf<Pair<String, Boolean>>()
+        setContent {
+            val group = remember { ButtonGroup() }
+            Column {
+                listOf("Metric", "Imperial").forEach { text ->
+                    CheckBox(
+                        text = text,
+                        checked = choice == text,
+                        onCheckedChange = {
+                            reports += text to it
+                            choice = text
+                        },
+                        modifier = SwingModifier.buttonGroup(group),
+                    )
+                }
+            }
+        }
+
+        onNodeWithText("Imperial").performClick()
+        awaitIdle()
+        assertEquals(
+            listOf("Imperial" to true),
+            reports,
+            "the box the group moves the selection to should report it checked",
+        )
+
+        onNodeWithText("Imperial").performClick()
+        awaitIdle()
+
+        // Boxes are independent of one another until a group holds them: in one, a box clicked while
+        // checked has no member to hand the check to, so it stays checked and reports the activation
+        // Swing raises for it.
+        assertEquals(
+            listOf("Imperial" to true, "Imperial" to true),
+            reports,
+            "the second click on the checked box should report it as still checked",
+        )
+        onNodeWithText("Imperial").assert(isSelected())
+        onNodeWithText("Metric").assert(isSelected(false))
+    }
+
+    @Test
+    fun aGroupedCheckBoxMenuItemClickedAgainStaysChecked() = runComposeSwingTest {
+        var choice by mutableStateOf("Metric")
+        val reports = mutableListOf<Pair<String, Boolean>>()
+        val popup =
+            composeMenu {
+                val group = remember { ButtonGroup() }
+                listOf("Metric", "Imperial").forEach { text ->
+                    CheckBoxMenuItem(
+                        text = text,
+                        checked = choice == text,
+                        onCheckedChange = {
+                            reports += text to it
+                            choice = text
+                        },
+                        modifier = SwingModifier.buttonGroup(group),
+                    )
+                }
+            }
+        val imperial = popup.getComponent(1) as JCheckBoxMenuItem
+
+        imperial.doClick()
+        awaitIdle()
+        assertEquals(
+            listOf("Imperial" to true),
+            reports,
+            "the item the group moves the selection to should report it checked",
+        )
+
+        imperial.doClick()
+        awaitIdle()
+
+        assertEquals(
+            listOf("Imperial" to true, "Imperial" to true),
+            reports,
+            "the second click on the checked item should report it as still checked",
+        )
+        assertTrue(imperial.isSelected, "the item holding the selection stays checked")
+        assertFalse((popup.getComponent(0) as JCheckBoxMenuItem).isSelected, "the cleared item stays cleared")
+    }
+
+    @Test
+    fun aGroupedRadioButtonMenuItemClickedAgainStaysSelected() = runComposeSwingTest {
+        var choice by mutableStateOf("Metric")
+        val reports = mutableListOf<Pair<String, Boolean>>()
+        val popup =
+            composeMenu {
+                val group = remember { ButtonGroup() }
+                listOf("Metric", "Imperial").forEach { text ->
+                    RadioButtonMenuItem(
+                        text = text,
+                        selected = choice == text,
+                        onSelectedChange = {
+                            reports += text to it
+                            choice = text
+                        },
+                        modifier = SwingModifier.buttonGroup(group),
+                    )
+                }
+            }
+        val imperial = popup.getComponent(1) as JRadioButtonMenuItem
+
+        imperial.doClick()
+        awaitIdle()
+        assertEquals(
+            listOf("Imperial" to true),
+            reports,
+            "the item the group moves the selection to should report it selected",
+        )
+
+        imperial.doClick()
+        awaitIdle()
+
+        assertEquals(
+            listOf("Imperial" to true, "Imperial" to true),
+            reports,
+            "the second click on the item holding the selection should report it as still selected",
+        )
+        assertTrue(imperial.isSelected, "the item holding the selection stays selected")
+        assertFalse((popup.getComponent(0) as JRadioButtonMenuItem).isSelected, "the cleared item stays cleared")
+    }
+
+    @Test
+    fun aGroupedToggleButtonClickedAgainStaysIn() = runComposeSwingTest {
+        val reports = mutableListOf<Pair<String, Boolean>>()
+        setContent {
+            val group = remember { ButtonGroup() }
+            Column {
+                ToggleButton(
+                    text = "Bold",
+                    selected = true,
+                    onSelectedChange = { reports += "Bold" to it },
+                    modifier = SwingModifier.buttonGroup(group),
+                )
+                ToggleButton(
+                    text = "Italic",
+                    selected = false,
+                    onSelectedChange = { reports += "Italic" to it },
+                    modifier = SwingModifier.buttonGroup(group),
+                )
+            }
+        }
+        onNodeWithText("Bold").assert(isSelected())
+
+        onNodeWithText("Bold").performClick()
+        awaitIdle()
+
+        // Standing alone a toggle button comes out when it is clicked while in; in a group there is no
+        // member for the selection to move to, so the button stays in. Only the button the user
+        // pressed raises an activation, so it alone reports.
+        assertEquals(
+            listOf("Bold" to true),
+            reports,
+            "a click on the toggle button holding the selection should report it as still selected",
+        )
+        onNodeWithText("Bold").assert(isSelected())
+        onNodeWithText("Italic").assert(isSelected(false))
     }
 
     @Test
@@ -200,7 +478,7 @@ class ButtonGroupModifierTest {
         assertEquals(0, group.buttonCount, "the group should be left empty")
         assertNull(
             (toggle.model as DefaultButtonModel).group,
-            "the button must leave the group once the modifier leaves the chain",
+            "the button must leave the group once the membership declaration goes",
         )
     }
 

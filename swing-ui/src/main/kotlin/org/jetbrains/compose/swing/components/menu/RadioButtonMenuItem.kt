@@ -7,11 +7,11 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.node.report
 import java.awt.event.ActionListener
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
@@ -26,7 +26,7 @@ import javax.swing.KeyStroke
  *
  * @param text the text of the menu item
  * @param selected whether the menu item is selected
- * @param onSelectedChange callback invoked with the new selected state when the item is activated
+ * @param onSelectedChange callback invoked with the selected state when the item is activated
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
@@ -45,7 +45,7 @@ public fun RadioButtonMenuItem(
         text = text,
         modifier =
             modifier.actionListener<JRadioButtonMenuItem> {
-                mirror.report(isSelected, onSelectedChange)
+                mirror.report { onSelectedChange(isSelected) }
             },
         selected = selected,
         accelerator = accelerator,
@@ -78,9 +78,7 @@ public fun RadioButtonMenuItem(
     RadioButtonMenuItemNode(
         text = text,
         modifier =
-            modifier
-                .actionListener(actionListener)
-                .itemListener<JRadioButtonMenuItem> { mirror.observed(isSelected) },
+            modifier.actionListener(actionListener),
         selected = selected,
         accelerator = accelerator,
         mirror = mirror,
@@ -108,6 +106,7 @@ private inline fun RadioButtonMenuItemNode(
         modifier = modifier,
         update = {
             set(text) { this.text = it }
+            init { addItemListener { mirror.observed(isSelected) } }
             declare(selected, mirror, JRadioButtonMenuItem::isSelected, JRadioButtonMenuItem::setSelected)
             set(accelerator) { this.accelerator = it }
         },
