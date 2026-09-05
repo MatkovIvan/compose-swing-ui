@@ -34,12 +34,6 @@ internal class PropertyNode<T : Component, V>(
     // The bean property whose announcement means the declaration was overwritten, where one names it.
     private val reapplyOn: String? = (interference as? PropertyInterference.OverwrittenOn)?.announcedBy
 
-    /**
-     * The chain's captures, injected before [onAttach] the way [component] is. A node built outside the
-     * chain machinery holds none, which [onAttach] refuses rather than capturing nothing.
-     */
-    internal var captures: PropertyCaptures? = null
-
     private var declared: PropertyCaptures.Hold? = null
 
     /** This slot's holds on the properties [write] overwrites besides the one it declares. */
@@ -50,7 +44,10 @@ internal class PropertyNode<T : Component, V>(
 
     override fun onAttach() {
         val component = component
-        val captures = checkNotNull(captures) { "A property node is attached by the chain it belongs to" }
+        // A node built outside the chain machinery holds no state, which this refuses rather than
+        // capturing nothing.
+        val state = checkNotNull(modifierState) { "A property node is attached by the chain it belongs to" }
+        val captures = state.captures()
         declared = captures.hold(slot, component, read, write)
         overwritten =
             (interference as? PropertyInterference.AlsoOverwrites<T, *>)?.hold(captures, component).orEmpty()
@@ -108,6 +105,12 @@ internal open class PropertyElement<T : Component, V>(
 
     override val declaredValues: Map<String, Any?> get() = mapOf(name to value)
 
+    override val heldProperties: Set<String>
+        get() {
+            val alsoOverwrites = interference as? PropertyInterference.AlsoOverwrites<T, *> ?: return setOf(name)
+            return setOf(name) + alsoOverwrites.names()
+        }
+
     final override fun create(): PropertyNode<T, V> = PropertyNode(key, read, write, interference)
 
     final override fun update(node: PropertyNode<T, V>) {
@@ -146,7 +149,8 @@ internal open class PropertyElement<T : Component, V>(
  * `noinline` - they are stored in the node, not invoked at the call site. [name] is the Swing property
  * being written, which is what an error about the element and a tool showing the chain both name it by.
  *
- * [interference] is fixed per builder, so it takes no part in equality. See [PropertyInterference].
+ * [interference] is fixed per builder, so it takes no part in equality. See [PropertyInterference]. A
+ * property the component works out again for itself is built with [derivedPropertyElement] instead.
  */
 internal inline fun <reified T : Component, V> propertyElement(
     name: String,
@@ -156,6 +160,55 @@ internal inline fun <reified T : Component, V> propertyElement(
     interference: PropertyInterference<T>? = null,
 ): SwingModifier.NodeElement<T, PropertyNode<T, V>> =
     PropertyElement(T::class.java, name, value, read, write, interference)
+
+/**
+ * Builds a [propertyElement] for a property the component works out again for itself - a button's
+ * opaque flag following its fill, an alignment a layout derives from the children standing then, an
+ * accessible name a context falls back to the widget's own text for. [read] answers `null` where the
+ * component holds none of its own, and removing the declaration writes that `null`, which resolves to
+ * whatever derives the property at that moment.
+ *
+ * The fill, the children or the text the property is worked out from may have moved since attach, so
+ * the element [restores][SwingModifier.NodeElement.restores] [RestorePolicy.None]: nothing comparing the
+ * value read at attach with the one standing now can work the derivation out.
+ */
+internal inline fun <reified T : Component, V> derivedPropertyElement(
+    name: String,
+    value: V,
+    noinline read: (component: T) -> V,
+    noinline write: (component: T, value: V) -> Unit,
+    interference: PropertyInterference<T>? = null,
+): SwingModifier.NodeElement<T, PropertyNode<T, V>> =
+    DerivedPropertyElement(T::class.java, name, value, read, write, interference)
+
+/** The element [derivedPropertyElement] builds, which is a [PropertyElement] that puts nothing back. */
+internal class DerivedPropertyElement<T : Component, V>(
+    targetType: Class<T>,
+    name: String,
+    value: V,
+    read: (component: T) -> V,
+    write: (component: T, value: V) -> Unit,
+    interference: PropertyInterference<T>? = null,
+) : PropertyElement<T, V>(targetType, name, value, read, write, interference) {
+    override val restores: RestorePolicy get() = RestorePolicy.None
+}
+
+/**
+ * A [PropertyElement] that puts back the property it declares and leaves what a look and feel works out
+ * from that write. Its own class rather than a field on [PropertyElement], so a pass that changes what a
+ * property undertakes hands the slot an element the slot's node was not built for, and the slot restores
+ * and is built again instead of quietly changing its word.
+ */
+internal class DeclaredOnlyPropertyElement<T : Component, V>(
+    targetType: Class<T>,
+    name: String,
+    value: V,
+    read: (component: T) -> V,
+    write: (component: T, value: V) -> Unit,
+    interference: PropertyInterference<T>? = null,
+) : PropertyElement<T, V>(targetType, name, value, read, write, interference) {
+    override val restores: RestorePolicy get() = RestorePolicy.DeclaredPropertyOnly
+}
 
 /**
  * Two property writes reaching each other, and what the slot does about it. A property nothing else
@@ -184,6 +237,11 @@ internal sealed interface PropertyInterference<T : Component> {
      * This slot's write lands on [properties] as well as on the one it declares, because the setter
      * writes them too. A coarse geometry names each axis it covers, and filling a button's content
      * area names the opaque flag its setter keeps in step with it.
+     *
+     * A property a look and feel works out from the write is not one of these. What one look and feel
+     * derives is not what another does, so no list of names can be complete; an element whose write may
+     * provoke a derivation [restores][SwingModifier.NodeElement.restores]
+     * [RestorePolicy.DeclaredPropertyOnly] instead.
      */
     class AlsoOverwrites<T : Component, S>(
         private vararg val properties: PropertyAccessors<T, S>,
@@ -198,6 +256,9 @@ internal sealed interface PropertyInterference<T : Component> {
             component: T,
         ): List<PropertyCaptures.Hold> =
             properties.map { captures.hold(it.write.javaClass, component, it.read, it.write) }
+
+        /** What each of [properties] is named, for a caller that has to be told what the slot holds. */
+        fun names(): Set<String> = properties.mapTo(LinkedHashSet()) { it.name }
     }
 }
 
@@ -210,6 +271,7 @@ internal sealed interface PropertyInterference<T : Component> {
  * widget built on it, so a slot targeting a narrower widget can name that same property.
  */
 internal class PropertyAccessors<in T : Component, V>(
+    val name: String,
     val read: (component: T) -> V,
     val write: (component: T, value: V) -> Unit,
 )

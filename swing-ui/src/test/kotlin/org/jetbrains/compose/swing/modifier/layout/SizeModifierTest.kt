@@ -49,6 +49,16 @@ class SizeModifierTest {
     }
 
     @Test
+    fun theSizeDeclarationNamesEachAxisItsWriteCovers() {
+        val held =
+            SwingModifier.size(120, 40).foldIn(emptySet<String>()) { names, element ->
+                names + (element as SwingModifier.NodeElement<*, *>).heldProperties
+            }
+
+        assertEquals(setOf("size", "width", "height"), held, "one write, every axis it lands on named")
+    }
+
+    @Test
     fun widthSetsTheWidthKeepingHeight() = runComposeSwingTest {
         // Establish a known height first, then narrow the width: the height must survive.
         val child = sizedChild(SwingModifier.size(50, 33).width(150))
@@ -79,7 +89,7 @@ class SizeModifierTest {
     @Test
     fun sizeAfterWidthWinsTheWidthAxis() = runComposeSwingTest {
         val child = sizedChild(SwingModifier.width(10).size(20, 30))
-        // size is applied later in the chain, so its width wins over the earlier width(10).
+        // size is applied later in the modifier chain, so its width wins over the earlier width(10).
         assertEquals(Dimension(20, 30), child.size, "later size wins the width axis")
     }
 
@@ -92,7 +102,7 @@ class SizeModifierTest {
 
     @Test
     fun droppingAWholeSizeAndThenAnAxisLeavesTheChildWhereItStood() = runComposeSwingTest {
-        // The axis slot joins the chain over a width the size slot has already written, so what it puts
+        // The axis slot joins the modifier over a width the size slot has already written, so what it puts
         // back has to be the width the child came with rather than the one it read on the way in.
         var declared by mutableStateOf(0)
         setContent {
@@ -143,7 +153,7 @@ class SizeModifierTest {
 
         sized = false
         awaitIdle()
-        // The size modifier left the chain, so the component returns to the size it had before it.
+        // The size declaration is gone, so the component returns to the size it had before it.
         val restored = onNodeOfType<JLabel>().fetch()
         assertEquals(
             Dimension(0, 0),

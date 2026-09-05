@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.modifier.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SlotAttachment
-import java.awt.Component
 
 /**
  * Places the component in its parent container under [constraint] - the value
@@ -70,49 +69,41 @@ public fun SwingModifier.slot(
 ): SwingModifier = this then SlotElement(name, attachment)
 
 /**
- * A modifier element declaring where the node is attached in its parent, rather than a property of the
- * component. [org.jetbrains.compose.swing.modifier.applyModifier] takes it off the modifier and writes it
- * onto the node holder before the element diff runs, so it never reaches a [SwingModifier.Node] and its
- * [create] and [update] are unreachable.
+ * An entry declaring where the node is attached in its parent, rather than a property of the component.
+ * The walk over a modifier takes it off for the node holder, which writes it onto the node before the
+ * element diff runs, so it carries no [SwingModifier.Node] of its own.
  *
- * A placement is keyed like any other property element, so the modifier walk resolves last-wins for it and a
- * constraint and a slot occupy separate slots. Each subtype keeps the default key of its own class, so
- * declaring the same one twice keeps the later. [removeSlot] finds its element by that key;
- * [removeLayoutConstraint] takes every [ConstraintElement] instead, whatever key each carries, since the
- * parts of one constraint are declared under keys of their own and fold together.
+ * The walk resolves the last of each kind: a slot keeps the one declared last, and the constraint
+ * elements fold together, since the parts of one constraint are declared one at a time.
  */
-internal abstract class PlacementElement : SwingModifier.NodeElement<Component, SwingModifier.Node<Component>>() {
-    override val targetType: Class<Component> get() = Component::class.java
-
-    override fun create(): Nothing = placementHasNoNode()
-
-    override fun update(node: SwingModifier.Node<Component>): Nothing = placementHasNoNode()
-}
+internal interface PlacementElement :
+    SwingModifier.Element,
+    SwingModifier.InspectableElement
 
 /**
  * A modifier element declaring the constraint the node's parent registers its component under. A modifier
  * declares one: the [constraint] a caller names outright, or the one a container's own scope builds from
  * what the child declares to it.
  */
-internal abstract class ConstraintElement : PlacementElement() {
+internal interface ConstraintElement : PlacementElement {
     /**
      * Folds what this element declares into [carried] - what the modifier has declared before it - and
      * answers the constraint standing after it. The modifier is folded in declaration order, so an element
      * that states the whole constraint replaces what came before and one that states a part adds to it.
      */
-    abstract fun foldInto(carried: Any?): Any
+    fun foldInto(carried: Any?): Any
 
     /**
      * Whether this element states the whole constraint rather than a part of it. A modifier mixing the two
      * declares a placement in a parent that holds its children the other way, and is refused.
      */
-    open val statesWholeConstraint: Boolean get() = false
+    val statesWholeConstraint: Boolean get() = false
 }
 
 /** The layout constraint a caller names outright, through [layoutConstraint]. */
 internal data class LayoutConstraintElement(
     val constraint: Any,
-) : ConstraintElement() {
+) : ConstraintElement {
     override val name: String get() = "layoutConstraint"
 
     override val declaredValues: Map<String, Any?> get() = mapOf("constraint" to constraint)
@@ -139,7 +130,7 @@ internal data class LayoutConstraintElement(
 internal class SlotElement(
     val regionName: String,
     val attachment: SlotAttachment,
-) : PlacementElement() {
+) : PlacementElement {
     override val name: String get() = "slot"
 
     override val declaredValues: Map<String, Any?> get() = mapOf("region" to regionName)
@@ -151,45 +142,14 @@ internal class SlotElement(
 }
 
 /**
- * Takes the layout constraint this partitioned modifier declares off it, leaving behind only the elements
- * the diff has nodes for. `null` where the modifier declares none, which is what puts a node that has given
- * up its constraint back to placement by index.
- *
- * The elements declaring it are folded into the one value the component is registered under.
- */
-internal fun MutableMap<Any, SwingModifier.NodeElement<*, *>>.removeLayoutConstraint(): Any? {
-    var carried: Any? = null
-    var whole = false
-    var part = false
-    val entries = entries.iterator()
-    while (entries.hasNext()) {
-        val element = entries.next().value as? ConstraintElement ?: continue
-        entries.remove()
-        if (element.statesWholeConstraint) whole = true else part = true
-        carried = element.foldInto(carried)
-    }
-    // Walked and folded in place: a modifier declaring no constraint is the common one, and it leaves here
-    // having allocated nothing.
-    require(!(whole && part)) { twoKindsOfConstraint() }
-    return carried
-}
-
-/**
  * Why a modifier naming a constraint outright as well as declaring one to a container's own scope is
  * refused.
  */
-private fun twoKindsOfConstraint(): String =
+internal fun twoKindsOfConstraint(): String =
     "A parent registers a child under one layout constraint, and this modifier declares two kinds: one " +
         "named with layoutConstraint(), and one declared to the container's own scope - weight(), " +
         "align() or a cross-axis fill. Declare the one the enclosing container places its children by, " +
         "and drop the other."
-
-/**
- * Takes the host slot this partitioned modifier declares off it, the way [removeLayoutConstraint] does,
- * naming the region as well as the attachment that fills it.
- */
-internal fun MutableMap<Any, SwingModifier.NodeElement<*, *>>.removeSlot(): SlotElement? =
-    remove(SlotElement::class.java) as? SlotElement
 
 /**
  * Refuses a modifier declaring both kinds of placement, before either is written onto the node. A parent
@@ -208,9 +168,3 @@ internal fun checkOnePlacement(
             "Declare the one the enclosing container holds its children by, and drop the other."
     }
 }
-
-private fun placementHasNoNode(): Nothing =
-    error(
-        "A placement is consumed by the node holder, which takes it off the modifier and writes it onto the " +
-            "node before the element diff runs, so it never becomes a modifier node.",
-    )

@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.modifier.accessibility
 
 import org.jetbrains.compose.swing.modifier.MultiTargetProperty
 import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyCase
 import java.awt.event.KeyEvent
@@ -28,7 +29,7 @@ import javax.swing.JLabel
  * a character mnemonic resolves to.
  *
  * @param keyCode the `KeyEvent.VK_*` code of the key that activates the component.
- * @return this chain with the mnemonic declared on it.
+ * @return this modifier with the mnemonic declared on it.
  * @see javax.swing.AbstractButton.setMnemonic
  * @see javax.swing.JLabel.setDisplayedMnemonic
  */
@@ -41,7 +42,7 @@ public fun SwingModifier.mnemonic(keyCode: Int): SwingModifier =
  * appears on no known keyboard layout resolves to `KeyEvent.VK_UNDEFINED`, declaring no mnemonic.
  *
  * @param mnemonic the character to use as the mnemonic.
- * @return this chain with the mnemonic declared on it.
+ * @return this modifier with the mnemonic declared on it.
  * @see javax.swing.AbstractButton.setMnemonic
  * @see javax.swing.JLabel.setDisplayedMnemonic
  */
@@ -55,16 +56,15 @@ public fun SwingModifier.mnemonic(mnemonic: Char): SwingModifier =
  *
  * A widget derives the index again from its text and its mnemonic whenever either is written, and every
  * pass writes this declaration back over what it derived. Declare it after the [mnemonic], since a later
- * element in the chain is applied last.
+ * element in the modifier chain is applied last. Removing it leaves the index the widget derives for the text
+ * and mnemonic that stand.
  *
  * Throws when [index] is below `-1` or beyond the end of the text, as Swing does - including where a
  * shortened text is what leaves the declared index past its end.
  *
- * Dropping this leaves the index the widget derives for the text and mnemonic that stand.
- *
  * @param index the zero-based index into the text of the character to underline, or `-1` to underline
  *   none of them.
- * @return this chain with the underlined index declared on it.
+ * @return this modifier with the underlined index declared on it.
  * @see javax.swing.AbstractButton.setDisplayedMnemonicIndex
  * @see javax.swing.JLabel.setDisplayedMnemonicIndex
  */
@@ -91,10 +91,8 @@ private val MnemonicProperty =
 /**
  * The same pair of targets as [MnemonicProperty], here under a name both of them share.
  *
- * Neither widget holds an index of its own: each derives one from its text and its mnemonic on every
- * `setText`, and again on every mnemonic write. The read therefore answers `null` - none of its own -
- * and writing `null` hands the text back to the widget, whose own derivation is what a widget that never
- * carried the modifier holds.
+ * Neither widget holds an index of its own, so the read answers `null`. Writing `null` hands the text
+ * back to the widget, which derives the index a widget that never carried the modifier holds.
  */
 private val DisplayedMnemonicIndexProperty =
     MultiTargetProperty<Int?>(
@@ -120,13 +118,15 @@ private val DisplayedMnemonicIndexProperty =
  * be written back over what the widget derived, so the element is equal only to itself.
  *
  * Both widgets announce the derived index, but a listener answering that announcement would write from
- * inside `setText`, against text the pass has already installed and the declared index it is carrying
- * may no longer reach - including on the pass that shortens the text and withdraws the declaration
- * together. Writing on the pass instead puts the index in after the text it indexes into.
+ * inside `setText`, against text the pass has already installed that the declared index may no longer
+ * reach - including on the pass that shortens the text and withdraws the declaration together. Writing
+ * on the pass instead puts the index in after the text it indexes into.
  */
 private class DisplayedMnemonicIndexElement(
     index: Int,
 ) : MultiTargetPropertyElement<Int?>(DisplayedMnemonicIndexProperty, index) {
+    override val restores: RestorePolicy get() = RestorePolicy.None
+
     override fun equals(other: Any?): Boolean = this === other
 
     override fun hashCode(): Int = System.identityHashCode(this)

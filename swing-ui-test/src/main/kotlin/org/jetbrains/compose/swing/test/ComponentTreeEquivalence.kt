@@ -86,14 +86,16 @@ internal fun assertComponentTreesEquivalent(
  *
  * [read] is handed a component [type] has already accepted, which is what makes its cast safe.
  */
-private class WidgetState(
+internal class WidgetState(
     private val type: Class<*>,
     val property: ComparedProperty,
 ) {
+    fun appliesTo(component: Component): Boolean = type.isInstance(component)
+
     fun appliesTo(
         expected: Component,
         actual: Component,
-    ): Boolean = type.isInstance(expected) && type.isInstance(actual)
+    ): Boolean = appliesTo(expected) && appliesTo(actual)
 }
 
 @Suppress("UNCHECKED_CAST")
@@ -388,7 +390,7 @@ private class Divergence(
 )
 
 /** A property both trees are compared on, as the name it is reported under and how it is read. */
-private class ComparedProperty(
+internal class ComparedProperty(
     val name: String,
     val read: (Component) -> Any?,
 )
@@ -401,9 +403,12 @@ private class ComparedProperty(
  * child count, and so the walk only pairs children up once both nodes have as many.
  */
 private fun comparedProperties(placement: ComparedProperty): List<ComparedProperty> =
+    listOf(ComparedProperty("type") { it.javaClass }, placement) + HELD_PROPERTIES +
+        ComparedProperty("children") { it.comparedChildren().size }
+
+/** What is compared at every node but the type it is and the children it holds. */
+private val HELD_PROPERTIES: List<ComparedProperty> =
     listOf(
-        ComparedProperty("type") { it.javaClass },
-        placement,
         ComparedProperty("visible") { it.isVisible },
         ComparedProperty("enabled") { it.isEnabled },
         ComparedProperty("opaque") { (it as? JComponent)?.isOpaque },
@@ -414,7 +419,28 @@ private fun comparedProperties(placement: ComparedProperty): List<ComparedProper
         ComparedProperty("border") { (it as? JComponent)?.border?.javaClass },
         ComparedProperty("layout") { (it as? Container)?.layout?.javaClass },
         ComparedProperty("text") { it.textOrNull() },
-        ComparedProperty("children") { it.comparedChildren().size },
+    )
+
+/**
+ * Every property [component] alone is read on, for a caller comparing one component against itself at
+ * two moments rather than two components against each other.
+ *
+ * The type it is and the children it holds are left out: neither is a property a declaration writes.
+ */
+internal fun comparedPropertiesOf(component: Component): List<ComparedProperty> =
+    PLACEMENT_AXES + HELD_PROPERTIES + WIDGET_STATE.filter { it.appliesTo(component) }.map { it.property }
+
+/**
+ * Where a component stands, axis by axis rather than as the one rectangle a tree comparison reports:
+ * a caller watching one component over time watches writes that reach a single axis, and a layout pass
+ * between two of its reads moves the axes it is not watching.
+ */
+private val PLACEMENT_AXES: List<ComparedProperty> =
+    listOf(
+        ComparedProperty("x") { it.x },
+        ComparedProperty("y") { it.y },
+        ComparedProperty("width") { it.width },
+        ComparedProperty("height") { it.height },
     )
 
 /** A component's bounds are relative to its parent, which is what makes them comparable below the root. */
@@ -514,13 +540,21 @@ private val Class<*>.shortName: String
     get() = simpleName.ifEmpty { name.substringAfterLast('.') }
 
 /**
- * The key strokes bound on this component itself, under the two conditions a binding is read without
- * building anything: asking for the window-wide map registers the component with the keyboard manager.
+ * The key strokes bound on this component, each under the condition it fires on, one entry per input
+ * map binding it.
+ *
+ * Read through the two accessors that answer from the input maps a component already holds: asking a
+ * component for an input map builds and installs one where it has none, and a caller reading around a
+ * write must leave the component as the write found it.
+ *
+ * The condition a stroke is labeled with is the lowest one it is bound under, because that is what
+ * those accessors answer. A stroke bound under one condition alone is therefore named exactly, and a
+ * stroke bound under several is named by how many maps bind it and by the lowest of them - so two
+ * components binding one stroke under the same lowest condition and different higher ones read alike.
+ * Naming the higher ones needs a per-condition read the component offers no public accessor for.
  */
 private fun JComponent.boundKeyStrokes(): List<String> =
-    listOf(JComponent.WHEN_FOCUSED, JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-        .flatMap { condition -> getInputMap(condition)?.keys()?.map { "$condition:$it" }.orEmpty() }
-        .sorted()
+    registeredKeyStrokes.map { "${getConditionForKeyStroke(it)}:$it" }.sorted()
 
 /**
  * Which of the slots a scroll pane holds a component in are filled. The components themselves are

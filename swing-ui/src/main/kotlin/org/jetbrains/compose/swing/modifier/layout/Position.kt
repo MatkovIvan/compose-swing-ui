@@ -19,7 +19,7 @@ import java.awt.Rectangle
  * @param y the top edge in pixels, measured down from that origin.
  * @param width the width in pixels, measured right from [x].
  * @param height the height in pixels, measured down from [y].
- * @return this chain with the bounds declared on it.
+ * @return this modifier with the bounds declared on it.
  * @see java.awt.Component.setBounds
  */
 public fun SwingModifier.bounds(
@@ -44,14 +44,14 @@ public fun SwingModifier.bounds(
  * by themselves - those in a null layout or a `JLayeredPane`.
  *
  * [x], [y], and [location] each read-modify-write the live location, so they compose per axis with the
- * later call in the chain winning that axis: `x(10).y(20)` yields (10, 20), `x(10)` and `y(20)`
+ * later call in the modifier chain winning that axis: `x(10).y(20)` yields (10, 20), `x(10)` and `y(20)`
  * combining; `x(10).location(20, 30)` yields (20, 30) (the later [location] wins the x axis);
  * `location(20, 30).x(10)` yields (10, 30) (the later [x] wins the x axis, the y axis stays from
  * [location]).
  *
  * @param x the left edge in pixels, in the parent's coordinate space, whose origin is its top-left corner.
  * @param y the top edge in pixels, measured down from that origin.
- * @return this chain with the location declared on it.
+ * @return this modifier with the location declared on it.
  * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.location(
@@ -67,7 +67,7 @@ public fun SwingModifier.location(
  * @param point the top-left corner in the parent's coordinate space. It is compared against the location
  *   applied last, so mutating the same `Point` and declaring it again moves nothing; declare a
  *   fresh instance instead.
- * @return this chain with the location declared on it.
+ * @return this modifier with the location declared on it.
  * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.location(point: Point): SwingModifier =
@@ -88,13 +88,13 @@ public fun SwingModifier.location(point: Point): SwingModifier =
  * @param value the left edge in pixels, in the parent's coordinate space; the y coordinate written with it
  *   is the one the component holds when the write runs - whatever the last declaration or layout pass left
  *   there.
- * @return this chain with the x position declared on it.
+ * @return this modifier with the x position declared on it.
  * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.x(value: Int): SwingModifier =
     this then
         propertyElement<Component, Int>(
-            name = "x",
+            name = XProperty.name,
             value = value,
             read = XProperty.read,
             write = XProperty.write,
@@ -108,13 +108,13 @@ public fun SwingModifier.x(value: Int): SwingModifier =
  * @param value the top edge in pixels, in the parent's coordinate space; the x coordinate written with it
  *   is the one the component holds when the write runs - whatever the last declaration or layout pass left
  *   there.
- * @return this chain with the y position declared on it.
+ * @return this modifier with the y position declared on it.
  * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.y(value: Int): SwingModifier =
     this then
         propertyElement<Component, Int>(
-            name = "y",
+            name = YProperty.name,
             value = value,
             read = YProperty.read,
             write = YProperty.write,
@@ -122,11 +122,11 @@ public fun SwingModifier.y(value: Int): SwingModifier =
 
 /**
  * The horizontal axis's own accessors, so the [x] declaration and every coarser write that covers the
- * axis - a whole location, a whole geometry - name one property. The other coordinate written with it
- * is the one the component holds, which leaves that axis where it stands.
+ * axis - a whole location, a whole geometry - name one property.
  */
 internal val XProperty =
     PropertyAccessors<Component, Int>(
+        name = "x",
         read = { it.x },
         write = { component, value -> component.setLocation(value, component.y) },
     )
@@ -134,6 +134,7 @@ internal val XProperty =
 /** The vertical axis's own accessors, as [XProperty] is the horizontal one's. */
 internal val YProperty =
     PropertyAccessors<Component, Int>(
+        name = "y",
         read = { it.y },
         write = { component, value -> component.setLocation(component.x, value) },
     )

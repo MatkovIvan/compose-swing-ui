@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -7,8 +8,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Unit tests for the debug-only child-index-space walk `SwingApplier` schedules under
- * `debugValidateChildIndexSpace`. Each test builds a small [SwingNodeHolder] graph by hand - no
+ * Unit tests for the debug-only child-index-space walk `SwingApplier` schedules for a composition whose
+ * owner names [SwingCompositionDiagnostics]. Each test builds a small [SwingNodeHolder] graph by hand - no
  * [org.jetbrains.compose.swing.node.SwingApplier], composition, or EDT involved - and calls
  * `checkChildIndexSpace()` directly on its outermost holder, standing in for the applier's own root.
  *

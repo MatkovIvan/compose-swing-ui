@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 
 /**
  * What one composition owns and every node under it shares.
@@ -42,6 +43,12 @@ internal interface SwingCompositionOwner {
      * has attached a node's children is handed over - see [SwingNodeHolder.childSettle].
      */
     val updateBatch: ComponentUpdateBatch
+
+    /**
+     * The debug-only checks this composition is held to, or `null` where nothing installed any. See
+     * [SwingCompositionDiagnostics].
+     */
+    val diagnostics: SwingCompositionDiagnostics?
 }
 
 /**

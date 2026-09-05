@@ -30,15 +30,16 @@ public sealed interface SwingComponentNode {
 
     /**
      * The modifier chain the composition last declared for [component], and [SwingModifier] itself where
-     * it declared none. Walk it with [SwingModifier.foldIn], and read each element's
-     * [name][SwingModifier.NodeElement.name] and
-     * [declaredValues][SwingModifier.NodeElement.declaredValues] to show what the component carries.
+     * it declared none. Walk it with [SwingModifier.foldIn], which hands out a [SwingModifier.Element];
+     * read the [name][SwingModifier.InspectableElement.name] and
+     * [declaredValues][SwingModifier.InspectableElement.declaredValues] of each one that is a
+     * [SwingModifier.InspectableElement] to show what the component carries.
      *
-     * It is the whole declared chain, placement included: an element saying where the component sits in
+     * It is the whole declared modifier chain, placement included: an element saying where the component sits in
      * its parent stands in it alongside the ones saying what it looks like.
      *
      * It answers whatever the composition declared last, whether or not the pass that declared it had
-     * anything to write, so it never lags the composition. Every node holds its chain whatever
+     * anything to write, so it never lags the composition. Every node holds its modifier whatever
      * [org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled] says; what that switch decides is
      * whether a tool can reach the node at all.
      */

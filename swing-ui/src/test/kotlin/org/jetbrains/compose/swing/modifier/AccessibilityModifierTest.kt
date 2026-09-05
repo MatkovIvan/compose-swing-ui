@@ -142,7 +142,7 @@ class AccessibilityModifierTest {
 
         // A context answers a name it was set and, where it was set none, one it derives - and cannot be
         // asked which. A name the widget was built carrying is the widget's own, so it is put back rather
-        // than handed over to the derivation the widget never stood on.
+        // than left to the derivation.
         named = false
         awaitIdle()
         assertEquals(
@@ -519,6 +519,32 @@ class AccessibilityModifierTest {
             -1,
             button.fetch().displayedMnemonicIndex,
             "removing the modifier should leave the underline Swing derives for the text that stands",
+        )
+    }
+
+    @Test
+    fun droppingTheDisplayedIndexAfterTheMnemonicWasSetDirectlyDoesNotTripTheRestoreCheck() = runComposeSwingTest {
+        var declared by mutableStateOf(true)
+        setContent {
+            Button(
+                "Save As",
+                onClick = { },
+                modifier = if (declared) SwingModifier.displayedMnemonicIndex(5) else SwingModifier,
+            )
+        }
+        val button = onNodeOfType<JButton>().fetch()
+        assertEquals(5, button.displayedMnemonicIndex, "the declared index names the second occurrence")
+
+        // Set on the raw button rather than through the mnemonic() modifier, so the declaration carries
+        // no other slot that also derives displayedMnemonicIndex - the shape the modifier restore check
+        // finds nothing to flag under.
+        button.mnemonic = KeyEvent.VK_A
+        declared = false
+        awaitIdle()
+        assertEquals(
+            1,
+            button.displayedMnemonicIndex,
+            "dropping the index should leave the underline the widget derives for the mnemonic that stands",
         )
     }
 

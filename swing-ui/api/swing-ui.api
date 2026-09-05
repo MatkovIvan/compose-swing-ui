@@ -571,6 +571,28 @@ public final class org/jetbrains/compose/swing/core/ComponentRecomposerKt {
 	public static final fun findRecomposer (Ljava/awt/Component;)Landroidx/compose/runtime/Recomposer;
 }
 
+public final class org/jetbrains/compose/swing/modifier/RestorePolicy {
+	public static final field Companion Lorg/jetbrains/compose/swing/modifier/RestorePolicy$Companion;
+	public static final synthetic fun box-impl (I)Lorg/jetbrains/compose/swing/modifier/RestorePolicy;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (ILjava/lang/Object;)Z
+	public static final fun equals-impl0 (II)Z
+	public static final fun getDeclaredPropertyOnly-sp8GJzU ()I
+	public static final fun getEverythingWritten-sp8GJzU ()I
+	public static final fun getNone-sp8GJzU ()I
+	public fun hashCode ()I
+	public static fun hashCode-impl (I)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (I)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()I
+}
+
+public final class org/jetbrains/compose/swing/modifier/RestorePolicy$Companion {
+	public final fun getDeclaredPropertyOnly-sp8GJzU ()I
+	public final fun getEverythingWritten-sp8GJzU ()I
+	public final fun getNone-sp8GJzU ()I
+}
+
 public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier {
 	public static final field Companion Lorg/jetbrains/compose/swing/modifier/SwingModifier$Companion;
 	public abstract fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
@@ -582,6 +604,15 @@ public final class org/jetbrains/compose/swing/modifier/SwingModifier$Companion 
 	public fun then (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
+public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier$Element : org/jetbrains/compose/swing/modifier/SwingModifier {
+	public fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
+}
+
+public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier$InspectableElement {
+	public fun getDeclaredValues ()Ljava/util/Map;
+	public fun getName ()Ljava/lang/String;
+}
+
 public class org/jetbrains/compose/swing/modifier/SwingModifier$Node {
 	public static final field $stable I
 	public fun <init> ()V
@@ -590,7 +621,7 @@ public class org/jetbrains/compose/swing/modifier/SwingModifier$Node {
 	public fun onDetach ()V
 }
 
-public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeElement : org/jetbrains/compose/swing/modifier/SwingModifier {
+public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeElement : org/jetbrains/compose/swing/modifier/SwingModifier$Element, org/jetbrains/compose/swing/modifier/SwingModifier$InspectableElement {
 	public static final field $stable I
 	public fun <init> ()V
 	public abstract fun create ()Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;
@@ -598,8 +629,10 @@ public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeEle
 	public final fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
 	public fun getAdditive ()Z
 	public fun getDeclaredValues ()Ljava/util/Map;
+	public fun getHeldProperties ()Ljava/util/Set;
 	public fun getKey ()Ljava/lang/Object;
 	public fun getName ()Ljava/lang/String;
+	public fun getRestores-sp8GJzU ()I
 	public abstract fun getTargetType ()Ljava/lang/Class;
 	public abstract fun hashCode ()I
 	public abstract fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)V
@@ -607,6 +640,7 @@ public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeEle
 
 public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {
 	public static final fun applyModifier-pWFREzI (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)V
+	public static final fun key (Lorg/jetbrains/compose/swing/modifier/SwingModifier;[Ljava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/modifier/accessibility/AccessibilityModifierKt {

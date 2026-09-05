@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.DocumentMirror
 import org.jetbrains.compose.swing.modifier.listener.attachSettlingDocumentListener
@@ -20,14 +21,14 @@ import javax.swing.text.JTextComponent
  * The declared ranges are the whole of this modifier's markup: a pass replaces the marks the previous
  * declaration left rather than adding to them, so a range that leaves [ranges] stops being painted and
  * the component ends every pass carrying exactly what was declared. Marks made outside this
- * declaration - the caret's own selection, or another chain's - are left where they are, and removing
+ * declaration - the caret's own selection, or another modifier's - are left where they are, and removing
  * the declaration takes only this one's marks away.
  *
  * A range is painted as the span between its two offsets, whichever way round they are, clamped to the
  * document the way a selection is; a range beyond the text paints as far as the text goes.
  *
  * The offsets are the declaration itself, not where a mark starts out: an edit under a mark - the
- * user's own typing, or a change to the text the composition declares - leaves the range painted where
+ * user's typing, or a change to the text the composition declares - leaves the range painted where
  * [ranges] puts it. A span that should move with the edit is declared at its new offsets.
  *
  * The painter is compared by identity, so one built inline is a new painter on every recomposition and
@@ -43,10 +44,10 @@ import javax.swing.text.JTextComponent
  *
  * Requires a [JTextComponent] target.
  *
- * @param ranges the spans to mark, as offsets into the document. They are read as the chain is built, so a
+ * @param ranges the spans to mark, as offsets into the document. They are read as the modifier is built, so a
  *   snapshot list mutated in place invalidates the composition that declared it.
  * @param painter draws every one of the marks; a single painter serves the whole set.
- * @return this chain with the highlights declared on it.
+ * @return this modifier with the highlights declared on it.
  * @see javax.swing.text.Highlighter.addHighlight
  */
 public fun SwingModifier.highlights(
@@ -58,15 +59,14 @@ public fun SwingModifier.highlights(
  * Re-paints a text component's highlighter with the declared ranges whenever the declaration changes,
  * keeping the tags the highlighter handed back so exactly those marks are taken away again. A mark is
  * anchored to positions of the document it was added to, and the document alone decides where those go,
- * so the node rides the document the component holds and paints the declaration again for anything that
- * happens to it: an edit moves or collapses the positions a mark spans, and a swap - a `JEditorPane`
- * switching content type, a `TextArea` rebinding to a new `DocumentState` - leaves the old tags
- * painting nothing.
+ * so the node listens to the document and paints the declaration again for every change: an edit moves
+ * or collapses the positions a mark spans, and a swap - a `JEditorPane` switching content type, a
+ * `TextArea` rebinding to a new `DocumentState` - leaves the old tags painting nothing.
  *
  * The [painter] is the caller's own object, handed to the highlighter as the mark's painter, so it is
  * compared by identity: the highlighter tells one painter's marks from another's the same way.
  *
- * [ranges] is a list no caller holds. An equal element leaves the chain it declares adopted as-is, so
+ * [ranges] is a list no caller holds. An equal element leaves the modifier it declares adopted as-is, so
  * what a later declaration is compared against must be a list nothing outside can change under it.
  */
 private class HighlightsElement(
@@ -77,6 +77,9 @@ private class HighlightsElement(
 
     override val declaredValues: Map<String, Any?> get() = mapOf("ranges" to ranges, "painter" to painter)
     override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
+
+    /** A removal takes away the marks this declaration made, leaving every other mark painting. */
+    override val restores: RestorePolicy get() = RestorePolicy.None
 
     override fun equals(other: Any?): Boolean =
         other is HighlightsElement && painter === other.painter && ranges == other.ranges

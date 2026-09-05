@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.TreeSelectionMode
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import org.jetbrains.compose.swing.node.MirrorState
@@ -810,6 +811,9 @@ private class TreeContentElement(
     override val targetType: Class<JTree> get() = JTree::class.java
 
     override val additive: Boolean get() = true
+
+    /** The model and the selection the tree stands on are content the next declaration replaces. */
+    override val restores: RestorePolicy get() = RestorePolicy.None
 
     override fun create(): TreeContentNode = TreeContentNode()
 

@@ -43,6 +43,9 @@ internal class BindingElement<C : Component, B : Any>(
 
     override val declaredValues: Map<String, Any?> get() = mapOf(name to value)
 
+    /** A binding hands the component over to a value; what it leaves behind is what drove it last. */
+    override val restores: RestorePolicy get() = RestorePolicy.None
+
     override fun create(): BindingNode<C, B> = BindingNode(attach, detach)
 
     override fun update(node: BindingNode<C, B>) {
@@ -68,7 +71,7 @@ internal class BindingElement<C : Component, B : Any>(
 }
 
 /**
- * Binds [value] to the component of the node this chain is applied to, for as long as the element
+ * Binds [value] to the component of the node this modifier is applied to, for as long as the element
  * occupies its slot: [attach] runs when the binding is established and [detach] when it ends.
  *
  * The binding follows the modifier node's lifecycle. A different [value] on a later recomposition

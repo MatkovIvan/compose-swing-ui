@@ -1,27 +1,15 @@
 package org.jetbrains.compose.swing.node
 
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import java.awt.Component
 import java.awt.Container
 import java.util.IdentityHashMap
 
 /**
- * Turns on the debug-only walk that holds an applier's [SwingNodeHolder.children] index space to the
- * real Swing state it stands for, one turn after every change pass - see [checkChildIndexSpace] for
- * what it asserts.
- *
- * Off by default, where a pass pays only the cost of reading this flag. The test harness turns it on for
- * the duration of a test; a violation then reaches the event dispatch thread's uncaught-exception handler
- * exactly like any other failure the library raises there.
- *
- * Marked [InternalSwingUiApi]; it may change or be removed without notice in any release.
- */
-@InternalSwingUiApi
-public var debugValidateChildIndexSpace: Boolean = false
-
-/**
  * Debug-only: holds this applier's whole [SwingNodeHolder.children] index space to the real Swing state
- * it stands for. See [debugValidateChildIndexSpace] for when this runs and what it costs.
+ * it stands for. Runs one turn after every change pass, and only for a composition whose owner names
+ * [SwingCompositionDiagnostics]; a violation reaches the event dispatch thread's uncaught-exception handler
+ * exactly like any other failure the library raises there.
  *
  * Deferred a turn, on the same one `checkOneChildPerRegion` and `checkRootShowsOneChild` are called on -
  * see `DeferredRegionCheck` for what that turn is worth. Checked mid-pass instead, this would refuse
@@ -72,7 +60,7 @@ private fun SwingNodeHolder<*>.checkChildIndexSpace(
  * look-and-feel delegate gives it real children of its own - `JComboBox` an arrow button, `JTree` a
  * `CellRendererPane` - that no composable ever declared and the applier never attached, standing
  * alongside whatever this host's `content` composed. And a `JLayeredPane` host does not keep its real
- * children in composition order at all: it sorts them by the layer each one's chain names, so two
+ * children in composition order at all: it sorts them by the layer each one's modifier names, so two
  * composed siblings on different layers can appear in either order among the real children regardless
  * of which was composed first.
  *
@@ -109,7 +97,7 @@ private fun childHeldByTwoHosts(
     "Child index space check: a ${child.javaClass.name} is held in the children of two hosts at once: " +
         "a ${earlierHost?.javaClass?.name} and a ${laterHost.javaClass.name}."
 
-/** A child of a region-holding host whose installed region does not match the one its chain declares. */
+/** A child of a region-holding host whose installed region does not match the one its modifier declares. */
 private fun childNotInstalledWhereDeclared(
     host: Component,
     child: Component,

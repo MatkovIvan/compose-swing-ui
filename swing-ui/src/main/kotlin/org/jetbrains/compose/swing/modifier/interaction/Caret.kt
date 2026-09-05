@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.constants.CaretUpdatePolicy
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
@@ -46,22 +47,22 @@ import javax.swing.text.JTextComponent
  * mode - is reachable through a [SwingModifier.NodeElement] of your own; see `docs/CUSTOM-COMPONENTS.md`.
  *
  * @param caret the caret the component navigates and selects with.
- * @return this chain with [caret] declared on it.
+ * @return this modifier with [caret] declared on it.
  * @see javax.swing.text.JTextComponent.setCaret
  */
 public fun SwingModifier.caret(caret: Caret): SwingModifier = this then CaretElement(caret)
 
 /**
  * How fast the component's caret blinks: the delay in milliseconds between the caret being shown and
- * being hidden again. `0` holds it steady. Removing the declaration puts the rate back onto the caret it
- * was read from; a caret the component took after that keeps the declared rate, as one the chain let go
- * of does.
+ * being hidden again. `0` holds it steady.
  *
- * The rate belongs to the component, not to one caret: a caret that arrives later - one a [caret]
- * declared anywhere in the chain installs - is given the declared rate as it is installed.
+ * The rate belongs to the component, not to one caret. A caret that arrives later - one a [caret]
+ * declared anywhere in the modifier chain installs - is given the declared rate as it is installed. Removing
+ * the declaration puts the rate read at attach onto the caret the component carries then, and a caret
+ * the modifier let go of keeps the declared rate.
  *
  * @param rate the delay in milliseconds between blinks, or `0` for a caret that does not blink.
- * @return this chain with the blink rate declared on it.
+ * @return this modifier with the blink rate declared on it.
  * @see javax.swing.text.Caret.setBlinkRate
  */
 public fun SwingModifier.caretBlinkRate(rate: Int): SwingModifier =
@@ -85,13 +86,13 @@ public fun SwingModifier.caretBlinkRate(rate: Int): SwingModifier =
  * edits made off it.
  *
  * Requires a [JTextComponent] whose caret is a [DefaultCaret] - the caret a look and feel installs.
- * Removing the declaration puts the policy back as [caretBlinkRate] describes for the rate.
+ * A caret that arrives and is not a [DefaultCaret] fails as it is installed, as it would on a pass.
  *
- * The policy belongs to the component, not to one caret, as [caretBlinkRate] describes for the rate. A
- * caret that arrives and is not a [DefaultCaret] fails as it is installed, as it would on a pass.
+ * The policy belongs to the component, not to one caret, and removal puts it back, as [caretBlinkRate]
+ * describes for the rate.
  *
  * @param policy the update constant written to the caret the component carries.
- * @return this chain with the caret update policy declared on it.
+ * @return this modifier with the caret update policy declared on it.
  * @see javax.swing.text.DefaultCaret.setUpdatePolicy
  */
 public fun SwingModifier.caretUpdatePolicy(
@@ -106,7 +107,15 @@ public fun SwingModifier.caretUpdatePolicy(
         )
 
 /** Held here rather than built per call, so every declaration of one value takes the same slot. */
-private val BlinkRateWrite: (Caret, Int) -> Unit = { caret, value -> caret.blinkRate = value }
+private val BlinkRateWrite: (Caret, Int) -> Unit = { caret, value ->
+    // Zeroed first, then given the rate. A caret asked for a rate while it carries no editable component
+    // stashes it and answers with the stash from then on, so a rate written once it carries one reaches
+    // the blink timer while the caret goes on answering with the stashed one. A zero rate is the only
+    // write that drops the stash, and a look and feel that gives its caret a rate as it installs -
+    // before the caret is told which component it is on - leaves every caret it builds in that state.
+    caret.blinkRate = 0
+    if (value != 0) caret.blinkRate = value
+}
 
 /** [BlinkRateWrite], for the policy, which only a [DefaultCaret] carries. */
 private val UpdatePolicyWrite: (Caret, Int) -> Unit = { caret, value -> caret.asDefaultCaret().updatePolicy = value }
@@ -127,8 +136,9 @@ private fun Caret.asDefaultCaret(): DefaultCaret {
  * component announces next, and a component reports the look and feel it took once that look and feel
  * has installed its caret and given it the defaults' value.
  *
- * What the declaration restores is the value it read together with the caret it read it from, and no
- * pair of accessors written against the component can name both.
+ * What is put back goes onto the caret the component carries when the declaration leaves. A component
+ * that took a different caret while the declaration stood would otherwise be left carrying the declared
+ * value with nothing declaring it, the restore having gone to a caret it had already let go of.
  */
 private class CaretPropertyElement(
     override val name: String,
@@ -141,6 +151,9 @@ private class CaretPropertyElement(
     override val key: Any get() = write
 
     override val declaredValues: Map<String, Any?> get() = mapOf(name to value)
+
+    /** A caret the modifier let go of keeps what it was given, so this element answers for no caret of its own. */
+    override val restores: RestorePolicy get() = RestorePolicy.None
 
     override fun create(): Node = Node(read, write)
 
@@ -157,12 +170,15 @@ private class CaretPropertyElement(
     ) : SwingModifier.Node<JTextComponent>(),
         PropertyChangeListener {
         private var declared: Int = 0
-        private var readFrom: Caret? = null
+        private var captured: Boolean = false
         private var original: Int = 0
 
         override fun onAttach() {
             val component = component
-            readFrom = component.caret?.also { original = read(it) }
+            component.caret?.let {
+                original = read(it)
+                captured = true
+            }
             component.addPropertyChangeListener("caret", this)
             component.addPropertyChangeListener("UI", this)
         }
@@ -180,14 +196,14 @@ private class CaretPropertyElement(
             val component = component
             component.removePropertyChangeListener("caret", this)
             component.removePropertyChangeListener("UI", this)
-            readFrom?.let { write(it, original) }
+            if (captured) component.caret?.let { write(it, original) }
         }
     }
 }
 
 /**
  * Installs the declared caret on the component and puts back the one it replaced when the element
- * leaves the chain.
+ * leaves the modifier.
  *
  * Two elements are equal when they hold the *same* caret - identity, because a caret is a stateful
  * object carrying the position and selection it has navigated to, so an equal-looking replacement is a
@@ -200,6 +216,9 @@ private class CaretElement(
 
     override val declaredValues: Map<String, Any?> get() = mapOf("caret" to caret)
     override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
+
+    /** Installing a caret resets its position and selection, which a removal carries across, not back. */
+    override val restores: RestorePolicy get() = RestorePolicy.DeclaredPropertyOnly
 
     override fun create(): Node = Node()
 

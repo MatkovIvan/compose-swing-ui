@@ -165,7 +165,7 @@ class DocumentFilterModifierTest {
         assertSame(
             UppercaseFilter,
             document.documentFilter,
-            "leaving the chain should hand the document back the filter it had before install",
+            "leaving the modifier should hand the document back the filter it had before install",
         )
 
         val field = onNodeOfType<JTextField>().fetch()
@@ -194,7 +194,7 @@ class DocumentFilterModifierTest {
         filtering = false
         awaitIdle()
 
-        // Leaving the chain hands the document back the filter it carried before the modifier ever
+        // Leaving the modifier chain hands the document back the filter it carried before the modifier ever
         // attached.
         val position = field.text.length
         field.document.insertString(position, "ab", null)
@@ -235,6 +235,39 @@ class DocumentFilterModifierTest {
             "12",
             after.getText(0, after.length),
             "the migrated filter should still gate edits on the new document",
+        )
+    }
+
+    @Test
+    fun aDocumentArrivingOnASwapIsHandedBackItsOwnFilter() = runComposeSwingTest {
+        var filtering by mutableStateOf(false)
+        var contentType by mutableStateOf("text/plain")
+        setContent {
+            EditorPane(
+                markup = "",
+                onLinkActivate = {},
+                modifier = if (filtering) SwingModifier.documentFilter(DigitsOnlyFilter) else SwingModifier,
+                contentType = contentType,
+            )
+        }
+        // A filter on the first document, so the record the declaration takes there is one the second
+        // document must not be handed.
+        val first = onNodeOfType<JEditorPane>().fetch().document as AbstractDocument
+        first.documentFilter = UppercaseFilter
+
+        filtering = true
+        awaitIdle()
+        contentType = "text/html"
+        awaitIdle()
+        val second = onNodeOfType<JEditorPane>().fetch().document as AbstractDocument
+        assertSame(UppercaseFilter, first.documentFilter, "the document being left keeps what it carried")
+        assertSame(DigitsOnlyFilter, second.documentFilter, "the declaration follows onto the document that arrived")
+
+        filtering = false
+        awaitIdle()
+        assertNull(
+            second.documentFilter,
+            "the document that arrived on the swap carried no filter, so it must be left with none",
         )
     }
 

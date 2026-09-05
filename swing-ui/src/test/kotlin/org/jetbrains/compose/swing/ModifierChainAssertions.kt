@@ -33,5 +33,8 @@ internal fun assertDeclaredChainCarriedOnce(declare: SwingModifier.() -> SwingMo
  */
 internal fun Component.carriedChainAppearancesOf(tag: String): Int {
     val node = assertNotNull(findDeclaringGroup()?.node as? SwingComponentNode, "no composition declared $this")
-    return node.modifier.foldIn(0) { count, element -> count + if (element.declaredValues["testTag"] == tag) 1 else 0 }
+    return node.modifier.foldIn(0) { count, element ->
+        val declared = (element as? SwingModifier.InspectableElement)?.declaredValues
+        count + if (declared?.get("testTag") == tag) 1 else 0
+    }
 }

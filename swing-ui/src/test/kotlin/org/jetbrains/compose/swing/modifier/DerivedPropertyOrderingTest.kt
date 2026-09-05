@@ -14,11 +14,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * What the chain's order is worth where a look and feel works a property out from a write of another.
+ * What the modifier's order is worth where a look and feel works a property out from a write of another.
  *
  * The derivation is stood in for by a listener of the test's own, so the case says the same thing under
  * every look and feel rather than only under one that happens to derive this way. A property no
- * declaration names is the other half of this.
+ * declaration names is the other half of this and belongs to [KeyTest].
  */
 class DerivedPropertyOrderingTest {
     @Test

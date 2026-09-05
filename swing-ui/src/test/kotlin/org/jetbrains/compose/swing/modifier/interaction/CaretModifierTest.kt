@@ -75,7 +75,7 @@ class CaretModifierTest {
         val field = onNodeOfType<JTextField>().fetch()
         field.select(SELECTION_START, SELECTION_END)
 
-        // The chain changes, so it is diffed again with the same caret declared in it. Installing that
+        // The modifier changes, so it is diffed again with the same caret declared in it. Installing that
         // caret a second time would put it at offset 0 and drop what the user selected.
         tip = "second"
         awaitIdle()
@@ -225,6 +225,35 @@ class CaretModifierTest {
     }
 
     @Test
+    fun aRateGoesBackOntoTheCaretTheFieldCarriesRatherThanTheOneItWasReadFrom() = runComposeSwingTest {
+        var declared by mutableStateOf(true)
+        setContent {
+            SwingNode(
+                factory = { JTextField(TEXT) },
+                modifier = if (declared) SwingModifier.caretBlinkRate(BLINK_RATE) else SwingModifier,
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        val found = JTextField().caret.blinkRate
+        assertEquals(BLINK_RATE, field.caret.blinkRate, "the declared rate reaches the caret the field carries")
+
+        // A look and feel that answers a caret it is handed by installing one of its own is what this
+        // stands in for: the caret the rate was read from is gone before the declaration leaves.
+        val arriving = DefaultCaret()
+        field.caret = arriving
+        assertEquals(BLINK_RATE, arriving.blinkRate, "the standing declaration reaches the caret arriving")
+
+        declared = false
+        awaitIdle()
+
+        assertEquals(
+            found,
+            field.caret.blinkRate,
+            "the field is left blinking at the rate the modifier found, not at the one it declared",
+        )
+    }
+
+    @Test
     fun aCaretArrivingAfterTheRateDeclarationIsDroppedIsLeftAlone() = runComposeSwingTest {
         val first = DefaultCaret()
         val second = DefaultCaret()
@@ -267,7 +296,7 @@ class CaretModifierTest {
         assertEquals(BLINK_RATE, declared.blinkRate, "the declared rate reaches the declared caret")
 
         // The rate answers the caret being replaced by writing itself onto the caret that arrives. The
-        // chain unwinds last-first, so the rate is gone - listener and all - before the caret slot hands
+        // modifier unwinds last-first, so the rate is gone - listener and all - before the caret slot hands
         // the field's own caret back, which is what leaves that caret at the rate it came with.
         decorated = false
         awaitIdle()
@@ -321,10 +350,10 @@ class CaretModifierTest {
         val field = onNodeOfType<JTextField>().fetch()
         assertEquals(BLINK_RATE, mine.blinkRate, "the declared rate reaches the declared caret")
 
-        // The caret leaves the chain and comes back, so the slot holding it is no longer the older of
-        // the two. What the rate restores is what it read, from the caret it read it from, whichever
-        // slot comes apart first - and the field's own caret, given the rate while it stood in for the
-        // declared one, keeps it the way any caret the declaration let go of does.
+        // The caret leaves the modifier and comes back, so the slot holding it is no longer the older
+        // of the two. Whichever slot comes apart first, the rate restores what it read to the caret it
+        // read it from. The field's own caret was given the rate while it stood in for the declared
+        // one, and keeps it the way any caret the declaration let go of does.
         declared = false
         awaitIdle()
         declared = true
@@ -373,6 +402,29 @@ class CaretModifierTest {
             (field.caret as DefaultCaret).updatePolicy,
             "the declared policy should reach the caret the look and feel installed",
         )
+    }
+
+    @Test
+    fun aRateReachesACaretThatWasGivenOneBeforeItCarriedAComponent() = runComposeSwingTest {
+        // A caret given a rate while it carries no component stashes it and answers with the stash from
+        // then on. A look and feel that rates its caret as it installs leaves every caret it builds in
+        // that state, so a declaration written afterwards has to reach what the caret answers with, not
+        // only its blink timer.
+        val stashed = DefaultCaret()
+        stashed.blinkRate = SLOW_BLINK_RATE
+        assertEquals(SLOW_BLINK_RATE, stashed.blinkRate, "the caret should answer with the rate it stashed")
+
+        setContent {
+            SwingNode(
+                factory = { JTextField(TEXT).also { it.caret = stashed } },
+                modifier = SwingModifier.caretBlinkRate(BLINK_RATE),
+            )
+        }
+
+        // The rate reaches whichever caret the component carries, so the case says which one before
+        // reading the rate off it.
+        assertSame(stashed, onNodeOfType<JTextField>().fetch().caret, "the field should still carry that caret")
+        assertEquals(BLINK_RATE, stashed.blinkRate, "the declared rate should reach a caret carrying a stash")
     }
 }
 

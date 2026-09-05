@@ -5,6 +5,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.constants.TransferAction
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
 import java.awt.Point
@@ -29,10 +30,10 @@ import kotlin.math.abs
  * hold the *same* callbacks - identity, because a callback is what it captures - so one made of
  * hoisted callbacks refreshes nothing.
  *
- * A drop target and a clipboard declaration both claim the handler's import slice, and the chain's
+ * A drop target and a clipboard declaration both claim the handler's import slice, and the modifier's
  * last claimant owns it. Each is therefore compared by identity alone, so both re-assert that order on
  * every pass: one of them standing still while the other moved would leave the slice with whichever
- * moved, wherever it sits in the chain.
+ * moved, wherever it sits in the modifier.
  */
 
 /**
@@ -60,7 +61,7 @@ import kotlin.math.abs
  *   `TransferHandler.NONE` leaves the gesture recognized but starts no drag.
  * @param transferable produces the exported data; the same value answers a clipboard copy or cut whose
  *   operation [exportedActions] offers, so one exporter drives both directions.
- * @return this chain with the drag source declared on it.
+ * @return this modifier with the drag source declared on it.
  * @see javax.swing.TransferHandler.createTransferable
  */
 public fun SwingModifier.draggable(
@@ -92,7 +93,7 @@ public fun SwingModifier.draggable(
  *   source that offered `MOVE` removes nothing.
  * @param canImport gates the drop by the flavors offered; it is asked repeatedly as the pointer moves
  *   over the component, not only on the drop, so keep it cheap.
- * @return this chain with the drop target declared on it.
+ * @return this modifier with the drop target declared on it.
  * @see javax.swing.TransferHandler.importData
  */
 public fun SwingModifier.dropTarget(
@@ -134,7 +135,7 @@ public fun SwingModifier.dropTarget(
  *   toggling it binds or unbinds them in place.
  * @param handle a programmatic trigger bound to this component for as long as the modifier applies,
  *   or `null` to declare none.
- * @return this chain with clipboard support declared on it.
+ * @return this modifier with clipboard support declared on it.
  * @see javax.swing.TransferHandler.exportToClipboard
  */
 public fun SwingModifier.clipboard(
@@ -172,7 +173,7 @@ public fun SwingModifier.clipboard(
  *
  * @param onExportDone receives the exported data - `null` where the export produced none - and the
  *   [TransferAction] that completed, which is where a source implementing `MOVE` removes the data.
- * @return this chain with the export-completion callback declared on it.
+ * @return this modifier with the export-completion callback declared on it.
  * @see javax.swing.TransferHandler.exportDone
  */
 public fun SwingModifier.onExportDone(onExportDone: (data: Transferable?, action: Int) -> Unit): SwingModifier =
@@ -185,7 +186,7 @@ public fun SwingModifier.onExportDone(onExportDone: (data: Transferable?, action
  * keystrokes do - without ever holding the underlying [JComponent].
  *
  * The handle captures the component (and its transfer handler) the modifier binds it to; while unbound -
- * before the modifier applies or after it leaves the chain - [copy] and [cut] are no-ops and [paste]
+ * before the modifier applies or after the declaration goes - [copy] and [cut] are no-ops and [paste]
  * returns `false`.
  */
 @Stable
@@ -274,6 +275,8 @@ private class DraggableElement(
     private val transferable: () -> Transferable?,
 ) : SwingModifier.NodeElement<JComponent, DraggableElement.Node>() {
     override val name: String get() = "draggable"
+
+    override val restores: RestorePolicy get() = RestorePolicy.None
 
     override val declaredValues: Map<String, Any?> get() = mapOf("exportedActions" to exportedActions)
     override val targetType: Class<JComponent> get() = JComponent::class.java
@@ -364,7 +367,7 @@ private class DragGesture(
 
 /**
  * Equal only to itself, as [ClipboardElement] is: the two declare the same import capability of the
- * shared handler, and the one that owns it is whichever of them the chain applied last. That ordering
+ * shared handler, and the one that owns it is whichever of them the modifier applied last. That ordering
  * only holds while a pass applies both, so neither may compare equal to the element it replaced.
  */
 private class DropTargetElement(
@@ -373,6 +376,8 @@ private class DropTargetElement(
     private val canImport: (List<DataFlavor>) -> Boolean,
 ) : SwingModifier.NodeElement<JComponent, DropTargetElement.Node>() {
     override val name: String get() = "dropTarget"
+
+    override val restores: RestorePolicy get() = RestorePolicy.None
 
     override val declaredValues: Map<String, Any?> get() = mapOf("acceptedActions" to acceptedActions)
     override val targetType: Class<JComponent> get() = JComponent::class.java
@@ -415,6 +420,8 @@ private class ClipboardElement(
     private val bindKeys: Boolean,
 ) : SwingModifier.NodeElement<JComponent, ClipboardElement.Node>() {
     override val name: String get() = "clipboard"
+
+    override val restores: RestorePolicy get() = RestorePolicy.None
 
     override val declaredValues: Map<String, Any?> get() = mapOf("bindKeys" to bindKeys)
     override val targetType: Class<JComponent> get() = JComponent::class.java
@@ -485,6 +492,8 @@ private class ExportDoneElement(
     private val onExportDone: (Transferable?, Int) -> Unit,
 ) : SwingModifier.NodeElement<JComponent, ExportDoneElement.Node>() {
     override val name: String get() = "onExportDone"
+
+    override val restores: RestorePolicy get() = RestorePolicy.None
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
@@ -567,6 +576,9 @@ internal class DropConfig(
  * occupied, so drag, drop, and clipboard coexist on a single component. [original] is the handler the
  * component had before this one was installed: it answers the callbacks no slot is occupied for, and
  * is restored once every slot is empty.
+ *
+ * None of the four elements restores on detach: a removal gives up that element's slice and leaves the
+ * rest of the handler installed.
  */
 internal class SharedTransferHandler : TransferHandler() {
     var original: TransferHandler? = null

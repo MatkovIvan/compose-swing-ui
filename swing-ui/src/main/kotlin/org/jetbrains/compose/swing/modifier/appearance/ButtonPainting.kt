@@ -31,7 +31,7 @@ import javax.swing.JToolBar
  *
  * @param painted `false` leaves the border area blank while the border keeps taking up its space, so the
  *   content stays where it is.
- * @return this chain with border painting declared on it.
+ * @return this modifier with border painting declared on it.
  * @see javax.swing.AbstractButton.setBorderPainted
  * @see javax.swing.JProgressBar.setBorderPainted
  * @see javax.swing.JToolBar.setBorderPainted
@@ -53,7 +53,7 @@ public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier =
  *
  * @param filled `false` leaves the area behind the text and icon unpainted, so whatever is behind the
  *   button shows through it.
- * @return this chain with content-area painting declared on it.
+ * @return this modifier with content-area painting declared on it.
  * @see javax.swing.AbstractButton.setContentAreaFilled
  */
 public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
@@ -79,13 +79,13 @@ public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
  *
  * @param enabled `false` keeps the button looking the same under the pointer, and keeps a declared
  *   [rolloverIcon] from being drawn.
- * @return this chain with rollover painting declared on it.
+ * @return this modifier with rollover painting declared on it.
  * @see javax.swing.AbstractButton.setRolloverEnabled
  */
 public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
     this then
         propertyElement<AbstractButton, Boolean>(
-            name = "rolloverEnabled",
+            name = RolloverEnabledProperty.name,
             value = enabled,
             read = RolloverEnabledProperty.read,
             write = RolloverEnabledProperty.write,
@@ -103,7 +103,7 @@ public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
  *
  * @param painted `false` hides the outline a look and feel draws inside the button's border while it holds
  *   focus.
- * @return this chain with focus painting declared on it.
+ * @return this modifier with focus painting declared on it.
  * @see javax.swing.AbstractButton.setFocusPainted
  */
 public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier =
@@ -152,6 +152,7 @@ private val BorderPaintedProperty =
 /** The switch's own accessors. The write is latched by the first, as a button's border painting is. */
 internal val RolloverEnabledProperty =
     PropertyAccessors<AbstractButton, Boolean>(
+        name = "rolloverEnabled",
         read = { it.isRolloverEnabled },
         write = { component, value ->
             if (component.isRolloverEnabled != value) component.isRolloverEnabled = value

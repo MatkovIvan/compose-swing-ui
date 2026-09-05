@@ -14,7 +14,7 @@ import java.awt.Dimension
  * Sets `preferredSize` and relays out; `null` restores the layout-computed preferred size.
  *
  * @param size the size the parent's layout manager is asked for, in pixels.
- * @return this chain with the preferred size declared on it.
+ * @return this modifier with the preferred size declared on it.
  * @see java.awt.Component.setPreferredSize
  */
 public fun SwingModifier.preferredSize(size: Dimension?): SwingModifier =
@@ -34,7 +34,7 @@ public fun SwingModifier.preferredSize(size: Dimension?): SwingModifier =
  *
  * @param width the width the parent's layout manager is asked for, in pixels.
  * @param height the height it is asked for.
- * @return this chain with the preferred size declared on it.
+ * @return this modifier with the preferred size declared on it.
  * @see java.awt.Component.setPreferredSize
  */
 public fun SwingModifier.preferredSize(
@@ -47,7 +47,7 @@ public fun SwingModifier.preferredSize(
  *
  * @param size the floor a layout manager is asked to respect once the container has less room than the
  *   preferred size, in pixels.
- * @return this chain with the minimum size declared on it.
+ * @return this modifier with the minimum size declared on it.
  * @see java.awt.Component.setMinimumSize
  */
 public fun SwingModifier.minimumSize(size: Dimension?): SwingModifier =
@@ -67,7 +67,7 @@ public fun SwingModifier.minimumSize(size: Dimension?): SwingModifier =
  *
  * @param width the smallest width a layout manager is asked to leave, in pixels.
  * @param height the smallest height it is asked to leave.
- * @return this chain with the minimum size declared on it.
+ * @return this modifier with the minimum size declared on it.
  * @see java.awt.Component.setMinimumSize
  */
 public fun SwingModifier.minimumSize(
@@ -80,7 +80,7 @@ public fun SwingModifier.minimumSize(
  *
  * @param size the ceiling a layout manager is asked to respect once the container has more room than the
  *   preferred size, in pixels.
- * @return this chain with the maximum size declared on it.
+ * @return this modifier with the maximum size declared on it.
  * @see java.awt.Component.setMaximumSize
  */
 public fun SwingModifier.maximumSize(size: Dimension?): SwingModifier =
@@ -100,7 +100,7 @@ public fun SwingModifier.maximumSize(size: Dimension?): SwingModifier =
  *
  * @param width the largest width a stretching layout manager is asked to grow to, in pixels.
  * @param height the largest height it is asked to grow to.
- * @return this chain with the maximum size declared on it.
+ * @return this modifier with the maximum size declared on it.
  * @see java.awt.Component.setMaximumSize
  */
 public fun SwingModifier.maximumSize(
@@ -114,14 +114,14 @@ public fun SwingModifier.maximumSize(
  * a null layout or a `JLayeredPane`. To influence a managed layout, use [preferredSize], [minimumSize],
  * or [maximumSize] instead.
  *
- * [width], [height], and [size] each read-modify-write the live size: in a chain, the later call wins
+ * [width], [height], and [size] each read-modify-write the live size: in a modifier chain, the later call wins
  * its axis. `width(10).height(20)` yields 10x20; `width(10).size(20, 30)` yields 20x30;
  * `size(20, 30).width(10)` yields 10x30.
  *
  * @param width the width in pixels, applied as given - `minimumSize` and `maximumSize` advise a layout
  *   manager rather than bounding a direct write.
  * @param height the height in pixels, applied the same way.
- * @return this chain with the size declared on it.
+ * @return this modifier with the size declared on it.
  * @see java.awt.Component.setSize
  */
 public fun SwingModifier.size(
@@ -135,7 +135,7 @@ public fun SwingModifier.size(
  *
  * @param size the width and height in pixels. It is compared against the size applied last, so mutating
  *   the same `Dimension` and declaring it again resizes nothing; declare a fresh instance instead.
- * @return this chain with the size declared on it.
+ * @return this modifier with the size declared on it.
  * @see java.awt.Component.setSize
  */
 public fun SwingModifier.size(size: Dimension): SwingModifier =
@@ -155,13 +155,13 @@ public fun SwingModifier.size(size: Dimension): SwingModifier =
  *
  * @param width the width in pixels; the height written with it is the one the component holds when the
  *   write runs - whatever the last declaration or layout pass left there.
- * @return this chain with the width declared on it.
+ * @return this modifier with the width declared on it.
  * @see java.awt.Component.setSize
  */
 public fun SwingModifier.width(width: Int): SwingModifier =
     this then
         propertyElement<Component, Int>(
-            name = "width",
+            name = WidthProperty.name,
             value = width,
             read = WidthProperty.read,
             write = WidthProperty.write,
@@ -174,13 +174,13 @@ public fun SwingModifier.width(width: Int): SwingModifier =
  *
  * @param height the height in pixels; the width written with it is the one the component holds when the
  *   write runs - whatever the last declaration or layout pass left there.
- * @return this chain with the height declared on it.
+ * @return this modifier with the height declared on it.
  * @see java.awt.Component.setSize
  */
 public fun SwingModifier.height(height: Int): SwingModifier =
     this then
         propertyElement<Component, Int>(
-            name = "height",
+            name = HeightProperty.name,
             value = height,
             read = HeightProperty.read,
             write = HeightProperty.write,
@@ -188,11 +188,11 @@ public fun SwingModifier.height(height: Int): SwingModifier =
 
 /**
  * The width axis's own accessors, so the width declaration and every coarser write that covers the
- * axis - a whole size, a whole geometry - name one property. The height written with it is the one the
- * component holds, which leaves that axis where it stands.
+ * axis - a whole size, a whole geometry - name one property.
  */
 internal val WidthProperty =
     PropertyAccessors<Component, Int>(
+        name = "width",
         read = { it.width },
         write = { component, value -> component.setSize(value, component.height) },
     )
@@ -200,6 +200,7 @@ internal val WidthProperty =
 /** The height axis's own accessors, as [WidthProperty] is the width's. */
 internal val HeightProperty =
     PropertyAccessors<Component, Int>(
+        name = "height",
         read = { it.height },
         write = { component, value -> component.setSize(component.width, value) },
     )

@@ -4,7 +4,7 @@
 package org.jetbrains.compose.swing.modifier.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.derivedPropertyElement
 import java.awt.Component
 import java.awt.LayoutManager2
 import javax.swing.JComponent
@@ -15,22 +15,20 @@ import javax.swing.JComponent
  * children up by this value, so siblings given the same alignment stay in one column.
  *
  * A component holding no alignment of its own reports the one its layout manager derives - a
- * `BoxLayout` derives it from the children present - or the centered default when its layout manager
- * derives none. Swing offers no way to hand an alignment back to the layout once one is set, so
- * removing the modifier writes the alignment the layout derives at that moment.
- *
- * Swing keeps to itself whether an alignment was ever set, so an alignment a component does hold is
- * restored only where it differs from the one its layout derives as the declaration attaches. One that
- * matches it is read as none.
+ * `BoxLayout` derives it from the children present - or the centered default where none is derived.
+ * Swing offers no way to hand an alignment back to the layout once one is set, so removing the modifier
+ * writes the alignment the layout derives at that moment. Swing also offers no way to ask whether an
+ * alignment was ever set, so an alignment a component does hold is restored only where it differs from
+ * the one its layout derives as the declaration attaches. One that matches it is read as none.
  *
  * @param value the fraction of the component's width the parent lines its children up on; Swing clamps a
  *   value outside `0.0..1.0` into that range rather than rejecting it.
- * @return this chain with the horizontal alignment declared on it.
+ * @return this modifier with the horizontal alignment declared on it.
  * @see javax.swing.JComponent.setAlignmentX
  */
 public fun SwingModifier.alignmentX(value: Float): SwingModifier =
     this then
-        propertyElement<JComponent, Float?>(
+        derivedPropertyElement<JComponent, Float?>(
             name = "alignmentX",
             value = value,
             read = { if (it.alignmentX == it.layoutAlignmentX) null else it.alignmentX },
@@ -49,12 +47,12 @@ public fun SwingModifier.alignmentX(value: Float): SwingModifier =
  *
  * @param value the fraction of the component's height the parent lines its children up on; Swing clamps a
  *   value outside `0.0..1.0` into that range rather than rejecting it.
- * @return this chain with the vertical alignment declared on it.
+ * @return this modifier with the vertical alignment declared on it.
  * @see javax.swing.JComponent.setAlignmentY
  */
 public fun SwingModifier.alignmentY(value: Float): SwingModifier =
     this then
-        propertyElement<JComponent, Float?>(
+        derivedPropertyElement<JComponent, Float?>(
             name = "alignmentY",
             value = value,
             read = { if (it.alignmentY == it.layoutAlignmentY) null else it.alignmentY },

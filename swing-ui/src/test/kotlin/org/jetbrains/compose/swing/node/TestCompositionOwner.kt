@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 
 /**
  * The [SwingCompositionOwner] a test attaches an applier's root to, standing in for the content
@@ -16,6 +17,8 @@ internal class TestCompositionOwner private constructor(
     override fun settleNow(): Unit = Unit
 
     override val updateBatch: ComponentUpdateBatch = ComponentUpdateBatch()
+
+    override val diagnostics: SwingCompositionDiagnostics? = null
 
     /** Stops the observer this owner started, if it started one. */
     fun dispose() {

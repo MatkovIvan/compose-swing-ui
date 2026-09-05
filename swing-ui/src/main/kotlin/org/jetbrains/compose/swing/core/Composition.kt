@@ -89,7 +89,7 @@ internal fun checkEventDispatchThread() {
  * is not what anything reads next.
  *
  * This is [Snapshot.withMutableSnapshot] with observers, which that helper does not take, and with the
- * snapshot disposed even where applying it conflicts, which that helper leaves undone.
+ * snapshot disposed even where applying it conflicts.
  */
 private inline fun <R> withMutableSnapshot(
     noinline readObserver: (Any) -> Unit,
@@ -137,6 +137,8 @@ internal class SwingContentComposition private constructor(
     override fun settleNow(): Unit = parent.swingFrameClock()?.settleInPlace() ?: Unit
 
     override val updateBatch: ComponentUpdateBatch = ComponentUpdateBatch()
+
+    override val diagnostics: SwingCompositionDiagnostics? = parent.effectCoroutineContext[SwingCompositionDiagnostics]
 
     // Built after everything a node reads through this owner, because the applier attaches its root to
     // this owner as it is created and the composition inserts nodes against it from its first pass.

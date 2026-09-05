@@ -46,9 +46,8 @@ internal fun weightPlacement(
  * What the modifier has declared to a row or a column so far, and an empty constraint where it has
  * declared nothing of the kind.
  *
- * A modifier naming a constraint outright as well is folded before it is refused, so a value of another
- * kind does reach here and is started over from. A cast would throw there instead, ahead of the message
- * that names both kinds.
+ * A modifier naming a constraint outright as well is refused as the walk reaches the second kind, so a
+ * value of another kind never reaches here. The fallback stands for a first part folded onto nothing.
  */
 private fun linearConstraintCarried(carried: Any?): LinearConstraint =
     carried as? LinearConstraint ?: LinearConstraint()
@@ -56,7 +55,7 @@ private fun linearConstraintCarried(carried: Any?): LinearConstraint =
 /** The share of the leftover space a child claims, as a row's or a column's `weight` declares it. */
 internal data class WeightElement(
     val placement: WeightPlacement,
-) : ConstraintElement() {
+) : ConstraintElement {
     override val name: String get() = "weight"
 
     override val declaredValues: Map<String, Any?> get() = mapOf("weight" to placement)
@@ -67,7 +66,7 @@ internal data class WeightElement(
 /** Where across the axis a child sits, as a row's or a column's `align` declares it. */
 internal data class AlignElement(
     val alignment: AxisAlignment,
-) : ConstraintElement() {
+) : ConstraintElement {
     override val name: String get() = "align"
 
     override val declaredValues: Map<String, Any?> get() = mapOf("alignment" to alignment)
@@ -76,7 +75,7 @@ internal data class AlignElement(
 }
 
 /** A child taking its container's whole extent across the axis. */
-internal data object FillElement : ConstraintElement() {
+internal data object FillElement : ConstraintElement {
     override val name: String get() = "fill"
 
     override fun foldInto(carried: Any?): Any = linearConstraintCarried(carried).copy(fillsCrossAxis = true)

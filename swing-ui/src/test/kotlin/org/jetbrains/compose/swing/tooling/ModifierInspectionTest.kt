@@ -566,9 +566,11 @@ private fun Component.declaredChain(): List<Pair<String, Map<String, Any?>>> {
 private fun Component.valuesOf(name: String): Map<String, Any?> =
     assertNotNull(declaredChain().firstOrNull { it.first == name }, "no $name element in the chain").second
 
-/** The chain's elements, in declaration order. */
-private fun SwingModifier.elements(): List<SwingModifier.NodeElement<*, *>> =
-    foldIn(mutableListOf<SwingModifier.NodeElement<*, *>>()) { acc, element -> acc.apply { add(element) } }
+/** The modifier's entries that describe themselves, in declaration order. */
+private fun SwingModifier.elements(): List<SwingModifier.InspectableElement> =
+    foldIn(mutableListOf<SwingModifier.InspectableElement>()) { acc, element ->
+        acc.apply { if (element is SwingModifier.InspectableElement) add(element) }
+    }
 
 /** A chain element declaring nothing, standing for one that names no property of its own. */
 private class UnnamedElement : SwingModifier.NodeElement<Component, SwingModifier.Node<Component>>() {

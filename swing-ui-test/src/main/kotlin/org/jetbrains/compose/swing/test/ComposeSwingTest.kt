@@ -22,7 +22,6 @@ import kotlinx.coroutines.yield
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.ContainedCallerFailure
 import org.jetbrains.compose.swing.core.setLifecycleOwner
-import org.jetbrains.compose.swing.node.debugValidateChildIndexSpace
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.NodePick
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
@@ -428,7 +427,14 @@ private class ComposeSwingTestImpl(
         }
 
     private val clock = BroadcastFrameClock()
-    private val scope = CoroutineScope(Dispatchers.Swing + Job() + clock)
+
+    /**
+     * The restore check every composition this test mounts is held to, stated on the context its
+     * recomposer is built over so a nested composition - a cell renderer's, a menu's, a window's -
+     * inherits the same one.
+     */
+    private val restoreCheck = ModifierRestoreCheck(::recordLibraryFailure)
+    private val scope = CoroutineScope(Dispatchers.Swing + Job() + clock + restoreCheck)
     private val recomposer = Recomposer(scope.coroutineContext)
 
     override val mainClock: MainTestClock =
@@ -489,18 +495,10 @@ private class ComposeSwingTestImpl(
      */
     private var libraryFailure: Throwable? = null
 
-    /**
-     * [debugValidateChildIndexSpace] as this test found it, restored in [close]. The applier's own check
-     * costs nothing this test does not ask for, and a violation surfaces through [dispatchThread]'s
-     * uncaught-exception handler exactly like [libraryFailure] does.
-     */
-    private val enclosingDebugValidateChildIndexSpace = debugValidateChildIndexSpace
-
     init {
         // Published before anything composes, so a root mounted into this container resolves this owner
         // rather than minting one that follows a container standing in no window.
         root.setLifecycleOwner(lifecycleOwner)
-        debugValidateChildIndexSpace = true
         dispatchThread.setUncaughtExceptionHandler { _, failure ->
             // A ContainedCallerFailure names a caller callback the library deliberately contained; every
             // other throwable reaching this handler is the library's own failure - see libraryFailure.
@@ -508,12 +506,7 @@ private class ComposeSwingTestImpl(
             if (contained != null) {
                 callerFailures += contained.cause ?: contained
             } else {
-                val existing = libraryFailure
-                if (existing != null) {
-                    existing.addSuppressed(failure)
-                } else {
-                    libraryFailure = failure
-                }
+                recordLibraryFailure(failure)
             }
         }
         scope.launch {
@@ -548,6 +541,15 @@ private class ComposeSwingTestImpl(
                 separator = "\n",
             ) { it.stackTraceToString() }
         }
+
+    /**
+     * Records [failure] as the library's own: the first one stands until a gate throws it, and every
+     * later one is suppressed onto it.
+     */
+    private fun recordLibraryFailure(failure: Throwable) {
+        val existing = libraryFailure
+        if (existing != null) existing.addSuppressed(failure) else libraryFailure = failure
+    }
 
     /** Names a still-unclaimed [libraryFailure], for a gate reporting what it could not settle. */
     private fun libraryFailureNote(): String =
@@ -923,7 +925,6 @@ private class ComposeSwingTestImpl(
             scope.cancel()
         } finally {
             dispatchThread.setUncaughtExceptionHandler(enclosingHandler)
-            debugValidateChildIndexSpace = enclosingDebugValidateChildIndexSpace
             root.setLifecycleOwner(null)
         }
         val contained = callerFailures.toList()

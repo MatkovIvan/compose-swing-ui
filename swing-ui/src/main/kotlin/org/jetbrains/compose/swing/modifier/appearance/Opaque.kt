@@ -6,7 +6,7 @@ package org.jetbrains.compose.swing.modifier.appearance
 import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.PropertyInterference
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.derivedPropertyElement
 import javax.swing.AbstractButton
 import javax.swing.JComponent
 import javax.swing.JMenuItem
@@ -14,23 +14,20 @@ import javax.swing.JMenuItem
 /**
  * Sets `isOpaque` - required for [background] to actually paint. Requires a `JComponent` target.
  *
- * The declaration stands over a component that computes the flag for itself: a look and feel's button
- * listener writes the flag from [contentAreaFilled] on every change to that property.
- *
- * A button holds no flag of its own while it agrees with [contentAreaFilled], since that is the rule a
- * look and feel keeps it at, so removing the declaration from one hands the flag back to that rule
- * rather than to the value read when the declaration attached. A menu item is left out of it: nothing
+ * A look and feel writes this flag from [contentAreaFilled] on every change to that property, so a
+ * button holds no flag of its own while the two agree: removing the declaration restores that rule
+ * rather than the value read when the declaration attached. A menu item is left out of it - nothing
  * ties its flag to the fill, so what it carries is its own.
  *
  * @param opaque `true` promises the component paints every pixel of its bounds, letting Swing skip what is
  *   behind it; `false` lets the parent show through.
- * @return this chain with the opaque flag declared on it.
+ * @return this modifier with the opaque flag declared on it.
  * @see javax.swing.JComponent.setOpaque
  */
 public fun SwingModifier.opaque(opaque: Boolean): SwingModifier =
     this then
-        propertyElement<JComponent, Boolean?>(
-            name = "opaque",
+        derivedPropertyElement<JComponent, Boolean?>(
+            name = OpaqueProperty.name,
             value = opaque,
             read = OpaqueProperty.read,
             write = OpaqueProperty.write,
@@ -46,6 +43,7 @@ public fun SwingModifier.opaque(opaque: Boolean): SwingModifier =
  */
 internal val OpaqueProperty =
     PropertyAccessors<JComponent, Boolean?>(
+        name = "opaque",
         read = {
             val derived = (it as? AbstractButton)?.takeIf { button -> button !is JMenuItem }?.isContentAreaFilled
             if (it.isOpaque == derived) null else it.isOpaque

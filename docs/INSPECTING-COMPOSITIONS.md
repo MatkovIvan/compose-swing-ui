@@ -93,16 +93,19 @@ declared for the component:
 
 ```kotlin
 val node = someButton.findDeclaringGroup()?.node as? SwingComponentNode
-val chain = node?.modifier?.foldIn(emptyList<String>()) { named, element -> named + element.name }
+val named = node?.modifier?.foldIn(emptyList<String>()) { names, element ->
+    if (element is SwingModifier.InspectableElement) names + element.name else names
+}
 ```
 
 <!--- CLEAR -->
 
-Walk it with `SwingModifier.foldIn`, and read two things off each element:
+Walk it with `SwingModifier.foldIn`. Each entry is a `SwingModifier.Element`; one that describes itself
+is a `SwingModifier.InspectableElement`, which is where the two readable things are:
 
 | What you want | Where to read it |
 |---------------|------------------|
-| What the element is called | `name`, such as `background` or `mouseListener` |
+| What the entry is called | `name`, such as `background` or `mouseListener` |
 | What it declares | `declaredValues`, the values under the names they are declared by |
 
 Both are display only. `key` is what tells one slot from another, so two elements reporting the same
@@ -197,6 +200,7 @@ import androidx.compose.runtime.tooling.CompositionRegistrationObserver
 import androidx.compose.runtime.tooling.ObservableComposition
 import androidx.compose.runtime.tooling.observe
 import org.jetbrains.compose.swing.core.findRecomposer
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.tooling.attachComposeStackTrace
 import org.jetbrains.compose.swing.tooling.findDeclaringGroup
@@ -222,7 +226,11 @@ fun argumentsOf(component: Component): List<Any?>? =
 fun chainOf(component: Component): Map<String, Map<String, Any?>> {
     val node = component.findDeclaringGroup()?.node as? SwingComponentNode ?: return emptyMap()
     return node.modifier.foldIn(emptyMap()) { declared, element ->
-        declared + (element.name to element.declaredValues)
+        if (element is SwingModifier.InspectableElement) {
+            declared + (element.name to element.declaredValues)
+        } else {
+            declared
+        }
     }
 }
 

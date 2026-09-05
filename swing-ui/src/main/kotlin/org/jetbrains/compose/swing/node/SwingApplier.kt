@@ -28,14 +28,14 @@ import javax.swing.RootPaneContainer
  *   would place it.
  * - A child the composition relocates - `movableContent` invoked under another parent - reaches its new
  *   host before its own modifier chain has run there, so it is taken into that host's children as it
- *   arrives and attached once the change pass has settled, under the placement its chain names at the
+ *   arrives and attached once the change pass has settled, under the placement its modifier names at the
  *   host it is at now. That is also where such a child is held to the host's declaration.
  * - An indexed child is added with its declared [SwingNodeHolder.constraint] when non-null (e.g. a
  *   `BorderLayout` region), otherwise by index alone. The constraint is the one the child's own modifier
  *   chain declares.
  * - A child naming a region carries the [SwingNodeHolder.declaredSlot] that fills it. The child
  *   is installed into its host through that attachment's dedicated Swing setter and uninstalled the same
- *   way on removal, so the region is released. A child whose chain comes to name another region is moved
+ *   way on removal, so the region is released. A child whose modifier comes to name another region is moved
  *   between the two the same way, and one that stops naming a region is released from the one it fills
  *   and then refused, the way a child arriving at a region-holding host without one is. A
  *   [ChildPlacement.Slots] host shows one component per region, which is checked once the change pass has
@@ -71,7 +71,7 @@ internal class SwingApplier internal constructor(
 
     override fun up() {
         // A node's own update changes run while the applier is positioned at it, so leaving the node is
-        // the first point in the pass at which the region its chain names this time is on the holder and
+        // the first point in the pass at which the region its modifier names this time is on the holder and
         // its host is known - the node the applier returns to. Nothing is moved here: the pass may be
         // mid-swap, and a node that arrived this pass is left before it is installed, so both would look
         // like a component in the wrong region. What the pass leaves behind is settled in onEndChanges,
@@ -107,7 +107,7 @@ internal class SwingApplier internal constructor(
             // before its modifier chain has run for this host, so what it carries is the placement it
             // named at the host it is leaving. Take it into this node's composition-ordered child list,
             // which is what a remove or a move later in the pass addresses by index, and attach it once
-            // the pass has settled and its chain has named the placement it fills here.
+            // the pass has settled and its modifier has named the placement it fills here.
             parent.children.add(index, instance)
             changes.recordRelocated(parent, instance)
             return
@@ -261,7 +261,7 @@ private class ChildRegions(
     /**
      * The attachment that installs [child] into [host], or `null` where the host adds it by index.
      *
-     * The node's own chain answers first, and only a child of the composition root falls back to
+     * The node's own modifier answers first, and only a child of the composition root falls back to
      * [rootSlot]: the root's slot says how the composition attaches to the host that mounted it, so
      * letting it reach deeper would install a node's own children into that same host slot instead of
      * into the parent they were composed under. Reading it through one expression is what has a top-level
@@ -275,11 +275,11 @@ private class ChildRegions(
 
     fun reconcile() {
         try {
-            // The pass has settled, so every chain has run for the host its node belongs to now and a
+            // The pass has settled, so every modifier has run for the host its node belongs to now and a
             // relocated child names the placement it fills here. Attaching them first is what leaves the
             // two steps below reading hosts whose children are all attached.
             for ((host, child) in changes.relocated) trace("attach") { host.attachRelocatedChild(child) }
-            // A chain has named its child's region for the last time this pass, and each of these hosts
+            // A modifier has named its child's region for the last time this pass, and each of these hosts
             // can be brought to what its children declare. This runs whole: the check below reads the
             // region each child is really in, and a component that arrives in a region as this runs is
             // one more child of a host the check has to answer for.
@@ -291,7 +291,7 @@ private class ChildRegions(
             changes.forget()
         }
         regionCheck.schedule()
-        if (debugValidateChildIndexSpace) indexSpaceCheck.schedule()
+        if (root.owner?.diagnostics != null) indexSpaceCheck.schedule()
     }
 
     /**
@@ -372,7 +372,7 @@ private class ChildRegions(
      * strip) the position within it *is* where the child is, so every moved child is released from the
      * region it fills and installed again at the position it is composed at now.
      *
-     * A child whose chain gives its region up in the same pass is released and then refused, the way one
+     * A child whose modifier gives its region up in the same pass is released and then refused, the way one
      * arriving at a region-holding host without a region is.
      */
     fun SwingNodeHolder<*>.moveRegionChildren(
@@ -438,7 +438,7 @@ private class DeferredRegionCheck(
 
 /**
  * What one change pass has said about where children go, and what [ChildRegions.reconcile] therefore
- * owes each host once that pass has settled: children to attach, regions to bring to what a chain
+ * owes each host once that pass has settled: children to attach, regions to bring to what a modifier
  * restated, hosts to hold to one child per region.
  *
  * [SwingApplier] records into this as it walks; nothing here is acted on while the pass runs, because a
@@ -601,7 +601,7 @@ private fun SwingNodeHolder<*>.standingSiblingsBefore(
 
 /**
  * The place within its depth on [pane] that [child], composed at [index], takes: the siblings standing
- * ahead of it that sit on the same depth. A child's depth is the constraint its chain declares, or else
+ * ahead of it that sit on the same depth. A child's depth is the constraint its modifier declares, or else
  * the layer `JLayeredPane.getLayer` reads for it.
  */
 private fun SwingNodeHolder<*>.standingSiblingsOnDepthBefore(
@@ -623,8 +623,7 @@ private fun SwingNodeHolder<*>.depthOn(pane: JLayeredPane): Int = constraint as?
  * The index a region's attachment is handed for the child composed at [index]: `0` where the host's regions
  * hold one child each, and the place among the siblings standing in [host] where it holds many in order.
  *
- * A region that holds many holds them in the order they stand in [host], so a sibling that stands
- * somewhere else - see [attachedToHost] - takes no place among them.
+ * A sibling standing somewhere else - see [attachedToHost] - takes no place among them.
  */
 private fun SwingNodeHolder<*>.slotIndexOf(
     host: Container,
@@ -667,7 +666,7 @@ private fun SwingNodeHolder<*>.checkPlacementOf(
  * Holds a child to the placement this host declares: a host that holds its children in regions of its own
  * takes only children that fill one, and a host that adds them by index only children placed that way.
  *
- * Asked of a child arriving at the host and of one already here whose chain has come to say something
+ * Asked of a child arriving at the host and of one already here whose modifier has come to say something
  * else, which is why it answers for that child alone: the child being looked at can be one this host is
  * in the middle of moving between two of its regions, and so momentarily installed in neither.
  *
@@ -708,7 +707,7 @@ internal fun SwingNodeHolder<*>.checkRootShowsOneChild() {
 /**
  * Holds this host to one child per region. Called on a [ChildPlacement.Slots] host once the change pass
  * that filled its regions has been dispatched whole and every child it holds is installed in the region
- * its own chain names, so each child is counted against the region its component is really in.
+ * its own modifier names, so each child is counted against the region its component is really in.
  */
 internal fun SwingNodeHolder<*>.checkOneChildPerRegion() {
     val occupants = HashMap<String, SwingNodeHolder<*>>(children.size)

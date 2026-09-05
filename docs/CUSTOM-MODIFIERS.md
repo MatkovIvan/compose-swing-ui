@@ -73,6 +73,8 @@ Built-in modifier builders are extension functions on `SwingModifier`, grouped b
 - **Data transfer** - `draggable`, `dropTarget`, `onExportDone`, `clipboard`.
 - **Accessibility** - `accessibleName`, `accessibleDescription`, `mnemonic`, and the `labelFor` /
   `labelTarget` pair that captions one component with another.
+- **Chain** - `key`, which ties the chain's application to a token: a token that changes takes the whole
+  chain apart and applies it again from scratch.
 
 Chain them: `SwingModifier.foreground(Color.RED).lineBorder(Color.GRAY).onHover { ... }`. The framework
 diffs the chain across recompositions, applies new/changed elements, and **restores the original
@@ -123,6 +125,22 @@ The lifecycle, across the `NodeElement`/`Node` pair:
   recomposition) reaches the live node without re-creating it;
 - `Node.onDetach()` runs once, when the element is dropped from the chain or the node is released or
   deactivated - **restore the captured original here**.
+
+Once every element that wrote a property has left, the property stands where the component's chain
+found it. A write often lands on more than the property it declares - a coarse geometry covers each
+axis it spans - so capture and put back every property your write reaches, not only the one the
+element is named for, and name them in `heldProperties` as well. A write that finds a property already
+standing where it declares it moves nothing, so reading the component around the write cannot reveal
+that your element holds it.
+
+`NodeElement.restores` says your element undertakes less than that:
+`RestorePolicy.DeclaredPropertyOnly` where your write provokes a derivation you do not make, and
+`RestorePolicy.None` where there is no captured value to put back at all. Its KDoc carries the
+contract.
+
+A caller who does know what their look and feel derives, and needs it worked out again while every
+declaration stands still, says so with `key` on the chain: the token changing takes the chain apart and
+applies it again, and the restore and the re-application carry different values, so both are announced.
 
 **`equals` and `hashCode` are abstract**, so the element has to state its own equality and the
 compiler rejects one that does not. A slot whose incoming element equals the one it already applied

@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.modifier.appearance
 import org.jetbrains.compose.swing.modifier.MultiTargetProperty
 import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
 import org.jetbrains.compose.swing.modifier.PropertyInterference
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyCase
 import org.jetbrains.compose.swing.modifier.propertyElement
@@ -29,16 +30,16 @@ import javax.swing.plaf.UIResource
  *
  * Applies to labels and to every kind of button.
  *
- * A look and feel may work other properties out from the icon a component carries; removing the
- * declaration puts the icon back, not what was derived from it.
+ * A look and feel may derive other properties from the icon; removing the declaration restores the
+ * icon, not what was derived from it.
  *
  * @param icon the icon drawn beside the text; its size counts toward the component's preferred size, so
  *   swapping in a differently sized one re-lays the component out.
- * @return this chain with the icon declared on it.
+ * @return this modifier with the icon declared on it.
  * @see javax.swing.JLabel.setIcon
  * @see javax.swing.AbstractButton.setIcon
  */
-public fun SwingModifier.icon(icon: Icon?): SwingModifier = this then MultiTargetPropertyElement(IconProperty, icon)
+public fun SwingModifier.icon(icon: Icon?): SwingModifier = this then IconElement(icon)
 
 /**
  * Sets the icon a button displays while it is held down; `null` falls back to the base icon. Applies
@@ -47,7 +48,7 @@ public fun SwingModifier.icon(icon: Icon?): SwingModifier = this then MultiTarge
  * @param icon the icon drawn while the button is both pressed and armed; dragging the pointer off the
  *   button with the mouse button still down disarms it and puts the base icon back until the pointer
  *   returns.
- * @return this chain with the pressed icon declared on it.
+ * @return this modifier with the pressed icon declared on it.
  * @see javax.swing.AbstractButton.setPressedIcon
  */
 public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier =
@@ -65,7 +66,7 @@ public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier =
  *
  * @param icon the icon drawn while the button reports itself selected, whether the user or the code
  *   selected it.
- * @return this chain with the selected icon declared on it.
+ * @return this modifier with the selected icon declared on it.
  * @see javax.swing.AbstractButton.setSelectedIcon
  */
 public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
@@ -83,7 +84,7 @@ public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
  *
  * @param icon the icon drawn while the button is disabled, in place of the graying the look and feel
  *   would derive.
- * @return this chain with the disabled icon declared on it.
+ * @return this modifier with the disabled icon declared on it.
  * @see javax.swing.AbstractButton.setDisabledIcon
  */
 public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
@@ -105,7 +106,7 @@ public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
  * button carries no selected icon. Applies to every kind of button.
  *
  * @param icon the icon drawn while both states hold at once - a checked check box on a disabled form.
- * @return this chain with the disabled selected icon declared on it.
+ * @return this modifier with the disabled selected icon declared on it.
  * @see javax.swing.AbstractButton.setDisabledSelectedIcon
  */
 public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
@@ -131,7 +132,7 @@ public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
  *
  * @param icon the icon drawn while the button reports a rollover - the pointer entered it with the left
  *   mouse button up, and the button is neither disabled nor pressed.
- * @return this chain with the rollover icon declared on it.
+ * @return this modifier with the rollover icon declared on it.
  * @see javax.swing.AbstractButton.setRolloverIcon
  */
 public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
@@ -152,7 +153,7 @@ public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
  * [selectedIcon]. Declaring it switches [rolloverEnabled] on. Applies to every kind of button.
  *
  * @param icon the icon drawn while the pointer is over a button that is already selected.
- * @return this chain with the rollover selected icon declared on it.
+ * @return this modifier with the rollover selected icon declared on it.
  * @see javax.swing.AbstractButton.setRolloverSelectedIcon
  */
 public fun SwingModifier.rolloverSelectedIcon(icon: Icon?): SwingModifier =
@@ -172,10 +173,17 @@ public fun SwingModifier.rolloverSelectedIcon(icon: Icon?): SwingModifier =
  * is what reading a disabled state's icon makes the look and feel do while nothing has set one.
  *
  * A derived icon is a `UIResource`, which is how the button itself tells the two apart: it discards a
- * derived one whenever the icon it was derived from, or the look and feel deriving it, is replaced. So it
- * is not a value to hand back on removal - a button that never carried the modifier holds none.
+ * derived one whenever the icon it was derived from, or the look and feel deriving it, is replaced. So
+ * it is not a value to restore - a button that never carried the modifier holds none.
  */
 private fun Icon?.ownIcon(): Icon? = takeUnless { it is UIResource }
+
+/** A look and feel styles a component for whether it carries an icon at all. */
+private class IconElement(
+    icon: Icon?,
+) : MultiTargetPropertyElement<Icon?>(IconProperty, icon) {
+    override val restores: RestorePolicy get() = RestorePolicy.DeclaredPropertyOnly
+}
 
 /**
  * `JLabel` and `AbstractButton` each declare `icon` for themselves; the class they share declares no
