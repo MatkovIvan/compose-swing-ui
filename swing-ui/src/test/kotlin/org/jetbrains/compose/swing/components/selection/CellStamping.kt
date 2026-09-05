@@ -38,6 +38,14 @@ internal fun <T> JList<T>.stampCell(
 /** Renders item [index] of this combo box through the renderer it carries, as its popup list does. */
 internal fun <T> JComboBox<T>.stampCell(index: Int): Component = renderer.stampCell(getItemAt(index), index)
 
+/**
+ * Renders this combo box's selected-value display area through the renderer it carries, as its UI does
+ * when it paints: `-1` as the index, against a list over this combo box's model, which is where a
+ * renderer reads the items from.
+ */
+internal fun <T> JComboBox<T>.stampDisplayArea(value: Any? = selectedItem): Component =
+    renderer.stampCell(value, index = -1, list = JList(model))
+
 /** The text of the first [JLabel] anywhere in this component subtree, or `null` if there is none. */
 internal fun Component.firstLabelText(): String? = firstLabel()?.text
 

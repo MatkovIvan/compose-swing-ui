@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.components.selection
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -60,17 +62,20 @@ class ComposableCellLayoutTest {
 
     @Test
     fun aComboBoxIsMeasuredByTheCellsOwnComponent() = runComposeSwingTest {
+        // A cell taller than any combo box lays itself out at, so a box measured by its own editor rather
+        // than by the cell would come out shorter.
         setContent {
             ComboBox(items = listOf("Kotlin", "Java"), selectedItem = "Kotlin", onSelectionChange = {}) { item ->
-                FlowPanel { Label(item) }
+                FlowPanel(modifier = SwingModifier.preferredSize(80, 90)) { Label(item) }
             }
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        val cell = combo.renderer.stampCell(combo.getItemAt(0), index = -1)
+        val cell = combo.stampDisplayArea(combo.getItemAt(0))
+        assertEquals(90, cell.preferredSize.height, "the cell must be as tall as the component it composes")
         assertTrue(
-            combo.preferredSize.height >= cell.preferredSize.height,
-            "the combo box must hold the component the cell composes",
+            combo.preferredSize.height >= 90,
+            "and the combo box tall enough to hold it",
         )
     }
 

@@ -11,6 +11,8 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
+import javax.swing.DefaultComboBoxModel
+import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.ListCellRenderer
@@ -180,6 +182,34 @@ class CallerBuiltRendererTest {
         assertTrue(
             failure.message.orEmpty().contains("was handed null"),
             "the refusal must say the model handed a null: ${failure.message}",
+        )
+    }
+
+    @Test
+    fun aValueOfTheStatedItemTypeComposesACellTheModelDoesNotHold() = runComposeSwingTest {
+        // A JComboBox sizes itself by stamping its prototypeDisplayValue as a display area. The prototype
+        // is measured rather than held, so the model never lists it: the stated item type is what names it
+        // an item.
+        setContent {
+            val cells = rememberListItemRenderer<String> { item -> Label(item) }
+            SwingNode(
+                factory = { JComboBox<String>() },
+                modifier = SwingModifier.listItemRenderer(cells),
+                update = {
+                    set(listOf("alpha", "beta")) { model = DefaultComboBoxModel(it.toTypedArray()) }
+                },
+            )
+        }
+
+        val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
+        assertEquals(
+            "a prototype no item equals",
+            combo.stampDisplayArea(value = "a prototype no item equals").firstLabelText(),
+            "a value of the stated item type must compose a cell, which is what sizes a combo box by it",
+        )
+        assertNull(
+            combo.stampDisplayArea(value = 7).firstLabelText(),
+            "a value of another type is no item of the widget's and composes no cell",
         )
     }
 

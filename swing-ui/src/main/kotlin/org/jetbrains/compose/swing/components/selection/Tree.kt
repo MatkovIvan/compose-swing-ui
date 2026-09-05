@@ -101,7 +101,9 @@ import javax.swing.tree.TreeSelectionModel
  * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
  *   the nodes read-only
  * @param onNodeEdit callback invoked when an edit is committed, receiving the value edited, its index
- *   path, and the value entered; update the backing data from here so the next composition shows the edit
+ *   path, and the value entered; update the backing data from here so the next composition shows the edit.
+ *   An edit still open on a node a later composition hands another value to - or takes out of the
+ *   structure - ends there and commits nothing
  * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
  *   lets the user select any number of them
  * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
@@ -191,7 +193,9 @@ public fun <T> Tree(
  * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
  *   the nodes read-only
  * @param onNodeEdit callback invoked when an edit is committed, receiving the value edited, its index
- *   path, and the value entered; update the backing data from here so the next composition shows the edit
+ *   path, and the value entered; update the backing data from here so the next composition shows the edit.
+ *   An edit still open on a node a later composition hands another value to - or takes out of the
+ *   structure - ends there and commits nothing
  * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
  *   lets the user select any number of them
  * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
@@ -548,7 +552,9 @@ private inline fun TreeModelImpl(
  * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
  *   the nodes read-only
  * @param onNodeEdit callback invoked when an edit is committed, receiving the value edited, its index
- *   path, and the value entered; update the backing data from here so the next composition shows the edit
+ *   path, and the value entered; update the backing data from here so the next composition shows the edit.
+ *   An edit still open on a node a later composition hands another value to - or takes out of the
+ *   structure - ends there and commits nothing
  * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
  *   lets the user select any number of them
  * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it

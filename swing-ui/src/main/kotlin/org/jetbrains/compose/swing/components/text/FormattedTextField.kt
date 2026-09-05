@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.beans.PropertyChangeListener
 import javax.swing.JFormattedTextField
 import javax.swing.JFormattedTextField.AbstractFormatterFactory
+import javax.swing.text.DefaultFormatterFactory
 
 /**
  * A single line of text standing for a typed value: a number, a date, or input matching a fixed mask.
@@ -22,8 +23,10 @@ import javax.swing.JFormattedTextField.AbstractFormatterFactory
  *
  * The field parses and formats through [formatterFactory], which produces the formatter that maps
  * between the typed [value] and the displayed text (e.g. a `NumberFormatter`, a `DateFormatter`, or a
- * `MaskFormatter` for a fixed mask). With no factory the field falls back to the platform default,
- * which formats by the value's type.
+ * `MaskFormatter` for a fixed mask). With no factory the field falls back to the platform default, which
+ * is derived from the class of [value] - the class the field edits in: what it renders, and what a commit
+ * is parsed back to. A [value] declared in another class derives that default again, so a field declared
+ * an `Int` and later a `Long` commits `Long`s from then on.
  *
  * [value] is the committed, typed value (an `Int`, a `Date`, a `String`, ...); [onValueChange] fires
  * once per value the field commits from an edit, carrying the newly parsed value. Text the user types
@@ -208,7 +211,7 @@ public fun FormattedTextField(
 
 /**
  * The `JFormattedTextField` node every [FormattedTextField] overload renders. [modifier] arrives
- * carrying the reporting each overload wires - the caller's own chain first.
+ * carrying the reporting each overload wires - the caller's own modifier first.
  *
  * Inlined into its caller, so the two share one restart scope.
  */
@@ -232,15 +235,72 @@ private inline fun FormattedTextFieldNode(
                 revalidate()
             }
             set(focusLostBehavior) { this.focusLostBehavior = it }
-            set(formatterFactory) { this.setFormatterFactory(it) }
+            set(formatterFactory) {
+                this.setFormatterFactory(it)
+                // `setFormatterFactory` installs whatever the new factory produces, and a cleared factory
+                // produces nothing: only the public `setValue` derives the platform default. So a field
+                // whose declared factory is taken away is handed its value again to derive one from. A
+                // `null` value derives nothing and would fire the value property at a caller's own
+                // listener, so it is left alone.
+                if (it == null && this.value != null) this.setValue(this.value)
+            }
             // Writing a value reinstalls the formatter and regenerates the field's characters from it, so
             // a value the field has already committed is not written again: the characters the user has
             // typed since that commit survive a callback writing the committed value back.
-            declare(value, mirror, read = { this.value }, write = { this.value = it })
+            declare(
+                value,
+                mirror,
+                read = { this.value },
+                write = { held, declared -> writeValue(held, declared, ownsFormatter = formatterFactory == null) },
+            )
             set(editable) { this.isEditable = it }
         },
     )
 }
+
+/**
+ * Writes [declared] onto the field, deriving the platform default formatter again wherever the class the
+ * field edits in is not [declared]'s. [ownsFormatter] says the formatter on the field is one the field
+ * derived for itself: a factory the caller declared decides the class on its own and is left alone.
+ *
+ * `JFormattedTextField.setValue` derives that default from the class of the value it is given, but only
+ * while the field has no factory at all, so the class of the first non-null value is the one every later
+ * value is rendered in and every commit is parsed back to. Clearing the factory alone is not enough: the
+ * next `setValue` installs the formatter it derived against the value the field is still holding, and a
+ * formatter derived for a number cannot format a date. So the field is carried to [declared] with no
+ * formatter installed - which is what an empty factory leaves it with - and only then asked to derive
+ * one, against the value it now holds.
+ *
+ * A `null` [declared] derives nothing and keeps the formatter the field has. The second write of
+ * [declared] moves nothing and reports nothing either - a field fires its value property only for a value
+ * that changed.
+ */
+private fun JFormattedTextField.writeValue(
+    held: Any?,
+    declared: Any?,
+    ownsFormatter: Boolean,
+) {
+    if (!ownsFormatter || declared == null || held?.javaClass == declared.javaClass) {
+        value = declared
+        return
+    }
+    formatterFactory = Unformatted
+    // The derivation runs whatever the write ahead of it does: that write publishes the value property,
+    // and a listener throwing out of it would otherwise leave the field on the empty factory for good -
+    // the mirror settles on the value read back, so no later pass comes round to derive one.
+    try {
+        value = declared
+    } finally {
+        formatterFactory = null
+        value = declared
+    }
+}
+
+/**
+ * A factory holding no formatter, so a field it is installed on formats and parses nothing. It keeps
+ * nothing of that field, so one instance serves every field.
+ */
+private val Unformatted = DefaultFormatterFactory()
 
 /**
  * Runs [onCommit] with the value the field holds each time it commits a different one.

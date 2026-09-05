@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.selection.firstLabelText
 import org.jetbrains.compose.swing.components.selection.stampCell
+import org.jetbrains.compose.swing.components.selection.stampDisplayArea
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -74,13 +75,36 @@ class ComboBoxComposableCellTest {
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
         assertNull(
-            combo.renderer.stampCell(value = null, index = -1).firstLabelText(),
+            combo.stampDisplayArea(value = null).firstLabelText(),
             "a display area showing nothing should compose no cell",
         )
         assertEquals(
             "red",
             combo.stampCell(index = 0).firstLabelText(),
             "the items themselves still render through the cell body",
+        )
+    }
+
+    @Test
+    fun theDisplayAreaComposesACellForAnItemLyingBeforeTheLastOneFound() = runComposeSwingTest {
+        // A JComboBox sizes itself by stamping every item as a display area, so the scan resolving one
+        // resumes where the last found its own. An item before that is reached by wrapping around.
+        setContent {
+            ComboBox(items = listOf("red", "green"), selectedItem = "red", onSelectionChange = {}) { item ->
+                Label(item)
+            }
+        }
+
+        val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
+        assertEquals(
+            "green",
+            combo.stampDisplayArea(value = "green").firstLabelText(),
+            "the last item of the model is an item",
+        )
+        assertEquals(
+            "red",
+            combo.stampDisplayArea(value = "red").firstLabelText(),
+            "and so is one lying before it, which the scan wraps around to reach",
         )
     }
 
@@ -367,4 +391,46 @@ class ComboBoxComposableCellTest {
             "the fresh combo box should stamp the composable cell",
         )
     }
+
+    @Test
+    fun theDisplayAreaComposesNoCellForATypedValueThatNamesNoItem() = runComposeSwingTest {
+        // An editable combo box holds the text typed into its editor as its selected item until the next
+        // pass writes the declaration back, and Swing repaints in between. The display area stamped with
+        // that text names no item, so it composes no cell - handing it to a cell body written over the
+        // items would cast a String to the item type.
+        setContent {
+            ComboBox(
+                items = listOf(Choice("apple")),
+                selectedItem = Choice("apple"),
+                onSelectionChange = {},
+                editable = true,
+            ) { item ->
+                Label(item.name)
+            }
+        }
+
+        val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<Choice>>()
+        val editor = combo.editor.editorComponent as JTextField
+        editor.text = "pear"
+        editor.postActionEvent()
+
+        assertEquals("pear", combo.selectedItem, "the committed text is what the combo box holds")
+        assertNull(
+            combo.stampDisplayArea().firstLabelText(),
+            "a display area holding a typed value should compose no cell",
+        )
+
+        awaitIdle()
+
+        assertEquals(
+            "apple",
+            combo.stampDisplayArea().firstLabelText(),
+            "the settled declaration should render through the cell body again",
+        )
+    }
 }
+
+/** An item that is not a `String`, so a typed value reaching a cell body written over it would not cast. */
+private data class Choice(
+    val name: String,
+)

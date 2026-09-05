@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.selection
 
+import javax.swing.JTable
 import javax.swing.table.TableColumnModel
 
 /**
@@ -62,11 +63,16 @@ internal fun TableColumnModel.readColumnLayout(): TableColumnLayout {
 }
 
 /**
- * Puts the columns of [this] model into [layout], leaving a column the layout does not name where it is
- * and at the width it is. A `null` layout leaves the columns alone entirely, and a layout the columns are
- * already in is applied as no write at all, so a pass that changed nothing publishes no column event.
+ * Puts [this] table's columns into [layout], leaving a column the layout does not name where it is and at
+ * the width it is. A `null` layout leaves the columns alone entirely, and a layout the columns are already
+ * in is applied as no write at all, so a pass that changed nothing publishes no column event.
+ *
+ * An edit the table is showing ends at the first column moved. An editor names a view column, and a move
+ * re-points that column at another of the model's: the table answers a move by committing the edit and
+ * reads the model column back off the order the move has already installed, so what was typed would land
+ * in the column that took the editor's place - whether that column is editable or not.
  */
-internal fun TableColumnModel.applyColumnLayout(layout: TableColumnLayout?) {
+internal fun JTable.applyColumnLayout(layout: TableColumnLayout?) {
     if (layout == null) return
     // Selection sort by model index: each named column is moved to the next free position from the left,
     // so the named columns end up in the layout's order and the rest keep their relative order behind
@@ -75,10 +81,15 @@ internal fun TableColumnModel.applyColumnLayout(layout: TableColumnLayout?) {
     var position = 0
     for (index in layout.modelIndices.indices) {
         val modelIndex = layout.modelIndices[index]
-        val current = (position until columnCount).firstOrNull { getColumn(it).modelIndex == modelIndex }
+        val current =
+            (position until columnModel.columnCount)
+                .firstOrNull { columnModel.getColumn(it).modelIndex == modelIndex }
         if (current == null) continue
-        if (current != position) moveColumn(current, position)
-        getColumn(position).preferredWidth = layout.preferredWidths[index]
+        if (current != position) {
+            if (isEditing) endEdit()
+            columnModel.moveColumn(current, position)
+        }
+        columnModel.getColumn(position).preferredWidth = layout.preferredWidths[index]
         position++
     }
 }

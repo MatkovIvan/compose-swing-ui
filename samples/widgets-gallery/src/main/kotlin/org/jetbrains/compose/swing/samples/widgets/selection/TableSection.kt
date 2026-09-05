@@ -53,6 +53,11 @@ private data class Book(
 private const val MAX_RATING = 5
 private val bookColumns = listOf("Title", "Author", "Year", "Rating")
 
+// A comparator sees whatever the column's value lambda produced, typed as the cell values a table model
+// holds. The cast is safe because the column it orders yields the author's name.
+private val authorCaseInsensitive =
+    Comparator<Any?> { first, second -> (first as String).compareTo(second as String, ignoreCase = true) }
+
 private val initialPeople =
     listOf(
         Person("Ada Lovelace", "Engineer", 28),
@@ -209,11 +214,7 @@ private fun ColumnScope.SortingFilteringTableCard() {
                 onColumnLayoutChange = { columnLayout = it },
             ) {
                 column("Title") { it.title }
-                // A comparator sees whatever the column's value lambda produced, typed as the cell values
-                // a table model holds; the cast is safe because this column yields the author's name.
-                val titleCaseInsensitive =
-                    Comparator<Any?> { a, b -> (a as String).compareTo(b as String, ignoreCase = true) }
-                column(header = "Author", comparator = titleCaseInsensitive) { it.author }
+                column(header = "Author", comparator = authorCaseInsensitive) { it.author }
                 column("Year", minWidth = 60, maxWidth = 100) { it.year }
                 column(header = "Rating", isSortable = false, cellContent = { book -> RatingLabel(book) }) {
                     it.rating

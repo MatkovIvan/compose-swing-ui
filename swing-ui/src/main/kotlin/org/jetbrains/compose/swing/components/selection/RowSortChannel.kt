@@ -39,6 +39,12 @@ internal class RowSortChannel(
     private var declaredFilter: RowFilter<in TableModel, in Int>? = null
 
     /**
+     * The comparators, by column, this channel last put on the sorter in place; see [isRecompared]. Held
+     * in a reused array, since it is read and written on every pass.
+     */
+    private var writtenComparators = arrayOfNulls<Comparator<Any?>>(0)
+
+    /**
      * Whether [filter] differs from the one this channel was last declared with, recording it either way.
      * The record answers for whatever sorter is in place, since a sorter this channel builds starts out on
      * it.
@@ -108,15 +114,64 @@ internal class RowSortChannel(
                 install()
                 bind(table, sortable)
                 sorter?.let { current ->
+                    // The order the rows are in ahead of the one this pass leaves them in.
+                    // `DefaultRowSorter.getSortKeys` hands back the list it holds and `setSortKeys` puts
+                    // a new one in its place, so this stays what the sorter was on.
+                    val standing = current.sortKeys
+                    var resortDue = false
+                    growRecord(columns.size)
                     columns.forEachIndexed { index, column ->
                         current.setSortable(index, column.isSortable)
-                        current.setComparator(index, column.comparator)
+                        if (isRecompared(current, index, column.comparator)) {
+                            current.setComparator(index, column.comparator)
+                            writtenComparators[index] = column.comparator
+                            resortDue = resortDue || standing.any { it.column == index }
+                        }
                     }
+                    applySortKeys(retained)
+                    // A sorter only stores a comparator, so a column sorted by a new one keeps the order
+                    // the old one produced until it is told to sort again. An order that changed here has
+                    // already sorted by the new comparators, which is why the two are told apart.
+                    if (resortDue && current.sortKeys == standing) sortKeepingAnchor(table, current)
                 }
-                applySortKeys(retained)
             }
             answered(sortKeys())
         }
+    }
+
+    /**
+     * Whether [comparator] is other than the one column [index] of [sorter] is ordered by.
+     *
+     * A declared comparator is asked of the sorter, which hands back what it was given. An undeclared one
+     * is answered from [writtenComparators]: `TableRowSorter.getComparator` answers for a column it was
+     * given nothing for with a comparator of its own, so a `null` declaration would otherwise read as a
+     * change on every pass. The sorter's own answer still decides where it has one, since a model
+     * structure change drops the comparators it holds - `DefaultRowSorter.modelStructureChanged` clears
+     * them - while the record stands.
+     *
+     * The record holds column [index], which [growRecord] answers for.
+     *
+     * Identity is the whole of the comparison: two comparators carry no equality to compare by, so an
+     * equal ordering under a new instance cannot be told from a new one.
+     */
+    private fun isRecompared(
+        sorter: TableRowSorter<TableModel>,
+        index: Int,
+        comparator: Comparator<Any?>?,
+    ): Boolean =
+        if (comparator != null) {
+            sorter.getComparator(index) !== comparator
+        } else {
+            writtenComparators[index] != null
+        }
+
+    /**
+     * Grows the record to hold [columns] columns. It is never shrunk: a column count changes through a
+     * structure change, which leaves the sorter unsorted, so an entry left over past the columns can only
+     * have this channel write a `null` comparator the sorter is already on.
+     */
+    private fun growRecord(columns: Int) {
+        if (writtenComparators.size < columns) writtenComparators = writtenComparators.copyOf(columns)
     }
 
     /**
@@ -148,15 +203,69 @@ internal class RowSortChannel(
         // the rows this filter rejects.
         declaredFilter?.let { fresh.rowFilter = it }
         sorter = fresh
+        writtenComparators.fill(null)
         fresh.addRowSorterListener(listener)
+        // The table holds no sorter here, so an editor's row is the model row it stands on, and the sorter
+        // it is about to take answers where that row lands.
+        endEditWhereTheRowMoves(table) { fresh.convertRowIndexToView(it) }
         table.rowSorter = fresh
     }
 
+    /**
+     * Takes the sorter off [table]. Without it the rows are drawn in the order the model holds them, which
+     * is what the sorter's own mapping answers for the row an editor stands on.
+     */
     private fun detach(table: JTable) {
         sorter?.removeRowSorterListener(listener)
         sorter = null
-        if (table.rowSorter != null) table.rowSorter = null
+        val standing = table.rowSorter ?: return
+        endEditWhereTheRowMoves(table) { standing.convertRowIndexToModel(it) }
+        table.rowSorter = null
     }
+
+    /**
+     * Ends an edit [table] is showing where the sorter it is about to take or lose draws the edited row
+     * somewhere else, [movedTo] answering where. An editor names a row of the view and commits into
+     * whatever that row resolves to when it stops, and a swap publishes no event for the table to follow
+     * one by - `JTable.setRowSorter` disposes the sort manager and clears the selection, leaving the
+     * editing row naming a row of the model it was never opened on. A row drawn where it already was
+     * keeps its edit, as it does across a re-sort the table does hear about.
+     */
+    private inline fun endEditWhereTheRowMoves(
+        table: JTable,
+        movedTo: (Int) -> Int,
+    ) {
+        if (!table.isEditing) return
+        val editing = table.editingRow
+        if (editing !in 0 until table.rowCount || movedTo(editing) != editing) table.endEdit()
+    }
+}
+
+/**
+ * Sorts [sorter]'s rows again, leaving the table's selection anchored on the row it was anchored on.
+ *
+ * A sort restores the selection through `JTable.restoreSortingSelection`, which captures the lead row
+ * alone and puts the anchor on it, so a selection of more than one row comes out of the sort anchored
+ * on its lead. The anchor is carried across in the model's row space, which is what makes it the same
+ * row where the order genuinely changes. A header click of the user's own collapses the anchor the
+ * same way, and is left to: that is what a `JTable` does.
+ *
+ * `setAnchorSelectionIndex` publishes a selection event, which belongs to the write this runs inside;
+ * an anchor that did not move is written back unchanged, and a selection model publishes nothing for
+ * that.
+ */
+private fun sortKeepingAnchor(
+    table: JTable,
+    sorter: TableRowSorter<TableModel>,
+) {
+    val selection = table.selectionModel
+    val anchor = selection.anchorSelectionIndex
+    // The anchor names a row of the view, which one left past the rows the sorter admits is not.
+    val anchorRow = if (anchor in 0 until sorter.viewRowCount) sorter.convertRowIndexToModel(anchor) else -1
+    sorter.sort()
+    // A row the order this sort landed on hides has no view row left to anchor on.
+    val landed = if (anchorRow >= 0) sorter.convertRowIndexToView(anchorRow) else -1
+    if (landed >= 0) selection.anchorSelectionIndex = landed
 }
 
 /**

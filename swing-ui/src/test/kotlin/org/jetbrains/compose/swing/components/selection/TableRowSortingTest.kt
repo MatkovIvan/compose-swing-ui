@@ -9,6 +9,7 @@ import javax.swing.JTable
 import javax.swing.RowFilter
 import javax.swing.RowSorter.SortKey
 import javax.swing.SortOrder
+import javax.swing.event.RowSorterEvent
 import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableModel
 import javax.swing.table.TableRowSorter
@@ -380,16 +381,14 @@ class TableRowSortingTest {
 
     @Test
     fun aColumnsComparatorOrdersItsRows() = runComposeSwingTest {
+        val byLength = Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
         setContent {
             Table(
                 rows = people,
                 sortable = true,
                 sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
             ) {
-                column(
-                    header = "Name",
-                    comparator = Comparator { first, second -> (second as String).length - (first as String).length },
-                ) { it.name }
+                column(header = "Name", comparator = byLength) { it.name }
                 column("Age") { it.age }
             }
         }
@@ -400,6 +399,232 @@ class TableRowSortingTest {
             table.shownNames(),
             "the column's own comparator should order it, not the ordering its class would get",
         )
+    }
+
+    @Test
+    fun aColumnsNewComparatorReordersTheRowsItAlreadySorts() = runComposeSwingTest {
+        val byLength = Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
+        // By last letter: Ada, Grace, Alan - neither the order the old comparator leaves them in nor the
+        // one the rows fall into on their own, so an ignored declaration cannot pass for an applied one.
+        val byLastLetter = Comparator<Any?> { first, second -> (first as String).last() - (second as String).last() }
+        var comparator by mutableStateOf(byLength)
+        setContent {
+            Table(rows = people, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.ASCENDING))) {
+                column(header = "Name", comparator = comparator) { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared comparator orders the rows")
+
+        comparator = byLastLetter
+        awaitIdle()
+
+        assertEquals(listOf("Ada", "Grace", "Alan"), table.shownNames(), "and a new one reorders them by itself")
+    }
+
+    @Test
+    fun aColumnsComparatorSurvivesARebuildOfTheColumns() = runComposeSwingTest {
+        val byLength = Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
+        var header by mutableStateOf("Name")
+        setContent {
+            Table(rows = people, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.ASCENDING))) {
+                column(header = header, comparator = byLength) { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared comparator orders the rows")
+
+        header = "Person"
+        awaitIdle()
+
+        assertEquals(
+            listOf("Grace", "Alan", "Ada"),
+            table.shownNames(),
+            "and still orders them once a new header has rebuilt the columns",
+        )
+    }
+
+    @Test
+    fun aColumnsComparatorTakenAwayReordersTheRowsItSorts() = runComposeSwingTest {
+        val byLength = Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
+        var comparator by mutableStateOf<Comparator<Any?>?>(byLength)
+        setContent {
+            Table(rows = people, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.ASCENDING))) {
+                column(header = "Name", comparator = comparator) { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared comparator orders the rows")
+
+        comparator = null
+        awaitIdle()
+
+        assertEquals(
+            listOf("Ada", "Alan", "Grace"),
+            table.shownNames(),
+            "and taking it away puts them back in the order the column's own class gets",
+        )
+    }
+
+    @Test
+    fun aPassThatRedeclaresBothTheComparatorAndTheOrderSortsTheRowsOnce() = runComposeSwingTest {
+        val byLength = Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
+        // By last letter: Ada, Grace, Alan ascending, so neither order can be reached by the other
+        // comparator or by the rows' own ordering.
+        val byLastLetter = Comparator<Any?> { first, second -> (first as String).last() - (second as String).last() }
+        var comparator by mutableStateOf(byLength)
+        var order by mutableStateOf(SortOrder.ASCENDING)
+        setContent {
+            Table(rows = people, sortable = true, sortKeys = listOf(SortKey(0, order))) {
+                column(header = "Name", comparator = comparator) { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        val sorter = table.rowSorter
+        var sorts = 0
+        sorter.addRowSorterListener { event ->
+            if (event.type == RowSorterEvent.Type.SORTED) sorts++
+        }
+
+        comparator = byLastLetter
+        order = SortOrder.DESCENDING
+        awaitIdle()
+
+        assertSame(sorter, table.rowSorter, "the sorter the count was taken on should still be the table's")
+        assertEquals(listOf("Alan", "Grace", "Ada"), table.shownNames(), "the new comparator orders them, reversed")
+        assertEquals(1, sorts, "the order the keys ask for is already the new comparator's, so it is sorted once")
+    }
+
+    @Test
+    fun aColumnWithoutAComparatorIsNotSortedAgainOnEveryPass() = runComposeSwingTest {
+        var rowHeight by mutableStateOf(20)
+        setContent {
+            Table(
+                rows = people,
+                sortable = true,
+                sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
+                rowHeight = rowHeight,
+            ) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        val sorter = table.rowSorter
+        var sorts = 0
+        sorter.addRowSorterListener { event ->
+            if (event.type == RowSorterEvent.Type.SORTED) sorts++
+        }
+
+        rowHeight = 24
+        awaitIdle()
+
+        assertEquals(24, table.rowHeight, "the pass the count is taken over should have reached the table")
+        assertSame(sorter, table.rowSorter, "on the sorter it was taken on, which the table still holds")
+        assertEquals(0, sorts, "a pass that redeclares nothing about the ordering should not sort the rows again")
+    }
+
+    @Test
+    fun aColumnWhoseDeclaredComparatorIsHeldIsNotSortedAgainOnEveryPass() = runComposeSwingTest {
+        // Held across passes: a comparator compared by identity has to be, for the pass that redeclares
+        // it to leave the ordering alone.
+        val byName = Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
+        var rowHeight by mutableStateOf(20)
+        setContent {
+            Table(
+                rows = people,
+                sortable = true,
+                sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
+                rowHeight = rowHeight,
+            ) {
+                column("Name", comparator = byName) { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        var sorts = 0
+        table.rowSorter.addRowSorterListener { event ->
+            if (event.type == RowSorterEvent.Type.SORTED) sorts++
+        }
+
+        rowHeight = 24
+        awaitIdle()
+
+        assertEquals(0, sorts, "a pass that redeclares nothing about the ordering should not sort the rows again")
+    }
+
+    @Test
+    fun aShiftExtensionAfterAnUnrelatedPassRunsFromTheRowTheSelectionStartedOn() = runComposeSwingTest {
+        val rows = List(10) { "row $it" }
+        val byName = Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
+        var rowHeight by mutableStateOf(20)
+        setContent {
+            Table(
+                rows = rows,
+                sortable = true,
+                sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
+                rowHeight = rowHeight,
+            ) {
+                column("Name", comparator = byName) { it }
+            }
+        }
+
+        // The two gestures a click and a shift-click make, which leave the selection anchored on row 2
+        // and led by row 5.
+        val table = onNodeOfType<JTable>().fetch()
+        table.changeSelection(2, 0, false, false)
+        table.changeSelection(5, 0, false, true)
+        awaitIdle()
+        assertEquals((2..5).toList(), table.selectedRows.toList(), "the shift-click covers the rows it spans")
+
+        rowHeight = 24
+        awaitIdle()
+
+        table.changeSelection(8, 0, false, true)
+
+        assertEquals(
+            (2..8).toList(),
+            table.selectedRows.toList(),
+            "the next shift-click should extend the selection from the row it was anchored on",
+        )
+    }
+
+    @Test
+    fun theAnchorCarriedAcrossASortIsNotReportedAsTheUsersSelection() = runComposeSwingTest {
+        val rows = List(10) { "row $it" }
+        // Two instances ordering alike: handing over the second is an ordering the caller redeclared, which
+        // is what has the rows sorted again, while the order they land in is the one they were already in.
+        val byName = Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
+        val byNameAgain = Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
+        var comparator by mutableStateOf(byName)
+        val received = mutableListOf<Set<Int>>()
+        setContent {
+            Table(
+                rows = rows,
+                selectedRowIndices = null,
+                onSelectionChange = { received += it },
+                sortable = true,
+                sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
+            ) {
+                column("Name", comparator = comparator) { it }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        table.changeSelection(2, 0, false, false)
+        table.changeSelection(5, 0, false, true)
+        awaitIdle()
+        val reported = received.size
+
+        comparator = byNameAgain
+        awaitIdle()
+
+        assertEquals(2, table.selectionModel.anchorSelectionIndex, "the anchor is put back across the re-sort")
+        assertEquals(reported, received.size, "putting it back is the wrapper's own write, not a selection change")
     }
 
     @Test

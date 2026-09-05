@@ -81,14 +81,21 @@ public sealed interface TableScope<R> {
  * @param isSortable whether a click on this column's header sorts the rows by it; `true` (the default)
  *   lets it, while the table sorts at all
  * @param comparator orders this column's cell values, or `null` (the default) to order them the way a
- *   `TableRowSorter` orders a column of [V]; applies while the table sorts at all
+ *   `TableRowSorter` orders a column of [V]; applies while the table sorts at all. Hold one instance
+ *   across passes: a comparator is compared by identity, so one built anew each pass - a capturing
+ *   lambda, or a `compareBy` - sorts the rows again each pass
  * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels; `15` by default,
  *   the minimum a `TableColumn` sets for itself
  * @param maxWidth the widest this column may be dragged or stretched to, in pixels; `Int.MAX_VALUE` -
  *   the default - leaves it unbounded
  * @param onCellEdit invoked when a cell in this column is edited and the edit is committed, receiving the
  *   row, the row index, and the newly entered value; pair it with an [isEditable] of `true` and update the
- *   backing state from here so the next composition reflects the edit
+ *   backing state from here so the next composition reflects the edit. An edit still open on a cell a
+ *   later composition no longer describes - its row gone, rewritten in place, or its column rebuilt - ends
+ *   there and commits nothing. An edit follows its row across rows inserted or removed elsewhere; a
+ *   composition that both adds and removes rows ends an edit on any row at or past the first row where the
+ *   two lists differ, and one on any row at all where the table is sorted or filtered, since a `JTable`
+ *   cancels an editor over a change it cannot map an index across
  * @param cellContent renders this column's cells through a composable body, against a [TableCellScope]
  *   and the row each cell belongs to; `null` (the default) renders a cell through the renderer the table
  *   picks by [V]
@@ -144,14 +151,21 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
  * @param isSortable whether a click on this column's header sorts the rows by it; `true` (the default)
  *   lets it, while the table sorts at all
  * @param comparator orders this column's cell values, or `null` (the default) to order them the way a
- *   `TableRowSorter` orders a column of [columnClass]; applies while the table sorts at all
+ *   `TableRowSorter` orders a column of [columnClass]; applies while the table sorts at all. Hold one
+ *   instance across passes: a comparator is compared by identity, so one built anew each pass - a
+ *   capturing lambda, or a `compareBy` - sorts the rows again each pass
  * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels; `15` by default,
  *   the minimum a `TableColumn` sets for itself
  * @param maxWidth the widest this column may be dragged or stretched to, in pixels; `Int.MAX_VALUE` -
  *   the default - leaves it unbounded
  * @param onCellEdit invoked when a cell in this column is edited and the edit is committed, receiving the
  *   row, the row index, and the newly entered value; pair it with an [isEditable] of `true` and update the
- *   backing state from here so the next composition reflects the edit
+ *   backing state from here so the next composition reflects the edit. An edit still open on a cell a
+ *   later composition no longer describes - its row gone, rewritten in place, or its column rebuilt - ends
+ *   there and commits nothing. An edit follows its row across rows inserted or removed elsewhere; a
+ *   composition that both adds and removes rows ends an edit on any row at or past the first row where the
+ *   two lists differ, and one on any row at all where the table is sorted or filtered, since a `JTable`
+ *   cancels an editor over a change it cannot map an index across
  * @param cellContent renders this column's cells through a composable body, against a [TableCellScope]
  *   and the row each cell belongs to; `null` (the default) renders a cell through the renderer the table
  *   picks by [columnClass]
@@ -281,40 +295,61 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
      * list nothing else can mutate.
      */
     fun refresh(
+        table: JTable,
         rows: List<R>,
         columns: List<ColumnDeclaration<R>>,
     ) {
         val structureChanged = columnsDiffer(this.columns, columns)
-        val oldRows = this.rows
+        // The difference between the two row lists is worked out once, before the new one is adopted: it
+        // is both what the table is told and what decides whether an edit survives being told it.
+        val change = if (structureChanged) null else rowChange(this.rows, rows)
+        // An editor commits by index, into whatever the model holds there by then, and nothing fired below
+        // takes one off by itself.
+        val standsAt = if (table.isEditing) editedRowAfter(table, structureChanged, change) else GONE
+        if (table.isEditing && standsAt == GONE) table.endEdit()
         this.rows = rows
         this.columns = columns
+        // A table that sorts follows a standing editor across the events fired below, re-pointing the
+        // editing row itself through `JTable.restoreSortingEditingRow`; one that does not leaves it at
+        // the index the editor was opened on, which a row arriving or leaving above it has left naming
+        // another row, so the index the edited row moved to is written here. Without a sorter the
+        // editor's view row is the model's, and the events below repaint the run it lies in, which
+        // repositions the editor.
+        if (table.isEditing && table.rowSorter == null) table.editingRow = standsAt
         // A structure change rebuilds the columns and repaints every cell on its own, which is every row
         // an insert, a delete or an update could still have to name.
         if (structureChanged) {
             fireTableStructureChanged()
             return
         }
-        fireRowChange(oldRows, rows)
+        // The change goes out as the narrowest event that describes it. One that both moves the row count
+        // and rewrites rows falls back to the wholesale change, which costs a full repaint and empties the
+        // table's selection.
+        if (change == null) return
+        val head = change.head
+        when {
+            change.removed == 0 -> fireTableRowsInserted(head, head + change.added - 1)
+            change.added == 0 -> fireTableRowsDeleted(head, head + change.removed - 1)
+            change.removed == change.added -> fireTableRowsUpdated(head, head + change.added - 1)
+            else -> fireTableDataChanged()
+        }
     }
 
     /**
-     * Tells the table which rows [new] holds that [old] did not, as the narrowest event that describes the
-     * difference.
+     * How [new] differs from [old], or `null` where it does not differ at all.
      *
      * The rows the two lists share as a leading and a trailing run are the rows that did not move or
      * change, and what lies between those runs is the whole of the difference: a run present in only one
-     * of the lists was inserted or deleted, and one of equal length in both was edited in place. Anything
-     * else - a difference that changes the row count and rewrites rows as well - falls back to the
-     * wholesale change, which costs a full repaint and empties the table's selection.
+     * of the lists was inserted or deleted, and one of equal length in both was edited in place.
      *
      * Two runs and their lengths are all this walks the lists for, and the list a pass declaring the same
      * rows hands over is the one already held, so such a pass compares nothing and allocates nothing.
      */
-    private fun fireRowChange(
+    private fun rowChange(
         old: List<R>,
         new: List<R>,
-    ) {
-        if (old === new) return
+    ): RowChange? {
+        if (old === new) return null
         val shared = minOf(old.size, new.size)
         var head = 0
         while (head < shared && old[head] == new[head]) head++
@@ -322,13 +357,28 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
         while (tail < shared - head && old[old.lastIndex - tail] == new[new.lastIndex - tail]) tail++
         val removed = old.size - head - tail
         val added = new.size - head - tail
-        when {
-            removed == 0 && added == 0 -> Unit
-            removed == 0 -> fireTableRowsInserted(head, head + added - 1)
-            added == 0 -> fireTableRowsDeleted(head, head + removed - 1)
-            removed == added -> fireTableRowsUpdated(head, head + added - 1)
-            else -> fireTableDataChanged()
-        }
+        return if (removed == 0 && added == 0) null else RowChange(head, removed, added)
+    }
+
+    /**
+     * The model row the cell [table] is editing stands on once these declarations are adopted, or [GONE]
+     * where the edit cannot follow it. Call it only while [table] is editing.
+     *
+     * [change] answers where the row went - a `null` change having left every row where it was - and
+     * [GONE] where it was taken away or rewritten in place: the editor names a position, and rows are
+     * told apart by equality here as everywhere else in this model, so the row that took its place is a
+     * different row and a commit must not reach it.
+     *
+     * A structure change answers [GONE] on its own: it rebuilds the columns, the edited one among them.
+     */
+    private fun editedRowAfter(
+        table: JTable,
+        structureChanged: Boolean,
+        change: RowChange?,
+    ): Int {
+        if (structureChanged) return GONE
+        val editedRow = table.convertRowIndexToModel(table.editingRow)
+        return change?.indexAfter(editedRow) ?: editedRow
     }
 
     /** The row [index] names, or `null` where the model holds no such row. */
@@ -368,7 +418,37 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
         columns[columnIndex].onCellEdit(rows[rowIndex], rowIndex, aValue)
     }
 
+    /**
+     * One row list's difference from the one before it: [removed] rows taken out at [head] and [added] put
+     * in there, with every row outside that run the one it already was.
+     */
+    private class RowChange(
+        val head: Int,
+        val removed: Int,
+        val added: Int,
+    ) {
+        /**
+         * Where the row that stood at model index [index] stands once this change is adopted, or [GONE]
+         * where it was taken away or rewritten. Follows what `JTable.convertRowIndexToView` works out
+         * for the row an editor stands on, save for the sorter's part of it: a row before the run keeps
+         * its index, one inside it is gone, and one after it shifts by what the run added or removed.
+         *
+         * A change that both moves the row count and rewrites rows goes out as the wholesale change, which
+         * names no run for anything to shift by, so only the rows before it are left where they were.
+         */
+        fun indexAfter(index: Int): Int =
+            when {
+                index < head -> index
+                removed > 0 && added > 0 && removed != added -> GONE
+                index < head + removed -> GONE
+                else -> index + added - removed
+            }
+    }
+
     private companion object {
+        /** The answer [RowChange.indexAfter] gives for a row the change leaves the model without. */
+        const val GONE = -1
+
         /**
          * Whether two column declarations describe a different table structure. The value/edit/cell
          * lambdas are rebuilt every composition and so are never reference-equal; comparing only the
@@ -430,3 +510,13 @@ internal const val COLUMN_MIN_WIDTH: Int = 15
  */
 @PublishedApi
 internal const val COLUMN_MAX_WIDTH: Int = Int.MAX_VALUE
+
+/**
+ * Ends the edit this table is showing. An editor that answers `cancelCellEditing` by telling the table
+ * takes itself off; one that does not is taken off here, so no editor is left standing over a cell the
+ * table no longer names.
+ */
+internal fun JTable.endEdit() {
+    cellEditor?.cancelCellEditing()
+    if (isEditing) removeEditor()
+}

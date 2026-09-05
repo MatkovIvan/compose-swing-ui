@@ -21,6 +21,7 @@ import java.awt.Component
 import javax.swing.JComboBox
 import javax.swing.JList
 import javax.swing.ListCellRenderer
+import javax.swing.ListModel
 import kotlin.reflect.KClass
 
 /**
@@ -80,6 +81,9 @@ internal class ComposingListCellRenderer<T>(
     private val itemState = mutableStateOf<Any?>(null)
     private val scope = MutableListItemScope()
 
+    // Where the last model scan found its item.
+    private var lastItemIndex = 0
+
     private val cellComposition =
         CellStampComposition(
             parentContext,
@@ -97,8 +101,10 @@ internal class ComposingListCellRenderer<T>(
         cellHasFocus: Boolean,
     ): Component {
         // Every row the widget paints names the item it holds, `null` among them. A combo box's display
-        // area is the one stamp made for no row at all, and with nothing selected it names no item either.
-        val hasCell = index >= 0 || value != null
+        // area is the one stamp made for no row at all, and what it hands over is only sometimes an
+        // item: nothing selected names none, and an editable combo box holds the text typed into its
+        // editor as its selected item until a declaration settles over it.
+        val hasCell = index >= 0 || isItem(list, value)
         // The cast a cell body's item goes through is unchecked, so a model holding something else would
         // otherwise surface as a ClassCastException, or a null under a non-null item type as a
         // NullPointerException, inside the paint that stamped the row.
@@ -116,6 +122,37 @@ internal class ComposingListCellRenderer<T>(
             scope.isSelected = isSelected
             scope.cellHasFocus = cellHasFocus
         }
+    }
+
+    /**
+     * Whether [value] is one of the items [list] renders - what a display-area stamp composes a cell for.
+     * An item is one the list's model holds, or one of a stated [itemType], which is how a value measured
+     * rather than held - a `JComboBox`'s `prototypeDisplayValue` - is rendered too.
+     */
+    private fun isItem(
+        list: JList<out Any?>,
+        value: Any?,
+    ): Boolean = value != null && (itemType?.isInstance(value) == true || list.model.holds(value))
+
+    /**
+     * Whether [model] holds [value] among its elements, scanned for as `JComboBox` scans its own model to
+     * resolve a selection.
+     *
+     * The scan starts where the last one found its item. A `JComboBox` sizes itself by stamping every
+     * item of its model as a display area, so a scan from the front would cost one comparison per item
+     * per item; resumed at the last hit it costs two, and a value stamped again - the selection, on
+     * every paint - costs one.
+     */
+    private fun ListModel<*>.holds(value: Any): Boolean {
+        val size = size
+        for (offset in 0 until size) {
+            val index = (lastItemIndex + offset) % size
+            if (getElementAt(index) == value) {
+                lastItemIndex = index
+                return true
+            }
+        }
+        return false
     }
 
     /** Disposes this renderer's cell composition; see [CellStampComposition.dispose]. */
@@ -163,6 +200,9 @@ private class MutableListItemScope : ListItemScope {
  * An item the component's model holds that is not a [T] throws `IllegalStateException` naming both
  * types, out of the widget's own layout rather than out of composition. Nothing ties [T] to the model,
  * so the two are the caller's to keep in step.
+ *
+ * A value a `JComboBox` stamps its display area with - for an editable one, the text typed into its
+ * editor - composes no cell unless it is one of the model's items or a [T].
  *
  * A call site that cannot reify [T] names the item type through the overload that takes it.
  *
@@ -218,7 +258,7 @@ internal fun <T> rememberListItemRenderer(
 }
 
 /**
- * Renders the items of the component this chain applies to through [renderer].
+ * Renders the items of the component this modifier applies to through [renderer].
  *
  * Takes a renderer the caller already has, written against the Swing interface, or one
  * [rememberListItemRenderer] built from a composable cell body. As in Swing, the renderer is handed
@@ -231,7 +271,7 @@ internal fun <T> rememberListItemRenderer(
  * Anything measured through the renderer - a prototype cell - is declared after this.
  *
  * @param renderer the renderer the component stamps its items through.
- * @return this chain with the renderer declared on it.
+ * @return this modifier with the renderer declared on it.
  * @see javax.swing.ListCellRenderer
  */
 public fun SwingModifier.listItemRenderer(renderer: ListCellRenderer<*>): SwingModifier {

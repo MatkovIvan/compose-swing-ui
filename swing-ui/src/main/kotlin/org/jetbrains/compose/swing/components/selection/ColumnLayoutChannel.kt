@@ -62,19 +62,19 @@ internal class ColumnLayoutChannel(
         }
 
     /**
-     * Settles the columns of [columns] on [declared], and records the layout they were left in as the one
+     * Settles [table]'s columns on [declared], and records the layout they were left in as the one
      * this pass answered for. A `null` declaration leaves the columns where they are.
      *
      * The whole of it is one settlement of the mirror, so the layout the columns are left in is not news:
      * this pass asked for it and read it back.
      */
     fun settle(
-        columns: TableColumnModel,
+        table: JTable,
         declared: TableColumnLayout?,
     ) {
         mirror.settle {
-            mirror.write { columns.applyColumnLayout(declared) }
-            answered(columns.layoutHeld(mirror.value))
+            mirror.write { table.applyColumnLayout(declared) }
+            answered(table.columnModel.layoutHeld(mirror.value))
         }
     }
 
@@ -91,15 +91,16 @@ internal class ColumnLayoutChannel(
      * reach the caller.
      */
     fun preserveAcross(
-        columns: TableColumnModel,
+        table: JTable,
         declared: TableColumnLayout?,
         install: () -> Unit,
     ) {
+        val columns = table.columnModel
         val lost =
             mirror.settle {
                 val retained = declared ?: columns.layoutHeld(mirror.value)
                 install()
-                mirror.write { columns.applyColumnLayout(retained) }
+                mirror.write { table.applyColumnLayout(retained) }
                 val settled = columns.layoutHeld(retained)
                 answered(settled)
                 declared == null && !settled.holds(retained)
@@ -154,7 +155,7 @@ internal fun SwingNodeUpdater<JTable>.declareColumnLayout(
     channel: ColumnLayoutChannel,
 ) {
     settleWhenDue(mirror.redeclare(columnLayout), { ColumnLayoutSettlement(columnLayout) }) { due ->
-        channel.settle(columnModel, due.layout)
+        channel.settle(this, due.layout)
     }
 }
 

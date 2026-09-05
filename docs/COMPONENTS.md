@@ -306,6 +306,10 @@ enclosing composition, so the editing surface reads the same state and compositi
 site does. A fresh lambda each pass recomposes it rather than rebuilding it, so characters
 typed but not committed stand. Declaring both is refused: each names what the spinner shows.
 
+Bounds belong to the class of the value they bound. Each is carried into that class on every pass, and
+one the class cannot hold exactly - `0.1` under a `Float` value - is refused rather than rounded into a
+bound the spinner would then honor.
+
 ```kotlin
 var hour by remember { mutableStateOf(9) }
 
@@ -392,7 +396,12 @@ cell edit and a column layout all keep meaning what they meant.
 
 Editing is per column and, where you want it, per row: `isEditable` opens a whole column, and
 `isCellEditable` answers for one row of it. A committed edit arrives at `onCellEdit` with the row, its
-index and the new value; the displayed value changes when the next composition supplies fresh `rows`.
+index and the new value; the displayed value changes when the next composition supplies fresh `rows`. An
+edit still open when a composition no longer puts the same row under it - the row went away, was rewritten
+in place, or the columns were rebuilt - ends there and commits nothing. An edit follows its row across
+rows a later composition inserts or removes elsewhere; a composition that both adds and removes rows ends
+an edit on any row at or past the first row where the two lists differ, and one on any row at all where
+the table is sorted or filtered.
 
 Sorting is off until `sortable` turns it on, as it is on a bare `JTable`. With it on, a click on a
 column header sorts by that column, `sortKeys` declares the order the rows are in and `onSortChange`
@@ -444,7 +453,9 @@ Give a tree with composable nodes a `rowHeight` of `0` so each node is measured 
 `isEditable` lets the user edit a node's text in place, and a committed edit hands `onNodeEdit` the
 value edited, its index path and what was entered. Editing is a report and never a mutation: the row
 goes on showing what the data says until a later composition supplies data that says otherwise, and
-the tree `root` and `children` describe is never written to.
+the tree `root` and `children` describe is never written to. An edit still open when a composition no
+longer puts the same value under it - the node took another value over, or left the structure - ends
+there and commits nothing.
 
 `onWillExpand` is asked before a node opens - whether the user opened it or a declared expansion did -
 and returning `false` leaves it closed. Together with `hasChildren` that is also how children are

@@ -147,6 +147,10 @@ internal fun JTree.installModel(
  *
  * The declarations are re-asserted on the same write, so a node the structure has just gained is opened and
  * selected where they name it. What the write took off the selection is reported - see [settleSelection].
+ *
+ * An edit the tree is showing over a node this walk hands another value to ends here, so a commit only ever
+ * reaches the value the editor was opened on. An edit over a node the walk leaves alone stands, and one
+ * over a node it takes out of the structure the tree ends for itself.
  */
 internal fun <T> JTree.updateContent(
     declarations: TreeDeclarations,
@@ -155,7 +159,16 @@ internal fun <T> JTree.updateContent(
 ) {
     val walkEvery = !standing.content.walksAlike(content)
     settleSelection(declarations) {
+        val edited = if (isEditing) editingPath else null
+        val editedValue = edited?.let { valueAt<T>(it) }
         val structureChanged = content.syncInto(standing, walkEvery)
+        // An editor names a node, and the walk hands a node over to the value that now stands for it
+        // without the tree hearing of it: a node changed reaches `BasicTreeUI` as a repaint alone, so an
+        // edit left standing would commit through `valueForPathChanged` against the value that took the
+        // node over. The node is read back after the walk rather than predicted from the new data: a
+        // value handed over unchanged keeps its own node whatever moved in front of it, so what the walk
+        // did to that node decides.
+        if (edited != null && isEditing && valueAt<T>(edited) != editedValue) cancelEditing()
         standing.content = content
         applyDeclarations(declarations, structureChanged)
     }

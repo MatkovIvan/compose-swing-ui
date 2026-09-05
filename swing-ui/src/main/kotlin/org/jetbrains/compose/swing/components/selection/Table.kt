@@ -296,7 +296,7 @@ private inline fun <R> TableRowsImpl(
             val swapInDeclaredContent = {
                 sortChannel.unbindFrom(table, model)
                 table.model = model
-                model.refresh(declaredRows, columns)
+                model.refresh(table, declaredRows, columns)
                 columnMirror.write { table.applyDeclaredColumnWidths(columns) }
             }
 
@@ -317,7 +317,7 @@ private inline fun <R> TableRowsImpl(
             // should stand is put back outside everything that provokes one - and outside the
             // declarations, whose widths bound the layout that is put back.
             val preservingColumnLayout = { refresh: () -> Unit ->
-                columnChannel.preserveAcross(columnModel, columnLayout, refresh)
+                columnChannel.preserveAcross(table, columnLayout, refresh)
             }
 
             preservingColumnLayout { preservingSelection { preservingSortOrder { swapInDeclaredContent() } } }
@@ -547,7 +547,7 @@ private inline fun TableImpl(
     ) { selectionMirror, columnMirror, sortChannel, columnChannel ->
         set(model) { newModel ->
             val table = this
-            columnChannel.preserveAcross(columnModel, columnLayout) {
+            columnChannel.preserveAcross(table, columnLayout) {
                 installContent(selectionMirror, selectedRowIndices, listSelectionListener) {
                     sortChannel.preserveAcross(table, sortable, sortKeys) {
                         sortChannel.unbindFrom(table, newModel)

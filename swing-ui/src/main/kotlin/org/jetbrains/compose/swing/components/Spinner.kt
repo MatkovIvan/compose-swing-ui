@@ -31,6 +31,7 @@ import javax.swing.SpinnerModel
 import javax.swing.SpinnerNumberModel
 import javax.swing.event.ChangeListener
 import javax.swing.text.AttributeSet
+import javax.swing.text.DefaultFormatter
 import javax.swing.text.DefaultFormatterFactory
 import javax.swing.text.DocumentFilter
 
@@ -72,15 +73,21 @@ private fun rememberSpinnerValueChannel(
  *
  * A `null` [min] or [max] leaves that side unbounded. Tightening either past the current [value] does
  * not move the value, so the spinner can hold one outside its own range until the next value it takes.
+ * A bound is held in [value]'s own class, so bounds and value may be declared in different classes.
+ *
+ * The class of [value] is the class the field edits in: what it shows, what a commit is parsed back to,
+ * and what [onValueChange] is handed. A [value] declared in another class moves the field to that class,
+ * so a spinner declared an `Int` and later a `Double` edits decimals from then on.
  *
  * @param value the current value.
  * @param onValueChange callback invoked with the value the user changes the spinner to - a step, a
  *   scroll, or a committed edit - and with the value the spinner is left on where it cannot hold
  *   [value]; applying a [value] the spinner can hold is not itself reported.
  * @param modifier the [SwingModifier] applied to the underlying component.
- * @param min the smallest selectable value, or `null` for none.
- * @param max the largest selectable value, or `null` for none.
- * @param step the amount a step changes the value by; `1` by default.
+ * @param min the smallest selectable value, held in [value]'s class, or `null` for none.
+ * @param max the largest selectable value, held in [value]'s class, or `null` for none.
+ * @param step the amount a step changes the value by; `1` by default. A step is taken in the class of
+ *   the value it steps, so a whole-number step off a decimal value keeps the decimals.
  * @param format the pattern the spinner formats and parses its value with - a `DecimalFormat` pattern;
  *   `null` formats it the way the locale does. A new pattern rebuilds the spinner's own editor around
  *   it.
@@ -89,8 +96,9 @@ private fun rememberSpinnerValueChannel(
  *   does; `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
  *   recomposition is fine - that composition recomposes rather than being rebuilt, so characters typed
  *   but not committed stand.
- * @throws IllegalArgumentException if both a [format] and an [editor] are declared, or if [value]
- *   falls outside [min]..[max].
+ * @throws IllegalArgumentException if both a [format] and an [editor] are declared, if [value] falls
+ *   outside [min]..[max], if either bound is one [value]'s class cannot hold exactly, or if a bound is
+ *   declared over a `BigInteger` or `BigDecimal` [value].
  * @see javax.swing.JSpinner
  */
 @Composable
@@ -107,19 +115,21 @@ public fun Spinner(
     val mirror = rememberMirrorState<Any?>(value)
     val channel = rememberSpinnerValueChannel(mirror) { onValueChange(it as Number) }
 
-    // The general SpinnerNumberModel constructor takes Comparable minimum/maximum. Number is not itself
-    // Comparable, but every concrete Number a caller passes (Int, Double, Long, ...) is Comparable at
-    // runtime, so the star-projected cast of the bounds is sound.
-    val model = remember { SpinnerNumberModel(value, min as Comparable<*>?, max as Comparable<*>?, step) }
+    // Resolved on every pass, since a value later declared in another class leaves the bounds behind.
+    val minimum = boundInTheClassOf(value, min, "min")
+    val maximum = boundInTheClassOf(value, max, "max")
+
+    val model = remember { SpinnerNumberModel(value, minimum, maximum, step) }
 
     SpinnerNode(
         model = model,
         modifier = modifier.changeListener(channel.listener),
         format = format,
         editor = editor,
+        valueClass = value.javaClass,
     ) {
-        set(min) { mirror.write { model.minimum = it as Comparable<*>? } }
-        set(max) { mirror.write { model.maximum = it as Comparable<*>? } }
+        set(minimum) { mirror.write { model.minimum = it } }
+        set(maximum) { mirror.write { model.maximum = it } }
         set(step) { mirror.write { model.stepSize = it } }
         declare(value, mirror, JSpinner::getValue, JSpinner::setValue) { settled -> channel.settledOn(settled) }
     }
@@ -297,6 +307,7 @@ private inline fun SpinnerNode(
         @Composable
         () -> Unit
     )?,
+    valueClass: Class<*>? = null,
     crossinline updateBlock: SwingNodeUpdater<JSpinner>.() -> Unit = {},
 ) {
     // Both name the surface the spinner edits through, and a composed editor renders the value itself, so
@@ -322,14 +333,18 @@ private inline fun SpinnerNode(
         modifier = if (editorPanel != null) modifier.spinnerEditor(editorPanel) else modifier,
         update = {
             set(model) { this.model = it }
+            this.updateBlock()
             // A `JSpinner` editor is built for the model it edits, so the model is part of what the
             // editor is derived from: swapping the model rebuilds the editor around the new one even
-            // where the format stands. A composed editor is not derived from any of them and is
+            // where the format stands. So is the class of the value declared onto it; see
+            // [SpinnerComponent.edits]. A composed editor is not derived from any of them and is
             // installed by the editor composition instead, so it withholds the write here.
-            set(EditorDeclaration(model, format, editor != null)) { declaration ->
+            //
+            // This follows the declarations above, so an [EditorDeclaration] builds its editor for a
+            // model already holding the value this pass declared.
+            set(EditorDeclaration(model, format, editor != null, valueClass)) { declaration ->
                 if (!declaration.composed) (this as SpinnerComponent).showDeclaredEditor(declaration)
             }
-            this.updateBlock()
         },
     )
     if (editor != null && editorPanel != null) {
@@ -534,6 +549,7 @@ private data class EditorDeclaration(
     val model: SpinnerModel,
     val format: String?,
     val composed: Boolean,
+    val valueClass: Class<*>?,
 )
 
 /**
@@ -543,11 +559,12 @@ private data class EditorDeclaration(
  *
  * A declaration naming no pattern over a spinner already showing its own editor writes nothing: handing
  * the spinner an equivalent editor is a visible change, since only the editor `BasicSpinnerUI` installs
- * for itself is given the look and feel's editor alignment.
+ * for itself is given the look and feel's editor alignment. An editor that no longer [edits] the class
+ * the declaration names is rebuilt even so.
  */
 private fun SpinnerComponent.showDeclaredEditor(declaration: EditorDeclaration) {
     val format = declaration.format
-    if (format == null && showsOwnEditor) return
+    if (format == null && showsOwnEditor && edits(declaration.valueClass)) return
     editor =
         when {
             format == null -> defaultEditor()
@@ -557,7 +574,7 @@ private fun SpinnerComponent.showDeclaredEditor(declaration: EditorDeclaration) 
 }
 
 /**
- * Installs [panel] as the spinner's editor while this chain applies it, restoring the spinner's own
+ * Installs [panel] as the spinner's editor while this modifier applies it, restoring the spinner's own
  * editor when it leaves.
  */
 private fun SwingModifier.spinnerEditor(panel: JPanel): SwingModifier = this then SpinnerEditorElement(panel)
@@ -623,6 +640,16 @@ private class SpinnerComponent(
 
     /** Whether the spinner is showing the editor it built for the model it now holds. */
     val showsOwnEditor: Boolean get() = editor === ownEditor && ownEditorModel === model
+
+    /**
+     * Whether the editor on show edits in [valueClass]. A `JSpinner.NumberEditor` takes that class from
+     * the value its model holds as it is built and parses every commit back to it, so an editor built
+     * for an `Int` truncates the decimals of a `Double` declared later.
+     */
+    fun edits(valueClass: Class<*>?): Boolean {
+        val edited = ((editor as? DefaultEditor)?.textField?.formatter as? DefaultFormatter)?.valueClass
+        return valueClass == null || edited == null || edited == valueClass
+    }
 
     fun defaultEditor(): JComponent = createEditor(this.model)
 

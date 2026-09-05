@@ -3,11 +3,18 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.core.SwingRecomposer
+import org.jetbrains.compose.swing.core.awaitUntil
+import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.singleWidget
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComboBox
+import javax.swing.JPanel
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -85,6 +92,89 @@ class ComboBoxEditableTest {
 
         assertEquals(listOf("purple"), committed, "the typed value should reach the commit callback")
         assertEquals(listOf<String?>(null), reported, "no item is selected any more, reported once")
+    }
+
+    @Test
+    fun aTypedValueOutsideTheItemsReachesTheCommitCallbackBeforeTheSelectionIsPutBack() = runSwingTest {
+        // On the recomposer the library drives, a reported change settles inside the event that made it,
+        // so this pins the commit against a pass that can run between the two events a commit is
+        // published as.
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
+        val reported = mutableListOf<String?>()
+        val committed = mutableListOf<String>()
+        var mounted: DisposableHandle? = null
+        try {
+            mounted =
+                composition.setContent(parent = recomposer.compositionContext) {
+                    ComboBox(
+                        items = listOf("red", "green"),
+                        selectedItem = "red",
+                        onSelectionChange = { reported += it },
+                        editable = true,
+                        onValueCommit = { committed += it },
+                    )
+                }
+            val combo = singleWidget(composition, JComboBox::class.java)
+
+            val editor = combo.editor.editorComponent as JTextField
+            editor.text = "purple"
+            editor.postActionEvent()
+
+            assertEquals(listOf("purple"), committed, "the typed value should reach the commit callback")
+            assertEquals(listOf<String?>(null), reported, "no item is selected any more, reported once")
+
+            awaitUntil("the selection the caller did not adopt is put back") { combo.selectedItem == "red" }
+
+            assertEquals(
+                listOf<String?>(null),
+                reported,
+                "and putting it back is the wrapper's own write, reported to nobody",
+            )
+        } finally {
+            mounted?.dispose()
+            recomposer.dispose()
+        }
+    }
+
+    @Test
+    fun typedTextThatNamesAnItemReachesTheCommitCallbackBeforeTheSelectionIsPutBack() = runSwingTest {
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
+        val reported = mutableListOf<String?>()
+        val committed = mutableListOf<String>()
+        var mounted: DisposableHandle? = null
+        try {
+            mounted =
+                composition.setContent(parent = recomposer.compositionContext) {
+                    ComboBox(
+                        items = listOf("red", "green"),
+                        selectedItem = "red",
+                        onSelectionChange = { reported += it },
+                        editable = true,
+                        onValueCommit = { committed += it },
+                    )
+                }
+            val combo = singleWidget(composition, JComboBox::class.java)
+
+            val editor = combo.editor.editorComponent as JTextField
+            editor.text = "green"
+            editor.postActionEvent()
+
+            assertEquals(listOf("green"), committed, "the typed text should reach the commit callback")
+            assertEquals(listOf<String?>("green"), reported, "the item the text names is reported once")
+
+            awaitUntil("the selection the caller did not adopt is put back") { combo.selectedItem == "red" }
+
+            assertEquals(
+                listOf<String?>("green"),
+                reported,
+                "and putting it back is the wrapper's own write, reported to nobody",
+            )
+        } finally {
+            mounted?.dispose()
+            recomposer.dispose()
+        }
     }
 
     @Test
