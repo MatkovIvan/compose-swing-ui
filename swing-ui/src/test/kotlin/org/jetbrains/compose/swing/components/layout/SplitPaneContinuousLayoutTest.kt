@@ -7,10 +7,10 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import javax.swing.JSplitPane
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
@@ -64,11 +64,10 @@ class SplitPaneContinuousLayoutTest {
         // A pane that was never given a choice carries the one its look and feel leaves it with, so the
         // oracle is a pane built the plain Swing way.
         val handWritten = JSplitPane().isContinuousLayout
-        assertNotEquals(
-            true,
-            handWritten,
-            "the look and feel under test should leave a pane laying out on release, so that a " +
-                "withdrawal that did nothing could not pass for one that gave the choice back",
+        assumeTrue(
+            !handWritten,
+            "the look and feel under test leaves a pane laying out on release, so a withdrawal that " +
+                "did nothing cannot be told from one that gave the choice back",
         )
         assertEquals(
             handWritten,

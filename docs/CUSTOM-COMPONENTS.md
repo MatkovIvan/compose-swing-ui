@@ -57,7 +57,7 @@ available as the strongly-typed `this`.
 Two things about every component belong to the composition rather than to your code:
 
 - **the value of any property it declares** - a modifier applies a property through a node that first
-  records what the component had, and puts that back when the modifier leaves the chain;
+  records what the component had, and puts that back when the declaration goes;
 - **the children of any container it builds** - insertion, order and removal are the applier's.
 
 So a component your composition built is not a component to reach into. Writing a property the
@@ -100,7 +100,7 @@ single writer.
 
 The same rule explains where a property belongs. One that only your component has is a parameter of
 your component. One that many unrelated components have is a modifier, so it reaches all of them
-without every wrapper repeating it - and so a caller composes it with everything else in one chain.
+without every wrapper repeating it - and so a caller composes it with everything else in one modifier.
 
 ## The `SwingNode` signatures
 
@@ -226,7 +226,7 @@ line up at the call.
 ## Inside `update`: `set` for properties, `SwingModifier` for styling and listeners
 
 The `update` block runs with a `SwingNodeUpdater<T>` receiver. Its core tool is `set`; for styling
-and lifecycle-safe listeners you apply a `SwingModifier` chain.
+and lifecycle-safe listeners you apply a `SwingModifier`.
 
 ### `set(value) { ... }` - reactive property updates
 
@@ -278,6 +278,52 @@ exactly once, when the node is built, and not again for as long as that same nod
 A property that changes the size a component asks for needs a layout pass to go with it. Several
 Swing setters only invalidate - `JTextField.setColumns` and `JTextArea.setRows` among them - and
 nothing in the update pass asks for a layout on their behalf, so call `revalidate()` after the write.
+
+### A property the look and feel decides
+
+Some Swing properties have no fixed default - the installed look and feel decides them. Declare those
+as nullable, so `null` says "whatever the look and feel decides", and resolve them one of two ways.
+
+Where the look and feel only publishes the value and nothing writes it onto the widget, read the key:
+
+```kotlin
+SwingNode(
+    factory = { JSplitPane(JSplitPane.HORIZONTAL_SPLIT, null, null) },
+    update = {
+        set(continuousLayout) {
+            isContinuousLayout = it ?: (UIManager.get("SplitPane.continuousLayout") as? Boolean ?: false)
+        }
+    },
+)
+```
+
+<!--- CLEAR -->
+
+Where a look and feel writes the property onto the widget itself, the key is not enough: a look and
+feel may install the property from a style table no key reaches, and reading the key would hand the
+widget a value it never carried. Declare those with `property`, folded into the modifier only while a
+value is declared:
+
+```kotlin
+private fun SwingModifier.declaredDividerSize(dividerSize: Int?): SwingModifier =
+    if (dividerSize == null) {
+        this
+    } else {
+        property<JSplitPane, Int>(
+            name = "dividerSize",
+            value = dividerSize,
+            read = { it.dividerSize },
+            write = { pane, value -> pane.dividerSize = value },
+        )
+    }
+```
+
+<!--- CLEAR -->
+
+The element reads the property as the declaration arrives and writes it back when it leaves, so
+withdrawing the declaration hands the widget back what its look and feel gave it. Declare it in a
+function of its own, as above, rather than inline at a call site. `property`'s own documentation says
+why, and what to pass for a property the component offers no way to give back.
 
 ### `init { ... }` - one-time setup after creation
 
@@ -342,7 +388,7 @@ fun MySpinner(
 ) {
     SwingNode(
         factory = { JSpinner(SpinnerNumberModel()) },
-        // The component chains its own element onto the caller's modifier; the changeListener
+        // The component adds its own element onto the caller's modifier; the changeListener
         // builder owns the listener's lifecycle. The typed overload hands the spinner over as the
         // receiver, and `this` is needed because the composable's own `value` parameter shadows it.
         modifier = modifier.changeListener<JSpinner> { onValueChange(this.value as Int) },

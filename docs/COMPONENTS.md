@@ -50,7 +50,7 @@ this library's. A parameter with no single correct default - `CheckBox`'s `check
 `ComboBox` built over `items` rather than a `ComboBoxModel` - is required instead.
 
 Cross-cutting configuration - colors, fonts, borders, sizes, tooltips, accessibility, keyboard
-bindings, data transfer, raw listeners - arrives as a `SwingModifier` chain passed as `modifier`,
+bindings, data transfer, raw listeners - arrives as a `SwingModifier` passed as `modifier`,
 described in
 [`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md#styling-with-a-modifier-swingmodifier-parameter).
 
@@ -121,7 +121,7 @@ compare equal are one and the same selection.
 
 | Component            | What it is                                                                                                      |
 |----------------------|-----------------------------------------------------------------------------------------------------------------|
-| `Label`              | A text label over `JLabel`. Alignment, icon and text position come from the modifier chain.                     |
+| `Label`              | A text label over `JLabel`. Alignment, icon and text position come from the modifier.                           |
 | `TextField`          | One line of editable text over `JTextField`.                                                                    |
 | `PasswordField`      | A field over `JPasswordField` whose value is a `CharArray` rather than a `String`.                              |
 | `FormattedTextField` | A field over `JFormattedTextField` that parses and formats a typed value through an `AbstractFormatterFactory`. |
@@ -237,8 +237,8 @@ RadioGroup(selectedIndex = theme, onSelectionChange = { theme = it }) {
 An editable `ComboBox` has two outputs: `onSelectionChange` for a choice from the list, and
 `onValueCommit` for text typed into the editor. `itemContent` replaces the rendered cell with a
 composable, which receives the item and, through its scope, the row's `index`, `isSelected` and
-`cellHasFocus`. `editable` defaults to `false` and `maximumRowCount` - the rows the popup shows
-before scrolling - to `8`.
+`cellHasFocus`. `editable` defaults to `false`, and `maximumRowCount` - the rows the popup shows
+before scrolling - leaves the count the box already carries unless declared.
 
 ```kotlin
 val presets = listOf("Small", "Medium", "Large")
@@ -306,8 +306,8 @@ enclosing composition, so the editing surface reads the same state and compositi
 site does. A fresh lambda each pass recomposes it rather than rebuilding it, so characters
 typed but not committed stand. Declaring both is refused: each names what the spinner shows.
 
-Bounds belong to the class of the value they bound. Each is carried into that class on every pass, and
-one the class cannot hold exactly - `0.1` under a `Float` value - is refused rather than rounded into a
+Bounds belong to the class of the value they bound. Each is carried into that class on every pass. One
+the class cannot hold exactly - `0.1` under a `Float` value - is refused rather than rounded into a
 bound the spinner would then honor.
 
 ```kotlin
@@ -397,11 +397,11 @@ cell edit and a column layout all keep meaning what they meant.
 Editing is per column and, where you want it, per row: `isEditable` opens a whole column, and
 `isCellEditable` answers for one row of it. A committed edit arrives at `onCellEdit` with the row, its
 index and the new value; the displayed value changes when the next composition supplies fresh `rows`. An
-edit still open when a composition no longer puts the same row under it - the row went away, was rewritten
-in place, or the columns were rebuilt - ends there and commits nothing. An edit follows its row across
-rows a later composition inserts or removes elsewhere; a composition that both adds and removes rows ends
-an edit on any row at or past the first row where the two lists differ, and one on any row at all where
-the table is sorted or filtered.
+open edit ends and commits nothing when a composition no longer puts the same row under it - the row went
+away, was rewritten in place, or the columns were rebuilt. An edit follows its row across rows a later
+composition inserts or removes elsewhere. A composition that both adds and removes rows ends an edit on
+any row at or past the first row where the two lists differ - and on any row at all where the table is
+sorted or filtered.
 
 Sorting is off until `sortable` turns it on, as it is on a bare `JTable`. With it on, a click on a
 column header sorts by that column, `sortKeys` declares the order the rows are in and `onSortChange`
@@ -453,9 +453,9 @@ Give a tree with composable nodes a `rowHeight` of `0` so each node is measured 
 `isEditable` lets the user edit a node's text in place, and a committed edit hands `onNodeEdit` the
 value edited, its index path and what was entered. Editing is a report and never a mutation: the row
 goes on showing what the data says until a later composition supplies data that says otherwise, and
-the tree `root` and `children` describe is never written to. An edit still open when a composition no
-longer puts the same value under it - the node took another value over, or left the structure - ends
-there and commits nothing.
+the tree `root` and `children` describe is never written to. An open edit ends and commits nothing when
+a composition no longer puts the same value under it - the node took another value over, or left the
+structure.
 
 `onWillExpand` is asked before a node opens - whether the user opened it or a declared expansion did -
 and returning `false` leaves it closed. Together with `hasChildren` that is also how children are
@@ -697,8 +697,9 @@ A `SplitPane`'s `first` side is the left or the top depending on `orientation`, 
 where the user dragged it; `resizeWeight` decides which side keeps extra space, and
 `oneTouchExpandable` and `dividerSize` shape the divider itself. `continuousLayout` lays the two sides
 out as the divider is dragged rather than once it is released. Each of those three leaves the choice to
-the look and feel while it is `null`, and settles at the look and feel's answer if it is withdrawn after
-being declared.
+the look and feel while it is `null`. `oneTouchExpandable` and `dividerSize` are installed onto the
+pane by its own UI, so withdrawing a declared value hands back what the pane was already carrying;
+`continuousLayout` is resolved from the look and feel's own answer instead.
 
 ```kotlin
 var divider by remember { mutableStateOf(240) }
@@ -735,11 +736,12 @@ ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
 
 <!--- CLEAR -->
 
-A `ToolBar` is horizontal and floatable by default. A bar the user can drag out has to stand in a
-container laid out by a `BorderLayout` - a `BorderPanel`, or a window's own content - and is refused as
-it is composed anywhere else, so declare `floatable = false` there. `floating` declares whether the bar
-stands in a window of its own, and `onFloatingChange` reports where the user dragged it - or hands back
-the docked state a bar that cannot float settles for.
+A `ToolBar` is horizontal by default, and leaves `floatable` - whether the user can drag it out - at
+the choice the bar already carries unless declared. A bar that declares `floatable = true` has to
+stand in a container laid out by a `BorderLayout` - a `BorderPanel`, or a window's own content, and is
+refused anywhere else. `floating` declares whether the bar stands in a window of its own, and
+`onFloatingChange` reports where the user dragged it - or hands back the docked state a bar that
+cannot float settles for.
 
 ```kotlin
 ToolBar(floatable = false, rollover = true) {
@@ -1002,7 +1004,7 @@ frame.jMenuBar = bar
 
 There is no command type, so one command reached from two surfaces - a menu item and a toolbar button
 that go gray together - is a shared value and a shared modifier. Both surfaces read the one state and
-apply the one chain, so enabling and disabling them is a single state write.
+apply the one modifier, so enabling and disabling them is a single state write.
 
 ```kotlin
 Window(onCloseRequest = ::exitApplication) {

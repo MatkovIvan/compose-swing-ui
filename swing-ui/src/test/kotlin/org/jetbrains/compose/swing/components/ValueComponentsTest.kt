@@ -335,8 +335,8 @@ class ValueComponentsTest {
     @Test
     fun progressBarReturnsToItsValueWhenARaisedMinimumIsLowered() = runComposeSwingTest {
         var min by mutableIntStateOf(0)
-        // Declared above the widget's own starting value, so the bar standing on the declaration is what
-        // the first reading says rather than the value a bare `JProgressBar` already holds.
+        // Declared above the widget's own starting value, so the first reading says what the declaration
+        // does rather than the value a bare `JProgressBar` already holds.
         setContent {
             ProgressBar(value = 20, min = min, max = 100)
         }
@@ -444,6 +444,12 @@ class ValueComponentsTest {
         caption = "after"
         awaitIdle()
         onNodeOfType<JLabel>().assertTextEquals("after")
+    }
+
+    @Test
+    fun anUndeclaredLabelIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { Label("text") }
+        onNodeOfType<JLabel>().assertTreeMatches(JLabel("text"))
     }
 
     @Test

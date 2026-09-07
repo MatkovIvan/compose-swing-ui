@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.TreeSelectionMode
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
@@ -517,7 +517,7 @@ private inline fun TreeModelImpl(
         nodeRenderer = null,
         content = model,
     ) { declarations ->
-        // A chain that changes shape re-creates the element behind it and asks for the model the tree
+        // A modifier chain that changes shape re-creates the element behind it and asks for the model the tree
         // already holds; installing that again would clear the selection and the toggled paths setModel
         // drops, for nothing.
         if (model !== this.model) installModel(declarations, model)
@@ -789,8 +789,8 @@ private inline fun TreeNode(
 
 /**
  * Folds in the tree's structure, and the settling of its declarations, as one element behind the listeners
- * the chain declares before it. The element is additive, since a chain diffs its keyed elements before its
- * additive ones: only an additive element is applied after the listeners it follows in the chain.
+ * the modifier declares before it. The element is additive, since a modifier diffs its keyed elements
+ * before its additive ones: only an additive element is applied after the listeners it follows in the modifier.
  *
  * [content] is what the structure is keyed on: where it differs from the one the tree holds, [install] gives
  * the tree the new structure and applies the declarations with it. [due] stands for a declaration, or the
@@ -818,7 +818,7 @@ private class TreeContentElement(
     override fun create(): TreeContentNode = TreeContentNode()
 
     override fun update(node: TreeContentNode) {
-        // An additive element is refreshed on every diff of its chain, so a pass with nothing to do here
+        // An additive element is refreshed on every diff of its modifier, so a pass with nothing to do here
         // builds nothing.
         val structureChanged = node.installed != content
         if (!structureChanged && due == null) return
@@ -872,7 +872,7 @@ private fun JTree.settleNarrowing(
  *
  * A `JTree` takes an explicit root-handle choice or row height as the client's own and stops accepting
  * the one its look and feel installs, which is what makes a folded-in element outrank the look and feel
- * while it stays in the chain; removing the element restores the value the tree carried before it was
+ * while it stays in the modifier; removing the element restores the value the tree carried before it was
  * folded in - the one its look and feel chose - through the same capture-on-attach, restore-on-detach
  * every modifier property follows. Detaching on release, reuse and deactivate as well as on withdrawal
  * is what gives a parked tree its look and feel's values back too.
@@ -891,8 +891,7 @@ private fun SwingModifier.uiOwnedProperties(
     var properties = this
     if (showsRootHandles != null) {
         properties =
-            properties then
-            propertyElement<JTree, Boolean>(
+            properties.property<JTree, Boolean>(
                 name = "showsRootHandles",
                 value = showsRootHandles,
                 read = { it.showsRootHandles },
@@ -901,8 +900,7 @@ private fun SwingModifier.uiOwnedProperties(
     }
     if (rowHeight != null) {
         properties =
-            properties then
-            propertyElement<JTree, Int>(
+            properties.property<JTree, Int>(
                 name = "rowHeight",
                 value = rowHeight,
                 read = { it.rowHeight },
@@ -911,8 +909,7 @@ private fun SwingModifier.uiOwnedProperties(
     }
     if (nodeRenderer != null) {
         properties =
-            properties then
-            propertyElement<JTree, TreeCellRenderer?>(
+            properties.property<JTree, TreeCellRenderer?>(
                 name = "cellRenderer",
                 value = nodeRenderer,
                 read = { it.cellRenderer as? ComposingTreeCellRenderer<*> },

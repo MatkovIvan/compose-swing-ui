@@ -17,8 +17,10 @@ import java.awt.LayoutManager
 import java.awt.Point
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import java.awt.image.BufferedImage
 import java.util.Vector
 import javax.swing.BorderFactory
+import javax.swing.ImageIcon
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JLabel
@@ -376,6 +378,25 @@ class ComponentTreeEquivalenceTest {
         val failure = assertFailsWith<AssertionError> { assertComponentTreesEquivalent(reference, actual) }
 
         assertContains(failure.message.orEmpty(), "selected: expected <false>, actual <true>")
+    }
+
+    /** The narrowing this comparison deliberately makes: an icon is told apart by its class and size alone. */
+    @Test
+    fun twoLabelsCarryingDifferentIconsOfTheSameClassAndSizeAreEquivalent() = runComposeSwingTest {
+        val reference = JLabel("hi").apply { icon = ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)) }
+        val actual = JLabel("hi").apply { icon = ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)) }
+
+        assertComponentTreesEquivalent(reference, actual)
+    }
+
+    @Test
+    fun anIconOfADifferentSizeIsReported() = runComposeSwingTest {
+        val reference = JLabel("hi").apply { icon = ImageIcon(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)) }
+        val actual = JLabel("hi").apply { icon = ImageIcon(BufferedImage(8, 8, BufferedImage.TYPE_INT_ARGB)) }
+
+        val failure = assertFailsWith<AssertionError> { assertComponentTreesEquivalent(reference, actual) }
+
+        assertContains(failure.message.orEmpty(), "icon:")
     }
 
     @Test

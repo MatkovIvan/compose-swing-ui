@@ -12,6 +12,7 @@ import javax.swing.BoxLayout
 import javax.swing.CellRendererPane
 import javax.swing.DefaultButtonModel
 import javax.swing.DefaultRowSorter
+import javax.swing.Icon
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JEditorPane
@@ -105,14 +106,22 @@ private inline fun <reified T : Component> widgetState(
 ): WidgetState = WidgetState(T::class.java, ComparedProperty(name) { read(it as T) })
 
 /**
+ * What an icon is compared as: the class it is of and the space it takes.
+ *
+ * An icon the caller hands to both trees is one object, so its class and size answer for it. A look and
+ * feel builds one of its own for each tree - a scaled title-pane icon among them - and two of those
+ * carry no equality between them, so they are held to this comparison rather than to identity.
+ */
+private fun iconShape(icon: Icon?): String? = icon?.let { "${it.javaClass.name} ${it.iconWidth}x${it.iconHeight}" }
+
+/**
  * What every component and container holds, beyond the properties compared at each node.
  *
  * A collaborator a widget delegates to is compared by what it holds where the comparison reaches that: a
  * model by the elements, rows or value it stands for, a document by its text. One that holds nothing of
  * its own - a renderer, a caret, a transfer handler, a policy - carries no value equality, so it is
  * compared by its class the way a border is: two trees built apart hold two such objects and would never
- * match by identity. A value the caller hands to both trees, an icon among them, is compared as it
- * stands.
+ * match by identity. An icon is compared by [iconShape].
  */
 private val COMMON_STATE: List<WidgetState> =
     listOf(
@@ -163,7 +172,7 @@ private val LAYOUT_STATE: List<WidgetState> =
 /** What a label, a button and a menu item hold. */
 private val LABEL_AND_BUTTON_STATE: List<WidgetState> =
     listOf(
-        widgetState<JLabel>("icon") { it.icon },
+        widgetState<JLabel>("icon") { iconShape(it.icon) },
         widgetState<JLabel>("horizontalAlignment") { it.horizontalAlignment },
         widgetState<JLabel>("verticalAlignment") { it.verticalAlignment },
         widgetState<JLabel>("horizontalTextPosition") { it.horizontalTextPosition },
@@ -173,11 +182,11 @@ private val LABEL_AND_BUTTON_STATE: List<WidgetState> =
         widgetState<JLabel>("displayedMnemonicIndex") { it.displayedMnemonicIndex },
         widgetState<JLabel>("labelFor") { it.labelFor?.javaClass },
         widgetState<AbstractButton>("selected") { it.isSelected },
-        widgetState<AbstractButton>("icon") { it.icon },
-        widgetState<AbstractButton>("pressedIcon") { it.pressedIcon },
-        widgetState<AbstractButton>("selectedIcon") { it.selectedIcon },
-        widgetState<AbstractButton>("rolloverIcon") { it.rolloverIcon },
-        widgetState<AbstractButton>("rolloverSelectedIcon") { it.rolloverSelectedIcon },
+        widgetState<AbstractButton>("icon") { iconShape(it.icon) },
+        widgetState<AbstractButton>("pressedIcon") { iconShape(it.pressedIcon) },
+        widgetState<AbstractButton>("selectedIcon") { iconShape(it.selectedIcon) },
+        widgetState<AbstractButton>("rolloverIcon") { iconShape(it.rolloverIcon) },
+        widgetState<AbstractButton>("rolloverSelectedIcon") { iconShape(it.rolloverSelectedIcon) },
         widgetState<AbstractButton>("horizontalAlignment") { it.horizontalAlignment },
         widgetState<AbstractButton>("verticalAlignment") { it.verticalAlignment },
         widgetState<AbstractButton>("horizontalTextPosition") { it.horizontalTextPosition },
@@ -325,7 +334,7 @@ private val ARRANGEMENT_STATE: List<WidgetState> =
         widgetState<JTabbedPane>("tabPlacement") { it.tabPlacement },
         widgetState<JTabbedPane>("tabLayoutPolicy") { it.tabLayoutPolicy },
         widgetState<JTabbedPane>("tabTitles") { pane -> pane.perTab(pane::getTitleAt) },
-        widgetState<JTabbedPane>("tabIcons") { pane -> pane.perTab(pane::getIconAt) },
+        widgetState<JTabbedPane>("tabIcons") { pane -> pane.perTab { iconShape(pane.getIconAt(it)) } },
         widgetState<JTabbedPane>("tabToolTips") { pane -> pane.perTab(pane::getToolTipTextAt) },
         widgetState<JTabbedPane>("tabsEnabled") { pane -> pane.perTab(pane::isEnabledAt) },
         widgetState<JTabbedPane>("tabMnemonics") { pane -> pane.perTab(pane::getMnemonicAt) },
@@ -548,10 +557,9 @@ private val Class<*>.shortName: String
  * write must leave the component as the write found it.
  *
  * The condition a stroke is labeled with is the lowest one it is bound under, because that is what
- * those accessors answer. A stroke bound under one condition alone is therefore named exactly, and a
- * stroke bound under several is named by how many maps bind it and by the lowest of them - so two
- * components binding one stroke under the same lowest condition and different higher ones read alike.
- * Naming the higher ones needs a per-condition read the component offers no public accessor for.
+ * those accessors answer. A stroke bound under several is named by how many maps bind it and by the
+ * lowest of them, so two components differing only in the higher ones read alike. Naming those needs a
+ * per-condition read the component offers no public accessor for.
  */
 private fun JComponent.boundKeyStrokes(): List<String> =
     registeredKeyStrokes.map { "${getConditionForKeyStroke(it)}:$it" }.sorted()

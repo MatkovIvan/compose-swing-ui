@@ -11,10 +11,13 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.underMetal
+import org.jetbrains.compose.swing.underSynth
 import java.awt.image.BufferedImage
 import javax.swing.JSplitPane
 import javax.swing.LookAndFeel
 import javax.swing.SwingUtilities
+import javax.swing.UIManager
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -173,8 +176,7 @@ class SplitPaneBehaviorTest {
         onFirstSide = false
         awaitIdle()
 
-        // The side a child occupies is the one its own chain names, so naming the other one moves it and
-        // hands the side it held back to the pane.
+        // The side a child occupies is the one its own modifier names, so naming the other one moves it.
         assertSame(onNodeWithText("Movable").fetch(), pane.rightComponent, "the child should move to the second side")
         assertNull(pane.leftComponent, "the first side still holds a child that has moved to the second")
     }
@@ -548,4 +550,53 @@ class SplitPaneBehaviorTest {
         LookAndFeel.installProperty(pane, "oneTouchExpandable", true)
         assertFalse(pane.isOneTouchExpandable, "a declared one-touch flag should outrank the look and feel")
     }
+
+    @Test
+    fun aWithdrawnDividerSizeGoesBackToTheOneASynthStyleInstalled() = runComposeSwingTest {
+        // A look and feel that installs the divider size from its own style table rather than naming a
+        // default for it. Reading the property back off the pane is the only thing that answers here,
+        // which is why the declaration is carried by a modifier element and not by a key. Driven from
+        // Metal, so the pane the Synth style is measured against is one a known look and feel built.
+        underMetal {
+            underSynth(SYNTH_STYLE) {
+                assertNull(
+                    UIManager.get("SplitPane.dividerSize"),
+                    "this look and feel should name no divider-size default, or the case under test is not set up",
+                )
+
+                var dividerSize by mutableStateOf<Int?>(30)
+                setContent { SplitPane(dividerSize = dividerSize) {} }
+
+                val pane = onNodeOfType<JSplitPane>().fetch()
+                assertEquals(30, pane.dividerSize, "the declared divider size should reach the pane")
+
+                dividerSize = null
+                awaitIdle()
+                assertEquals(
+                    SYNTH_DIVIDER_SIZE,
+                    pane.dividerSize,
+                    "withdrawing the size should hand back the one the look and feel installed",
+                )
+            }
+        }
+    }
 }
+
+/** The divider size the look and feel under test installs from its style, apart from any declared one. */
+private const val SYNTH_DIVIDER_SIZE: Int = 13
+
+/** A Synth look and feel that installs a divider size from its style and names no default for it. */
+private val SYNTH_STYLE: String =
+    """
+    <synth>
+      <style id="base">
+        <font name="Dialog" size="12"/>
+        <state><color value="#FFFFFF" type="BACKGROUND"/><color value="#000000" type="FOREGROUND"/></state>
+      </style>
+      <bind style="base" type="region" key=".*"/>
+      <style id="split">
+        <property key="SplitPane.size" type="integer" value="$SYNTH_DIVIDER_SIZE"/>
+      </style>
+      <bind style="split" type="region" key="SplitPane"/>
+    </synth>
+    """.trimIndent()

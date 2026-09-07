@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.layout.bounds
 import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -33,6 +34,12 @@ import kotlin.test.assertTrue
  * (`getIndexOf`) - rather than any internal bookkeeping.
  */
 class LayeredPaneBehaviorTest {
+    @Test
+    fun anUndeclaredLayeredPaneIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { LayeredPane {} }
+        onNodeOfType<JLayeredPane>().assertTreeMatches(JLayeredPane())
+    }
+
     @Test
     fun aDepthAppendsToTheChainWithoutRepeatingIt() {
         with(LayeredPaneScopeImpl) { assertDeclaredChainCarriedOnce { layer(JLayeredPane.PALETTE_LAYER) } }
@@ -182,8 +189,8 @@ class LayeredPaneBehaviorTest {
 
         onNodeOfType<JButton>().performClick()
 
-        // A depth chains onto the chain it is given. Joining it with `then` to a factory that takes
-        // that chain implicitly puts everything declared before the depth into the chain twice, and
+        // A depth is added onto the modifier it is given. Joining it with `then` to a factory that
+        // takes that modifier implicitly declares everything before the depth twice, and
         // this listener, installed once per appearance, then reports every click twice.
         assertEquals(1, reports, "a click should reach a listener declared before the depth once")
     }
@@ -280,7 +287,7 @@ class LayeredPaneBehaviorTest {
         assertEquals(
             JLayeredPane.DRAG_LAYER,
             JLayeredPane.getLayer(onNodeWithText("child").fetch<JComponent>()),
-            "the child sits on the layer its chain declares",
+            "the child sits on the layer its modifier declares",
         )
 
         raised = false
@@ -288,7 +295,7 @@ class LayeredPaneBehaviorTest {
         assertEquals(
             JLayeredPane.DEFAULT_LAYER,
             JLayeredPane.getLayer(onNodeWithText("child").fetch<JComponent>()),
-            "a child whose chain stops declaring a layer returns to the pane's default layer",
+            "a child whose modifier stops declaring a layer returns to the pane's default layer",
         )
 
         raised = true
@@ -296,7 +303,7 @@ class LayeredPaneBehaviorTest {
         assertEquals(
             JLayeredPane.DRAG_LAYER,
             JLayeredPane.getLayer(onNodeWithText("child").fetch<JComponent>()),
-            "the child follows the layer its chain declares again",
+            "the child follows the layer its modifier declares again",
         )
     }
 

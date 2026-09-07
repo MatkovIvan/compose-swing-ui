@@ -21,7 +21,7 @@ import java.awt.Component
  * component; the rest declare something the node holder reads itself, such as where the component is
  * attached in its parent.
  *
- * Build a chain by calling the builder extensions off the [companion][SwingModifier.Companion]
+ * Build a modifier by calling the builder extensions off the [companion][SwingModifier.Companion]
  * (`SwingModifier.foreground(c).border(b)`, see the sibling `*Modifiers.kt` files) and pass it to a
  * component's `modifier` parameter. The empty modifier ([SwingModifier] itself, the companion)
  * applies nothing and is the parameter default.
@@ -37,8 +37,8 @@ import java.awt.Component
  * else it` adds the background when selected and removes it (restoring the value the component had
  * before the modifier first touched that property) when not.
  *
- * The modifier is immutable and safe to share, hoist, and reuse as a theme token. Building the chain
- * inline in the composable body is the intended style and needs no `remember`: a chain declaring what
+ * The modifier is immutable and safe to share, hoist, and reuse as a theme token. Building the modifier
+ * inline in the composable body is the intended style and needs no `remember`: a modifier declaring what
  * the one last applied to a component declares is skipped, and each element is judged on its own, so a
  * property whose declared value has not changed is not written again, until something declared before
  * it writes. See [NodeElement] for what an element that did change costs.
@@ -50,13 +50,13 @@ import java.awt.Component
 @Stable
 public interface SwingModifier {
     /**
-     * Accumulates a value across the chain's elements in declaration (application) order. Rarely
+     * Accumulates a value across the modifier's elements in declaration (application) order. Rarely
      * needed directly.
      *
-     * @param initial the value handed to the first element of the chain.
+     * @param initial the value handed to the first element of the modifier.
      * @param operation combines the value accumulated so far with one element and yields the value the
      *   next element is handed.
-     * @return the accumulated value; [initial] where the chain has no elements.
+     * @return the accumulated value; [initial] where the modifier has no elements.
      */
     public fun <R> foldIn(
         initial: R,
@@ -101,11 +101,11 @@ public interface SwingModifier {
     }
 
     /**
-     * Returns a modifier that applies this chain and then [other]. For two non-[additive][NodeElement.additive]
+     * Returns a modifier that applies this one and then [other]. For two non-[additive][NodeElement.additive]
      * elements sharing a [NodeElement.key], the later one wins; two [additive][NodeElement.additive] elements
      * each keep their own slot and both stay installed.
      *
-     * @return the two chains joined; this chain itself where [other] is the empty modifier.
+     * @return the two applied in order; this modifier itself where [other] is the empty modifier.
      */
     public infix fun then(other: SwingModifier): SwingModifier =
         if (other === SwingModifier) this else CombinedSwingModifier(this, other)
@@ -117,7 +117,7 @@ public interface SwingModifier {
      * owning [NodeElement]'s [update][NodeElement.update] to push the latest data onto the node's fields - so a
      * listener installed in [onAttach] is live before the first `update` lands, and every field it reads
      * needs an initial value that stands until then. [onDetach] runs symmetrically when the element leaves
-     * the chain or the node is released/reused, to restore a captured original or remove an installed
+     * the modifier or the node is released/reused, to restore a captured original or remove an installed
      * listener.
      *
      * Subclass this to back a custom [NodeElement]: capture the property's original in a field in
@@ -145,12 +145,12 @@ public interface SwingModifier {
         public open fun onAttach() {}
 
         /**
-         * Runs once, when the element leaves the chain or the node is released/reused.
+         * Runs once, when the element leaves the modifier or the node is released/reused.
          *
-         * Property nodes come apart in the reverse of the order the chain declared them last, so a node
+         * Property nodes come apart in the reverse of the order the modifier declared them last, so a node
          * putting back what it read finds every node declared before it still standing. Subscription
-         * nodes are held by position instead, and come apart after the property diff has both restored
-         * what left the chain and applied what stands, so what one of them reads as it goes is what the
+         * nodes are held by position instead, and come apart after the property diff has restored what
+         * left the modifier and applied what stands, so what one of them reads as it goes is what the
          * pass leaves behind.
          */
         public open fun onDetach() {}
@@ -233,9 +233,9 @@ public interface SwingModifier {
          * The properties this element goes on holding while it stands: the one [name] names, and every
          * other its own write lands on. Defaults to [name] alone.
          *
-         * A property named here is held whether or not a write of this element's moves it - a coarse
-         * declaration re-writing the value already standing holds it the same as one that changes it -
-         * which is what tells a watching check the properties no read around the write can reveal.
+         * A property named here is held whether or not a write of this element's moves it: a coarse
+         * declaration re-writing the value already standing holds it the same as one that changes it.
+         * That is what tells a watching check the properties no read around the write can reveal.
          */
         public open val heldProperties: Set<String> get() = setOf(name)
 
@@ -245,11 +245,11 @@ public interface SwingModifier {
          */
         override val declaredValues: Map<String, Any?> get() = emptyMap()
 
-        /** Creates the stateful node. Called once per slot, when the element first enters the chain. */
+        /** Creates the stateful node. Called once per slot, when the element first enters the modifier. */
         public abstract fun create(): N
 
         /**
-         * Pushes this element's latest data onto [node]. Called on add, on a chain change that hands
+         * Pushes this element's latest data onto [node]. Called on add, on a modifier change that hands
          * this slot an element unequal to the one it holds, and - for a property element - on a pass
          * where a property declared before this one has already written.
          *
@@ -273,7 +273,7 @@ public interface SwingModifier {
          * is unchanged; the walk that asked then leaves the node and the listener it installed alone.
          *
          * What is written belongs to [node] and to no other, so an element handed to two slots - a
-         * hoisted chain reaching two components - carries nothing either of them can reach the other by.
+         * hoisted modifier reaching two components - carries nothing either of them can reach the other by.
          */
         internal open fun adopt(
             node: N,
@@ -286,7 +286,7 @@ public interface SwingModifier {
         ): R = operation(initial, this)
     }
 
-    /** The empty modifier and the entry point for building chains. */
+    /** The empty modifier and the entry point for building modifiers. */
     public companion object : SwingModifier {
         override fun <R> foldIn(
             initial: R,
@@ -300,7 +300,7 @@ public interface SwingModifier {
 /**
  * Internal cons-cell joining two modifiers.
  *
- * Two cells are equal when both halves are, so a chain rebuilt from equal parts equals the chain
+ * Two cells are equal when both halves are, so a modifier rebuilt from equal parts equals the modifier
  * built on the previous composition and the whole apply is skipped.
  */
 internal class CombinedSwingModifier(
@@ -346,7 +346,7 @@ internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
     /**
      * Whether [element] is of the kind this slot's node was created for, i.e. whether
      * [rebindAndRefresh] can apply it through the existing node. A diff hands a slot an element of a
-     * different kind when a conditional chain changes shape; the slot cannot host it, so the caller
+     * different kind when a conditional modifier chain changes shape; the slot cannot host it, so the caller
      * [detach]es this record and attaches the element fresh instead.
      */
     fun canRebind(element: SwingModifier.NodeElement<*, *>): Boolean = elementType.isInstance(element)
@@ -355,9 +355,9 @@ internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
      * Rebinds the slot to a (possibly new) [element] instance and writes it against [target], unless
      * the one the slot already carries [adopts][SwingModifier.NodeElement.adopt] it - an element
      * declaring the same data, so the slot keeps what it holds and writes nothing. Anything else
-     * rebinds: a fresh element instance carrying new data (or new callbacks) is pushed onto the node
-     * via [SwingModifier.NodeElement.update], which keeps a node-installed listener's callbacks
-     * current without reattaching.
+     * rebinds: a fresh element carrying new data or new callbacks is pushed onto the node via
+     * [SwingModifier.NodeElement.update], which keeps a node-installed listener's callbacks current
+     * without reattaching.
      *
      * Only call when [canRebind] holds: the slot's node statically knows its own type, so a
      * [canRebind]-checked [element] is applied through it without an unchecked cast.
@@ -413,7 +413,7 @@ internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
 }
 
 /**
- * The diff state for one node's modifier chain: the elements applied last, and the buffers the chain
+ * The diff state for one node's modifier: the elements applied last, and the buffers the modifier
  * being applied is partitioned into.
  *
  * Marked [InternalSwingUiApi]; it may change without notice in any release.
@@ -424,12 +424,12 @@ public class SwingModifierState internal constructor() {
     internal val additiveRecords: ArrayList<ElementRecord<*, *>> = ArrayList()
 
     /**
-     * The chain last declared for this node, and what the next pass compares its own declaration
-     * against. Every pass replaces it with the chain it declared, whether the slots diffed that
+     * The modifier last declared for this node, and what the next pass compares its own declaration
+     * against. Every pass replaces it with the modifier it declared, whether the slots diffed that
      * declaration or adopted it, so what stands here is what the composition declared last - which is
      * what [org.jetbrains.compose.swing.node.SwingComponentNode.modifier] answers with.
      *
-     * Adopting decides what reaches the component, not what is held: a chain the slots adopt writes
+     * Adopting decides what reaches the component, not what is held: a modifier the slots adopt writes
      * nothing, while this and each slot's own element still take the incoming declaration, releasing
      * everything the elements they replace captured.
      */
@@ -456,19 +456,19 @@ public class SwingModifierState internal constructor() {
     internal var declaredKeys: List<Any?>? = null
 
     /**
-     * The keys of [records]'s slots in the order the chain applied last declared them, which is not the
-     * order [records] holds them in: a slot keeps the place it attached at, and a reorder attaches
-     * nothing. [diffKeyedElements] reads it to see which slots the chain being applied has moved.
+     * The keys of [records]'s slots in the order the modifier applied last declared them, which is not
+     * the order [records] holds them in. [diffKeyedElements] reads it to see which slots the modifier
+     * being applied has moved.
      */
     internal val declaredKeyOrder: ArrayList<Any> = ArrayList()
 
     /**
-     * Hands [action] the key of every standing property slot in the reverse of the order the chain
+     * Hands [action] the key of every standing property slot in the reverse of the order the modifier
      * declared them last, which is the order the slots are taken apart in.
      *
      * That is not the reverse of the order [records] holds the slots in: a slot keeps the place it
-     * attached at, so one that left the chain and was declared again stands where it re-attached rather
-     * than where the chain declares it. A key [declaredKeyOrder] does not reach is one a pass that threw
+     * attached at, so one that left the modifier and was declared again stands where it re-attached rather
+     * than where the modifier declares it. A key [declaredKeyOrder] does not reach is one a pass that threw
      * installed without recording it; it is the most recently attached, so it comes apart first.
      *
      * [action] may drop the slot it is handed from [records]. It must leave [declaredKeyOrder] alone.
@@ -493,8 +493,8 @@ public class SwingModifierState internal constructor() {
     }
 
     /**
-     * The first slot the chain being applied declares in another place among the slots that stand than
-     * the chain applied last declared it in, or `null` where every one of them stands where it stood.
+     * The first slot the modifier being applied declares in another place among the slots that stand than
+     * the modifier applied last declared it in, or `null` where every one of them stands where it stood.
      *
      * Two slots that swap places settle their overlap the other way round while both elements stay
      * equal, so the slots from the first moved one on are written again rather than adopted. A slot
@@ -518,7 +518,7 @@ public class SwingModifierState internal constructor() {
 
     /**
      * Takes every standing slot apart and drops it: the property slots in the reverse of the order the
-     * chain declared them last, then the subscription slots from the end - the order [applyModifierDiff]
+     * modifier declared them last, then the subscription slots from the end - the order [applyModifierDiff]
      * unwinds a departed slot of each kind in.
      *
      * What the modifier captured is left in place. Every hold on it is taken by a slot and given up when that slot
@@ -537,23 +537,23 @@ public class SwingModifierState internal constructor() {
 }
 
 /**
- * Applies [modifier] to this node, diffing against the chain applied on the previous composition:
+ * Applies [modifier] to this node, diffing against the modifier applied on the previous composition:
  * new elements are applied, persisting elements re-applied, and elements that disappeared are
  * [detached][SwingModifier.Node.onDetach] (restoring the value the component had before the modifier
  * first touched that property).
  *
- * Runs after the component's own `set`s, so a modifier can override component defaults. A chain
+ * Runs after the component's own `set`s, so a modifier can override component defaults. A modifier
  * declaring what the one applied last declares is skipped whole - a listener callback the pass rebuilt
- * reaches the node that reads it without counting as a change - and in a chain that did change, every
+ * reaches the node that reads it without counting as a change - and in a modifier that did change, every
  * element ahead of the first write is skipped with it.
  *
- * A chain carrying a placement - [org.jetbrains.compose.swing.modifier.layout.layoutConstraint] or a host
+ * A modifier carrying a placement - [org.jetbrains.compose.swing.modifier.layout.layoutConstraint] or a host
  * slot - declares where the node is attached in its parent, and this is the channel through which that
  * placement reaches the node: it is written onto the node here, before the applier attaches the
- * component. A chain declaring both kinds of placement is refused here, since a parent holds a child by
+ * component. A modifier declaring both kinds of placement is refused here, since a parent holds a child by
  * one of the two.
  *
- * @param modifier the chain to declare on the node; [SwingModifier] itself declares nothing, which
+ * @param modifier the modifier to declare on the node; [SwingModifier] itself declares nothing, which
  *   detaches every element the previous pass installed.
  */
 @PublishedApi
@@ -561,15 +561,15 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifi
     updater.set(modifier) { applyDeclaredModifier(it) }
 
 /**
- * Diffs [modifier] onto this node unless the chain applied last declares the same thing, which is what
- * [adoptDeclaration] answers - and, for the part of a chain that is read live rather than applied, is
+ * Diffs [modifier] onto this node unless the modifier applied last declares the same thing, which is what
+ * [adoptDeclaration] answers - and, for the part of a modifier that is read live rather than applied, is
  * what hands the pass's own over.
  *
- * The two questions are not the same one asked twice. A chain reaching here is one the caller declared
+ * The two questions are not the same one asked twice. A modifier reaching here is one the caller declared
  * anew - a callback rebuilt for this pass is enough to make it that - and what this asks is whether
  * anything the node applied has to change for it.
  *
- * A node with no modifier state yet has applied no chain, so its first declaration always diffs; a node
+ * A node with no modifier state yet has applied no modifier, so its first declaration always diffs; a node
  * whose state was reset - released, reused, parked - is in that same position and rebuilds from scratch.
  */
 private fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
@@ -581,22 +581,22 @@ private fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModi
     applyModifierDiff(modifier)
 }
 
-/** What the walk answers from where two chains part ways, so no slot past that point is asked. */
+/** What the walk answers from where two modifiers part ways, so no slot past that point is asked. */
 private const val DIVERGED = -1
 
 /**
  * Walks [applied] and [next] in lockstep, asking the slot behind each element of [applied] to adopt the
  * element [next] declares in its place, and answers how many additive slots were matched - or [DIVERGED]
- * as soon as the two chains differ, since past that point an element is no longer paired with its own
+ * as soon as the two modifiers differ, since past that point an element is no longer paired with its own
  * slot. The diff that follows is what pairs the rest, by key and by position, adopting as it goes.
  *
- * [matched] indexes [records], which hold the additive slots in the order the chain declares them: this
- * walk takes the same path through a chain as [SwingModifier.foldIn], so a prefix of the path it matched
+ * [matched] indexes [records], which hold the additive slots in the order the modifier declares them: this
+ * walk takes the same path through a modifier as [SwingModifier.foldIn], so a prefix of the path it matched
  * is a prefix of those slots.
  *
  * The two walks agreeing is what this fast path is worth, not what makes it safe. A walk taking another
  * path than the fold reaches a slot holding a registration its element does not match, [DIVERGED] is
- * answered, and the diff behind it pairs everything correctly - so the chain still ends the pass on what
+ * answered, and the diff behind it pairs everything correctly - so the modifier still ends the pass on what
  * the composition declares, at the cost of the diff this path exists to skip. Nothing observable breaks,
  * which is why a disagreement would have to be found by reading rather than by a failing test.
  */
@@ -640,8 +640,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     val target = component
     val state = modifierState ?: SwingModifierState().also { modifierState = it }
     // Read off the owner rather than held: the node is attached to its composition before its update
-    // block runs, so the owner answers for every write this pass makes, and nothing per node or per slot
-    // records it.
+    // block runs, so the owner answers for every write this pass makes.
     val diagnostics = owner?.diagnostics
 
     // Walk the modifier once, routing each entry to whatever reads it. The partition is the fold's
@@ -655,14 +654,14 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     // A placement says where the node is attached rather than what its component looks like, so the walk
     // routes it here rather than into a slot, which is what keeps it away from the element diff it has no
     // node for. The walk has already settled each kind: the last slot declared stands, the constraint
-    // elements have folded together, and a chain declaring one of each was refused as it walked.
+    // elements have folded together, and a modifier declaring one of each was refused as it walked.
     //
     // Writing it here puts it on the node before the applier reads it: an inserted node runs its update
     // changes between the applier's top-down and bottom-up passes, and the bottom-up pass is the one
-    // that attaches the component. A chain declaring no placement leaves nothing to take off and resets
+    // that attaches the component. A modifier declaring no placement leaves nothing to take off and resets
     // the node to none; applyConstraint gates on equality, so an unchanged constraint writes nothing.
     // The declared host region is recorded rather than filled: the applier alone installs a component
-    // into a region, and it moves one whose chain declares a region other than the one it is in.
+    // into a region, and it moves one whose modifier declares a region other than the one it is in.
     val slot = incoming.slot
     val constraint = incoming.constraint
     val declaredKeys = incoming.keys
@@ -679,7 +678,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     diffKeyedElements(target, state, incoming, diagnostics)
     diffAdditiveElements(target, state, incoming, diagnostics)
 
-    // Recorded once the slots hold it, so a diff that fails partway leaves the chain it did not finish
+    // Recorded once the slots hold it, so a diff that fails partway leaves the modifier it did not finish
     // applying to be diffed again rather than adopted.
     state.applied = modifier
 }
@@ -759,7 +758,7 @@ private fun diffKeyedElements(
     val incoming = partition.keyed
     val declaredKeyOrder = state.declaredKeyOrder
 
-    // Detach + drop elements whose key left the chain, last declared first: a slot restoring through an
+    // Detach + drop elements whose key left the modifier, last declared first: a slot restoring through an
     // object a later slot declared needs that object still standing.
     var wrote = false
     state.forEachStandingKeyInUnwindOrder { key ->
@@ -769,28 +768,44 @@ private fun diffKeyedElements(
         }
     }
 
-    // Apply (add or refresh) the current chain. A persisting slot keeps its node and refreshes it via
+    // Apply (add or refresh) the current modifier. A persisting slot keeps its node and refreshes it via
     // update(), which keeps a node-installed listener's callbacks current without reattaching.
     //
     // A slot writes what its own declaration says, and a coarser slot's write covers a finer one's
-    // property - a whole geometry over one axis of it. The chain settles that by order: the later
+    // property - a whole geometry over one axis of it. The modifier settles that by order: the later
     // declaration wins. So once anything has written on this pass, every slot after it writes again
     // rather than being adopted, or the earlier write would stand over a later declaration that had
     // nothing to say for itself. A slot that left counts as a write, since its restore put back what
     // the component carried before it.
-    //
     val moved = state.firstMovedKey(partition)
 
     for ((key, element) in incoming) {
         if (key == moved) wrote = true
         val record = records[key]
-        if (record == null) {
-            records[key] = attachElement(element, target, state, diagnostics)
-            wrote = true
-        } else if (wrote) {
-            record.rebindAndWrite(element, target, diagnostics)
-        } else {
-            wrote = record.rebindAndRefresh(element, target, diagnostics)
+        when {
+            record == null -> {
+                records[key] = attachElement(element, target, state, diagnostics)
+                wrote = true
+            }
+
+            // One key can be declared through two kinds of element - a property declared with a
+            // restore on one pass and without it on the next is the shape that does. The slot's node
+            // was built for one of them and cannot host the other, so the slot restores and is built
+            // again. The restore runs first, so the arriving element captures what the component
+            // carried before this key declared anything rather than what the departing write left.
+            !record.canRebind(element) -> {
+                record.detach(diagnostics)
+                records[key] = attachElement(element, target, state, diagnostics)
+                wrote = true
+            }
+
+            wrote -> {
+                record.rebindAndWrite(element, target, diagnostics)
+            }
+
+            else -> {
+                wrote = record.rebindAndRefresh(element, target, diagnostics)
+            }
         }
     }
 
@@ -801,7 +816,7 @@ private fun diffKeyedElements(
 /**
  * Diffs the additive (subscription) elements by position: a position present last time but gone now is
  * detached and removed; a persisting position keeps its node and is refreshed via update(); a new
- * trailing position is created and attached. A conditional chain changing shape can hand a persisting
+ * trailing position is created and attached. A conditional modifier chain changing shape can hand a persisting
  * position an element of a different kind; the slot's node cannot host it, so the slot is swapped
  * wholesale - the new element attaches fresh and the old node then detaches, removing its listener.
  */
@@ -814,7 +829,7 @@ private fun diffAdditiveElements(
     val records = state.additiveRecords
     val incoming = partition.additive
 
-    // Detach + drop trailing positions that left the chain, from the end.
+    // Detach + drop trailing positions that left the modifier, from the end.
     while (records.size > incoming.size) {
         records.removeAt(records.size - 1).detach(diagnostics)
     }

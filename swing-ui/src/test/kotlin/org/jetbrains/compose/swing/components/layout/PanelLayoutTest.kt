@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -59,6 +60,12 @@ class PanelLayoutTest {
                 add(JLabel("a"))
             }
         onNodeWithText("a").onParent().assertTreeMatches(reference)
+    }
+
+    @Test
+    fun anUndeclaredGridBagPanelIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { GridBagPanel {} }
+        onRoot().onChild().assertTreeMatches(JPanel(GridBagLayout()))
     }
 
     @Test

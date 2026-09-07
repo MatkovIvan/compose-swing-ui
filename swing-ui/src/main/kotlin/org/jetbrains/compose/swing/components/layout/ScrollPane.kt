@@ -4,13 +4,11 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.HorizontalScrollbarPolicy
 import org.jetbrains.compose.swing.constants.VerticalScrollbarPolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Component
 import javax.swing.JScrollPane
@@ -58,8 +56,8 @@ import javax.swing.border.Border
  * @param horizontalScrollbar the horizontal scrollbar policy; by default the bar is there only while
  *   the content is wider than the viewport
  * @param viewportBorder the border drawn around the viewport, inside the pane's own border and outside
- *   the scrolled content; `null` leaves the border to the installed look and feel, and a border
- *   withdrawn after being declared settles at its answer for good
+ *   the scrolled content; `null` leaves the border to the installed look and feel, and withdrawing a
+ *   declared border hands the look and feel's own back
  * @param wheelScrollingEnabled whether the mouse wheel scrolls the pane; `true` by default
  * @param content the composable content of the pane; see [ScrollPaneScope]
  * @see javax.swing.JScrollPane
@@ -77,33 +75,33 @@ public fun ScrollPane(
     // Remembered with the pane: the answers the content declares about its own scrolling are written
     // into it as that content's modifier is applied, and hold the shape the viewport hosts it in.
     val scope = remember { ScrollPaneScopeImpl() }
-    // No UIManager default names a viewport border in the look and feels that ship with the JDK, and the
-    // one that does name it installs it on construction, so the answer is read straight off the pane's
-    // own construction, before any declared border overrides it.
-    var lookAndFeelViewportBorder by remember { mutableStateOf<Border?>(null) }
 
     SwingNode(
-        factory =
-            {
-                JScrollPane(
-                    null as Component?,
-                    verticalScrollbar,
-                    horizontalScrollbar,
-                ).also { pane ->
-                    lookAndFeelViewportBorder = pane.viewportBorder
-                    viewportBorder?.let { pane.viewportBorder = it }
-                }
-            },
-        modifier = modifier.scrollStateBinding(state),
+        factory = { JScrollPane(null as Component?, verticalScrollbar, horizontalScrollbar) },
+        modifier = modifier.scrollStateBinding(state).declaredViewportBorder(viewportBorder),
         update = {
             set(verticalScrollbar) { verticalScrollBarPolicy = it }
             set(horizontalScrollbar) { horizontalScrollBarPolicy = it }
             set(wheelScrollingEnabled) { isWheelScrollingEnabled = it }
-            // Not settleOn: that helper reads a null answer as "no answer" and writes nothing, which a
-            // nullable border needs to mean "give the look and feel's own null back".
-            update(viewportBorder) { declared -> this.viewportBorder = declared ?: lookAndFeelViewportBorder }
         },
         childPlacement = ScrollPaneRegions,
         content = { scope.content() },
     )
 }
+
+/**
+ * The `ScrollPane.viewportBorder` key cannot answer for this border. A look and feel installs it onto
+ * the pane itself, and one built on [javax.swing.plaf.synth.SynthLookAndFeel] installs it from a style
+ * of its own and publishes no key at all. The border is read off the pane and written back from there.
+ */
+private fun SwingModifier.declaredViewportBorder(border: Border?): SwingModifier =
+    if (border == null) {
+        this
+    } else {
+        property<JScrollPane, Border?>(
+            name = "viewportBorder",
+            value = border,
+            read = { it.viewportBorder },
+            write = { pane, value -> pane.viewportBorder = value },
+        )
+    }

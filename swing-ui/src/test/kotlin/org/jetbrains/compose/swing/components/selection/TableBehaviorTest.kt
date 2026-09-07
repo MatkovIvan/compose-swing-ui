@@ -10,14 +10,15 @@ import org.jetbrains.compose.swing.drag
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Point
-import javax.swing.JCheckBox
 import javax.swing.JTable
 import javax.swing.JTextField
 import javax.swing.ListSelectionModel
 import javax.swing.RowSorter.SortKey
+import javax.swing.table.DefaultTableModel
 import javax.swing.table.JTableHeader
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,6 +34,12 @@ import kotlin.test.assertTrue
  * under test, it is driven directly, since opening one on screen would take the focus.
  */
 class TableBehaviorTest {
+    @Test
+    fun anUndeclaredTableIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { Table(model = DefaultTableModel()) }
+        onNodeOfType<JTable>().assertTreeMatches(JTable(DefaultTableModel()))
+    }
+
     @Test
     fun rowsAndColumnsRenderIntoTheModel() = runComposeSwingTest {
         setContent {
@@ -162,8 +169,16 @@ class TableBehaviorTest {
         // what decides whether a flag is drawn as a checkbox or written out as text. The wrapper
         // installs no renderer of its own.
         val table = onNodeOfType<JTable>().fetch()
-        assertTrue(table.getCellRenderer(0, 1) is JCheckBox, "a boolean column should draw a checkbox")
-        assertFalse(table.getCellRenderer(0, 0) is JCheckBox, "a string column should not")
+        assertSame(
+            table.getDefaultRenderer(Boolean::class.javaObjectType),
+            table.getCellRenderer(0, 1),
+            "a boolean column should draw through the renderer the table keeps for Boolean",
+        )
+        assertSame(
+            table.getDefaultRenderer(String::class.java),
+            table.getCellRenderer(0, 0),
+            "a string column should draw through the renderer the table keeps for String",
+        )
     }
 
     @Test

@@ -19,8 +19,8 @@ import kotlin.test.assertTrue
 
 /**
  * The two properties a [ScrollPane] carries beside its scrollbars: the border drawn around the viewport,
- * and whether the mouse wheel scrolls the pane. The border defaults to whatever the look and feel gave
- * the pane at construction, and a withdrawn declaration settles back at that answer.
+ * and whether the mouse wheel scrolls the pane. The border is whatever the look and feel gave the pane
+ * until one is declared, and a withdrawn declaration hands that border back.
  */
 class ScrollPaneContainerPropertiesTest {
     @Test

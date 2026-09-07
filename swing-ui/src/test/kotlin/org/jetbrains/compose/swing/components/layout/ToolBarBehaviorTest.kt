@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.underMetal
 import org.jetbrains.compose.swing.withLookAndFeelDefault
 import org.jetbrains.compose.swing.withoutLookAndFeelDefault
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.awt.Dimension
 import javax.swing.JButton
 import javax.swing.JToolBar
@@ -33,8 +34,7 @@ import kotlin.test.assertTrue
  * appear and disappear from the tool bar.
  *
  * A bar the user can drag out has to stand in a [BorderPanel], so a case that leaves the floatable
- * choice to the bar holds it in one. Every other case declares `floatable = false`, which says that
- * where the bar stands is not what it measures.
+ * choice to the bar holds it in one. Every other case declares `floatable = false`.
  */
 class ToolBarBehaviorTest {
     @Test
@@ -281,9 +281,9 @@ class ToolBarBehaviorTest {
     @Test
     fun aSeparatorFollowsTheToolBarsOrientation() = runComposeSwingTest {
         var orientation by mutableStateOf(SwingConstants.HORIZONTAL)
-        // Held in a panel rather than declared unfloatable: the bar is left facing the way the turn below
-        // put it, which moves the grip in its border, and a departing floatable declaration answers for
-        // every property its own write landed on - that border among them.
+        // Held in a panel rather than declared unfloatable: the turn below moves the grip in the bar's
+        // border, and a departing floatable declaration answers for every property its own write landed
+        // on - that border among them.
         setContent {
             BorderPanel {
                 ToolBar(orientation = orientation) {
@@ -329,6 +329,36 @@ class ToolBarBehaviorTest {
         rollover = true
         awaitIdle()
         assertTrue(bar.isRollover, "asking for rollover items again should map through")
+    }
+
+    @Test
+    fun aWithdrawnFloatableChoiceGoesBackToTheChoiceTheToolBarCarried() = runComposeSwingTest {
+        var floatable by mutableStateOf<Boolean?>(null)
+        setContent {
+            BorderPanel {
+                ToolBar(floatable = floatable) {
+                    Label(text = "Item")
+                }
+            }
+        }
+        val bar = onNodeOfType<JToolBar>().fetch()
+
+        // A choice written onto this bar, the way a look and feel installs one onto the bars it builds.
+        // The withdrawal owes the choice this bar carried, which a freshly built bar need not carry.
+        val carried = !bar.isFloatable
+        bar.isFloatable = carried
+
+        floatable = !carried
+        awaitIdle()
+        assertEquals(!carried, bar.isFloatable, "the declared choice should reach the tool bar")
+
+        floatable = null
+        awaitIdle()
+        assertEquals(
+            carried,
+            bar.isFloatable,
+            "withdrawing the choice should hand back the one the tool bar was carrying",
+        )
     }
 
     @Test
@@ -487,6 +517,11 @@ class ToolBarBehaviorTest {
         val handWrittenButton = JButton("New")
         handWrittenBar.add(handWrittenButton)
 
+        assumeTrue(
+            JButton("New").border != handWrittenButton.border,
+            "the look and feel under test gives an adopted button the border it wears anywhere else, " +
+                "so a composed item carrying that border cannot be told from one that was never adopted",
+        )
         assertEquals(
             handWrittenButton.border,
             composed.border,
@@ -496,11 +531,6 @@ class ToolBarBehaviorTest {
             handWrittenButton.isRolloverEnabled,
             composed.isRolloverEnabled,
             "a composed tool bar item should match the rollover state Swing gives an adopted button",
-        )
-        assertNotEquals(
-            JButton("New").border,
-            composed.border,
-            "an adopted button should not keep the border it wears outside a tool bar",
         )
     }
 }

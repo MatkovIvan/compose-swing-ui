@@ -4,11 +4,9 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Dimension
 import javax.swing.JToolBar
@@ -28,7 +26,9 @@ import javax.swing.JToolBar
  * ```
  *
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param size the size of the separator; `null` by default, which leaves the size to the look and feel
+ * @param size the size of the separator; `null` by default, which leaves the size to the look and feel.
+ *   Withdrawing a declared size hands back the size the look and feel gave the separator, where it gave
+ *   one; a separator its look and feel named no size for keeps the last size declared
  * @see javax.swing.JToolBar.Separator
  */
 @Composable
@@ -36,31 +36,34 @@ public fun ToolBarSeparator(
     modifier: SwingModifier = SwingModifier,
     size: Dimension? = null,
 ) {
-    // UIManager alone can't name this size: a look and feel swaps ToolBar.separatorSize between width
-    // and height by the separator's own orientation, and only while the separator carries no size of
-    // its own. Read it off a real separator's construction instead, before a declared size overrides it.
-    var lookAndFeelSize by remember { mutableStateOf<Dimension?>(null) }
     SwingNode(
-        factory = {
-            JToolBar.Separator().also { separator ->
-                lookAndFeelSize = separator.separatorSize
-                size?.let { separator.separatorSize = it }
-            }
-        },
-        modifier = modifier,
-        update = {
-            update(size) { declared ->
-                if (declared != null) {
-                    separatorSize = declared
-                } else {
-                    val lookAndFeelAnswer = lookAndFeelSize
-                    if (lookAndFeelAnswer != null && separatorSize != lookAndFeelAnswer) {
-                        separatorSize = lookAndFeelAnswer
-                    }
-                }
-                // Sizing only invalidates the separator; ask for the layout pass that applies it.
-                revalidate()
-            }
-        },
+        factory = { JToolBar.Separator() },
+        modifier = modifier.declaredSeparatorSize(size),
     )
 }
+
+/**
+ * The element restores nothing: the only way to ask a separator for no size is
+ * `setSeparatorSize(null)`, and that rebuilds the separator's UI rather than clearing the size.
+ * Rebuilding a UI part-way through a change pass is not this wrapper's to do.
+ *
+ * Sizing only invalidates the separator, so the write asks for the layout pass that applies it. The
+ * restore writes through this same lambda and needs that pass too.
+ */
+private fun SwingModifier.declaredSeparatorSize(size: Dimension?): SwingModifier =
+    if (size == null) {
+        this
+    } else {
+        property<JToolBar.Separator, Dimension?>(
+            name = "separatorSize",
+            value = size,
+            read = { it.separatorSize },
+            write = { separator, value ->
+                if (value != null) {
+                    separator.separatorSize = value
+                    separator.revalidate()
+                }
+            },
+            restores = RestorePolicy.None,
+        )
+    }

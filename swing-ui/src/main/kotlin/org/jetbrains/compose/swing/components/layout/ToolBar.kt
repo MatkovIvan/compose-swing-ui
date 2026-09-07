@@ -11,17 +11,18 @@ import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.declaredName
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import org.jetbrains.compose.swing.platform.LookAndFeelDefaults
 import java.awt.BorderLayout
 import java.awt.event.HierarchyEvent
 import javax.swing.JToolBar
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
-import javax.swing.UIManager
 import javax.swing.plaf.basic.BasicToolBarUI
 
 /**
@@ -65,11 +66,12 @@ import javax.swing.plaf.basic.BasicToolBarUI
  * @param orientation the axis along which items are laid out (an [Orientation] `SwingConstants` value);
  *   the default `HORIZONTAL` lays them out along the bar's reading order
  * @param floatable whether the user can drag the tool bar out into a window of its own, and, while it
- *   is docked, to another edge of the container holding it; `true` by default, and a look and feel that
- *   implements no floating ignores it. A bar that can be dragged out has to stand in a container laid
- *   out by a `BorderLayout` - a [BorderPanel], or a window's own content - which is the only place a
- *   look and feel docks it back into the region it came from; anywhere else the bar is refused as it is
- *   composed, so declare `false` there
+ *   is docked, to another edge of the container holding it, or `null` to leave the choice the bar
+ *   already carries, which a bar carries as draggable; a look and feel that implements no floating
+ *   ignores it. A bar the user can drag out has to stand in a container laid out by a `BorderLayout` -
+ *   a [BorderPanel], or a window's own content - which is the only place a look and feel docks it back
+ *   into the region it came from; anywhere else the bar is refused as it is composed, so declare
+ *   `false` there
  * @param floating whether the tool bar stands in a window of its own rather than in the container it was
  *   declared in (controlled); `false` by default, so the bar starts docked where it was declared
  * @param onFloatingChange callback invoked with the state the user drags the bar into, or with the docked
@@ -84,7 +86,7 @@ import javax.swing.plaf.basic.BasicToolBarUI
 public fun ToolBar(
     modifier: SwingModifier = SwingModifier,
     @Orientation orientation: Int = SwingConstants.HORIZONTAL,
-    floatable: Boolean = true,
+    floatable: Boolean? = null,
     floating: Boolean = false,
     onFloatingChange: (Boolean) -> Unit = {},
     rollover: Boolean? = null,
@@ -101,11 +103,9 @@ public fun ToolBar(
     // Whether the bar ended the last settle holding something other than what was declared for it, which
     // is what a bar that could not float looks like.
     val refused = remember { booleanArrayOf(false) }
-    // Counts the moves of the bar the wrapper did not make. A move is what the composition has to answer
-    // and cannot see: the bar is put back where it is declared, and a refused float is retried, since
-    // floating needs a window to open the bar's own beside and which window that is - or whether there is
-    // one at all - is the container's to say. Reading the count here is what subscribes this composition
-    // to those moves; the number itself means nothing.
+    // Counts the moves of the bar the wrapper did not make, which the composition has to answer and
+    // cannot see. Reading the count here is what subscribes this composition to those moves; the number
+    // itself means nothing. See `recordPlacement` for what counts as one.
     val placements = remember { mutableIntStateOf(0) }
     placements.intValue
     // The floating state the caller has last been told the bar holds: the one it declared and the bar
@@ -118,6 +118,10 @@ public fun ToolBar(
     val displaced = remember { booleanArrayOf(false) }
 
     SwingNode(
+        // Rollover is applied here rather than through the update block below, which skips the pass
+        // that builds the bar. A bar consults its look and feel for rollover item borders only while it
+        // records no choice of its own, and writing the look and feel's own answer onto it records one,
+        // so a bar nothing declares a choice for is left alone.
         factory = { JToolBar(orientation).also { bar -> rollover?.let { bar.isRollover = it } } },
         // Nothing is written to the bar from the hierarchy event. Settling belongs to a composition
         // pass, which is the one place the declaration to settle against exists - and writing to the
@@ -126,24 +130,22 @@ public fun ToolBar(
         // wrapper's own is the declaration taking effect, and neither the mirror nor the placement
         // count takes it for the user's.
         modifier =
-            modifier.hierarchyListener { event ->
-                if (event.changeFlags and HierarchyEvent.PARENT_CHANGED.toLong() == 0L) {
-                    return@hierarchyListener
-                }
-                val bar = event.component as JToolBar
-                if (!mirror.isWriting) recordPlacement(event, bar, displaced, refused, placements)
-                val standing = bar.isFloating
-                if (mirror.observed(standing)) {
-                    reportedFloating[0] = standing
-                    onFloatingChange(standing)
-                }
-            },
+            modifier
+                .hierarchyListener { event ->
+                    if (event.changeFlags and HierarchyEvent.PARENT_CHANGED.toLong() == 0L) {
+                        return@hierarchyListener
+                    }
+                    val bar = event.component as JToolBar
+                    if (!mirror.isWriting) recordPlacement(event, bar, displaced, refused, placements)
+                    val standing = bar.isFloating
+                    if (mirror.observed(standing)) {
+                        reportedFloating[0] = standing
+                        onFloatingChange(standing)
+                    }
+                }.declaredFloatable(floatable),
         update = {
             set(orientation) { this.orientation = it }
-            set(floatable) { this.isFloatable = it }
-            update(rollover) { declared ->
-                isRollover = declared ?: UIManager.getBoolean(ROLLOVER_DEFAULT)
-            }
+            update(rollover) { isRollover = it ?: LookAndFeelDefaults.toolBarRollover }
 
             // A bar is declared before it is anywhere - the applier runs this node's update block between
             // its top-down and bottom-up passes - so a floating declaration written here would be written
@@ -191,17 +193,29 @@ public fun ToolBar(
     )
 }
 
-/** The look-and-feel default a tool bar's UI reads while the bar records no rollover choice of its own. */
-private const val ROLLOVER_DEFAULT: String = "ToolBar.isRollover"
+/**
+ * Whether the user can drag the bar out. The `ToolBar.floatable` key cannot answer for it: a look and
+ * feel writes the choice onto the bar itself, so the bar can carry one no key names.
+ */
+private fun SwingModifier.declaredFloatable(floatable: Boolean?): SwingModifier =
+    if (floatable == null) {
+        this
+    } else {
+        property<JToolBar, Boolean>(
+            name = "floatable",
+            value = floatable,
+            read = { it.isFloatable },
+            write = { bar, value -> bar.isFloatable = value },
+        )
+    }
 
 /**
  * Records a move of [bar] the composition did not make, so that a pass answering it is asked for: the
- * bar is put back where it is declared, and a refused float is retried, since floating needs a window
- * to open the bar's own beside and which window that is - or whether there is one at all - is the
- * container's to say.
+ * bar is put back where it is declared, and a refused float is retried, since only the container the
+ * bar is moved into can say whether there is a window to open the bar's own beside.
  *
  * A parent change is announced to every component under the one that moved, so a move of the bar itself
- * is read on the removal half, which `Container.remove` announces with the parent already nulled: every
+ * is read on the removal half, which `Container.remove` announces with the parent already nulled. Every
  * move the look and feel makes begins by taking the bar out of where it stands, while the applier's own
  * attach only adds, so an arrival alone is this wrapper's own.
  */
@@ -228,17 +242,12 @@ private val JToolBar.isFloating: Boolean
 
 /**
  * Puts the bar back how the composition declares it, where a move this wrapper did not make has left it
- * otherwise: under the constraint its own modifier chain declares, facing the way it was declared to.
+ * otherwise: under the constraint its own modifier declares, facing the [orientation] declared. A bar
+ * that is [floating] is left alone, since the container it is composed in holds no region for it.
  *
  * The orientation is written from here rather than through the declaration the update block applies,
  * which compares against the last declaration and so has nothing to write when the bar alone changed.
- *
- * @param mirror the record the bar's floating state is settled through, which marks the write as this
- *   wrapper's own.
- * @param displaced whether a move the wrapper did not make stands unanswered.
- * @param floating whether the bar was left standing in a window of its own, where the container it is
- *   composed in holds no region for it.
- * @param orientation the axis the bar is turned back to.
+ * The write goes through [mirror], which marks it as this wrapper's own.
  */
 private fun SwingNodeHolder<JToolBar>.placeAsDeclared(
     mirror: MirrorState<Boolean>,
@@ -285,8 +294,8 @@ private fun JToolBar.checkStandsWhereItCanDock() {
  * stands in. The bar stays where it is if it stands in no window, if its look and feel gives tool bars no
  * dragging, or if it is not floatable.
  *
- * Docking goes back through the same UI, which re-adds the bar under a `BorderLayout` region it picks
- * itself; [placeAsDeclared] puts the declared region back.
+ * Docking goes back through the same UI, which picks the region itself; [placeAsDeclared] puts the
+ * declared one back.
  */
 private fun JToolBar.applyFloating(floating: Boolean) {
     val toolBarUi = ui as? BasicToolBarUI ?: return

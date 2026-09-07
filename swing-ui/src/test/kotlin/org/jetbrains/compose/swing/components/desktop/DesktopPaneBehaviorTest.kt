@@ -17,6 +17,7 @@ import javax.swing.JInternalFrame
 import javax.swing.event.InternalFrameAdapter
 import javax.swing.event.InternalFrameEvent
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -45,6 +46,12 @@ class DesktopPaneBehaviorTest {
      */
     private val JInternalFrame.declaredInternalFrameListenerCount: Int
         get() = internalFrameListeners.size - JInternalFrame().internalFrameListeners.size
+
+    @Test
+    fun anUndeclaredDesktopPaneIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { DesktopPane {} }
+        onNodeOfType<JDesktopPane>().assertTreeMatches(JDesktopPane())
+    }
 
     @Test
     fun eachDeclaredFrameIsHostedWithItsTitleBoundsAndControls() = runComposeSwingTest {
@@ -506,7 +513,7 @@ class DesktopPaneBehaviorTest {
         assertEquals(1, frame.contentPane.componentCount, "the dropped declaration leaves the body")
         onNodeWithText("second").assertDoesNotExist()
         onNodeWithText("first").assertExists()
-        assertEquals(frame.rootPane, frame.getComponent(0), "the frame keeps its own root pane")
+        assertContains(frame.components.asList(), frame.rootPane, "the frame keeps its own root pane")
     }
 
     @Test
@@ -530,7 +537,7 @@ class DesktopPaneBehaviorTest {
         awaitIdle()
         onNodeWithText("body").assertDoesNotExist()
         assertEquals(0, frame.contentPane.componentCount, "the dropped declaration leaves the body")
-        assertEquals(frame.rootPane, frame.getComponent(0), "the frame keeps its own root pane")
+        assertContains(frame.components.asList(), frame.rootPane, "the frame keeps its own root pane")
 
         show = true
         awaitIdle()

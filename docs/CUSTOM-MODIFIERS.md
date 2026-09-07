@@ -1,7 +1,7 @@
 # Modifiers for a custom component
 
-Colors, borders, placements and listeners reach a component through a `SwingModifier` chain rather
-than through parameters of its own. This document is the `modifier` parameter a component takes, the
+Colors, borders, placements and listeners reach a component through a `SwingModifier` rather than
+through parameters of its own. This document is the `modifier` parameter a component takes, the
 `NodeElement`/`Node` pair behind a property the library does not ship, the four shapes a listener is
 attached in, and what stays an ordinary parameter instead. Building the component itself is
 [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
@@ -14,7 +14,7 @@ import javax.swing.JComponent
 ## Styling with a `modifier: SwingModifier` parameter
 
 Visual and interaction concerns that are common across components - colors, fonts, borders, tooltips,
-focus, hover - are expressed as a `SwingModifier` chain rather than ad-hoc `set` calls. Give your
+focus, hover - are expressed as a `SwingModifier` rather than ad-hoc `set` calls. Give your
 component a `modifier: SwingModifier = SwingModifier` parameter and hand it to the node, which applies
 it after `update`, so caller-supplied modifiers compose on top of your own defaults:
 
@@ -38,8 +38,8 @@ public fun MyWidget(
 
 The parameter is not a courtesy to callers who want a border. Where a child sits in its parent - a
 `BorderLayout` region, a `GridBagConstraints`, a cell in a manager of your own - is declared on the
-child's own chain, and the node's `modifier` is the channel through which that declaration reaches the
-node, before the applier attaches the component. A component that does not hand its chain to the node
+child's own modifier, and the node's `modifier` is the channel through which that declaration reaches the
+node, before the applier attaches the component. A component that does not hand its modifier to the node
 therefore cannot be placed at all: it goes into every container by index and no scope a container offers
 can move it.
 
@@ -65,25 +65,26 @@ Built-in modifier builders are extension functions on `SwingModifier`, grouped b
 - **Interaction** - `enabled`, `focusable`, `focusTraversalIndex`, `orderedFocusTraversal`,
   `defaultButton`, `onHover`, `onFocus`, `onPointerEvent`, `onAccept`, `focusRequester`, `initialFocus`,
   `inputVerifier`, `verifyInputWhenFocusTarget`, `documentFilter` (not on a `JFormattedTextField`,
-  whose formatter owns the filter), `navigationFilter`, `caretUpdatePolicy` (requires a
-  `JTextComponent` whose caret is a `DefaultCaret`), and `popupAnchor`, which names the component a
-  `ContextMenu` or `PopupMenu` declared beside it opens over, plus the listener builders
+  whose formatter owns the filter), `navigationFilter` (not on a `JFormattedTextField` either, for the
+  same reason), `caretUpdatePolicy` (requires a `JTextComponent` whose caret is a `DefaultCaret`), and
+  `popupAnchor`, which names the component a `ContextMenu` or `PopupMenu` declared beside it opens
+  over, plus the listener builders
   (`mouseListener`, `keyListener`, ...; see *Attaching a listener* below).
 - **Keyboard** - `onKeyEvent`, `onKeyStroke`.
 - **Data transfer** - `draggable`, `dropTarget`, `onExportDone`, `clipboard`.
 - **Accessibility** - `accessibleName`, `accessibleDescription`, `mnemonic`, and the `labelFor` /
   `labelTarget` pair that captions one component with another.
-- **Chain** - `key`, which ties the chain's application to a token: a token that changes takes the whole
-  chain apart and applies it again from scratch.
+- **Application** - `key`, which ties the modifier's application to a token: a token that changes takes
+  the whole modifier apart and applies it again from scratch.
 
-Chain them: `SwingModifier.foreground(Color.RED).lineBorder(Color.GRAY).onHover { ... }`. The framework
-diffs the chain across recompositions, applies new/changed elements, and **restores the original
-value** of any element that is removed from the chain.
+Combine them: `SwingModifier.foreground(Color.RED).lineBorder(Color.GRAY).onHover { ... }`. The framework
+diffs the modifier across recompositions, applies new/changed elements, and **restores the original
+value** of any element that is removed from it.
 
 When your component contributes its own elements (for example, the binding listener that drives its
-callback), chain them **onto** the caller's `modifier` - `modifier.yourElement(...)`.
+callback), add them **onto** the caller's `modifier` - `modifier.yourElement(...)`.
 
-A modifier builder is a plain function, never `@Composable`. A chain is data: the caller builds it,
+A modifier builder is a plain function, never `@Composable`. A modifier is data: the caller builds it,
 hoists it, passes it on, and holds it across passes, none of which a composable value can do. Where a
 builder needs something remembered - a handle, a renderer, a listener that carries state - split it in
 two: a `remember*` composable that creates the value, and a plain builder that takes it.
@@ -92,14 +93,18 @@ two: a `remember*` composable that creates the value, and a plain builder that t
 
 ## Writing a custom property element
 
+One property whose value a look and feel decides goes through `SwingModifier.property`. Reach for the
+pair below for what that cannot express: a widened target type, several components written from one
+entry, or a registration that is not a property.
+
 When you need a styling property the built-ins do not cover, implement the public
 `SwingModifier.NodeElement` and `SwingModifier.Node` pair. They split immutable description from mutable
 per-component state:
 
-- `NodeElement<T : Component, N : Node<T>>` is the **immutable description** of one chain entry. It carries
+- `NodeElement<T : Component, N : Node<T>>` is the **immutable description** of one modifier entry. It carries
   the value to write and the component type it targets; the framework holds it as data and replaces it
-  with a fresh instance on each chain change.
-- `Node<T : Component>` is the **stateful counterpart**, created once per chain slot and kept across
+  with a fresh instance on each modifier change.
+- `Node<T : Component>` is the **stateful counterpart**, created once per modifier slot and kept across
   recompositions. It holds the captured original value and exposes the live, already-typed `component`.
 
 The element declares its target type in two ways that must agree:
@@ -116,22 +121,22 @@ the required vs. actual type.
 
 The lifecycle, across the `NodeElement`/`Node` pair:
 
-- `NodeElement.create()` builds the `Node` once, when the element first enters the chain;
+- `NodeElement.create()` builds the `Node` once, when the element first enters the modifier;
 - `Node.onAttach()` runs once, right after the component is injected - **capture the component's
   existing value here** so it can be restored;
-- `NodeElement.update(node)` runs on attach, on a chain change that hands the slot an element unequal
-  to the one it holds, and - for a property element - on a pass where a property declared before it has
-  already written. **Write the new value here**, so a fresh element instance (a new value on
-  recomposition) reaches the live node without re-creating it;
-- `Node.onDetach()` runs once, when the element is dropped from the chain or the node is released or
+- `NodeElement.update(node)` runs on attach, and on a modifier change that hands the slot an element
+  unequal to the one it holds. A property element also updates on a pass where a property declared
+  before it has already written. **Write the new value here**, so a fresh element instance (a new value
+  on recomposition) reaches the live node without re-creating it;
+- `Node.onDetach()` runs once, when the element is dropped from the modifier or the node is released or
   deactivated - **restore the captured original here**.
 
-Once every element that wrote a property has left, the property stands where the component's chain
+Once every element that wrote a property has left, the property stands where the component's modifier
 found it. A write often lands on more than the property it declares - a coarse geometry covers each
-axis it spans - so capture and put back every property your write reaches, not only the one the
-element is named for, and name them in `heldProperties` as well. A write that finds a property already
-standing where it declares it moves nothing, so reading the component around the write cannot reveal
-that your element holds it.
+axis it spans. Capture and put back every property your write reaches, not only the one the element is
+named for, and name them all in `heldProperties`. A write that finds a property already standing where
+it declares it moves nothing, so reading the component around the write cannot reveal that your element
+holds it.
 
 `NodeElement.restores` says your element undertakes less than that:
 `RestorePolicy.DeclaredPropertyOnly` where your write provokes a derivation you do not make, and
@@ -139,18 +144,19 @@ that your element holds it.
 contract.
 
 A caller who does know what their look and feel derives, and needs it worked out again while every
-declaration stands still, says so with `key` on the chain: the token changing takes the chain apart and
-applies it again, and the restore and the re-application carry different values, so both are announced.
+declaration stands still, says so with `key` on the modifier. The token changing takes the modifier
+apart and applies it again, so the restore and the re-application carry different values and both are
+announced.
 
 **`equals` and `hashCode` are abstract**, so the element has to state its own equality and the
 compiler rejects one that does not. A slot whose incoming element equals the one it already applied
-does nothing, unless a property element ahead of it wrote on that pass, so an element that compares by
-value is applied once and then skipped for as long as its value stands - which is what lets you build
-the chain inline in the composable body without a `remember`. An element that answers
-`this === other` is unequal to any other instance, so a chain that builds a fresh one each pass is
+does nothing, unless a property element ahead of it wrote on that pass. An element that compares by
+value is therefore applied once and then skipped for as long as its value stands, which lets you build
+the modifier inline in the composable body without a `remember`. An element that answers
+`this === other` is unequal to any other instance, so a modifier that builds a fresh one each pass is
 re-applied each pass; that is the right answer for an element carrying nothing, and for one whose
 write has to be redone whatever the declaration says, but for a plain value it is the difference
-between a frame of work and none. Declare such an element as an `object` and the chain hands the
+between a frame of work and none. Declare such an element as an `object` and the modifier hands the
 slot the same instance every pass, so it is applied once - right where the write is idempotent and
 there is nothing to redo.
 
@@ -178,7 +184,7 @@ override val declaredValues: Map<String, Any?> get() = mapOf("text" to text)
 
 <!--- CLEAR -->
 
-The two are display only, read by a message about the element and by a tool showing the chain a
+The two are display only, read by a message about the element and by a tool showing the modifier a
 component carries (see [`INSPECTING-COMPOSITIONS.md`](INSPECTING-COMPOSITIONS.md#reading-the-chain-a-component-carries)).
 They never decide which slot an element takes: `key` does that, so two elements sharing a name still
 occupy their own slots. Leave a callback out of `declaredValues` unless showing it says something - a
@@ -187,9 +193,9 @@ lambda renders as its class.
 ### Slots and keys
 
 A property element is **keyed and last-wins**: its `key` defaults to the element's class, so two
-elements of different types never collide. A key declared twice in one chain takes the value and the
-place of its last declaration, and where two slots write the same widget property the chain's order is
-what settles which of them stands. Leave `additive` at its default `false` for a property
+elements of different types never collide. A key declared twice in one modifier takes the value and the
+place of its last declaration. Where two slots write the same widget property, the modifier's order
+settles which of them stands. Leave `additive` at its default `false` for a property
 (one value wins); a listener instead sets `additive = true` so two of the same builder both install
 (see *Attaching a listener* below). Override `key` only when several instances of the *same* type must
 coexist as independent slots (e.g. keyed by a property name).
@@ -404,7 +410,7 @@ The seam is reified on the target component type `T`, which the registration nam
 receives the component already typed and a node whose component is not a `T` is rejected at apply with
 a clear error. There is no `key` parameter - like the typed builders, it is **additive**.
 
-The same `instance` is added once through the registration when the element enters the chain and
+The same `instance` is added once through the registration when the element enters the modifier and
 removed when it leaves or the node is released/reused. Supplying a *different* instance
 (reference inequality) on a later recomposition detaches the old one and attaches the new, so pass a
 **stable** instance - `remember { ... }` it. A handler whose callback changes between recompositions
@@ -415,7 +421,7 @@ it stays current without anything being re-attached.
 the component is what makes it a last resort. The composition owns the values it declares for a component
 and owns its child list: it writes a declared value again when the declaration changes, settles one the
 user can also change on the pass after it moves, and puts back what a modifier wrote once that modifier
-leaves the chain. Code that takes the component and writes a property the composition declares, or adds
+leaves the modifier chain. Code that takes the component and writes a property the composition declares, or adds
 and removes children, becomes a second manager of the same thing - the widget holds a value nothing
 declares until the next write or settlement overwrites it, or the two managers corrupt each other's
 bookkeeping.
@@ -435,8 +441,8 @@ reports it and carries on dispatching, and matching that is the whole of what a 
 A callback reached from the pass that applies the composition's changes is the other case - a report of
 what a widget settled on, a listener that a write of your own provokes before that write returns, a
 callback called straight out of `update`. Recomposition is the pump there, and it does not carry on: a
-throw reaching it ends the window's recomposer, tearing down every content composition the window
-holds, and the throw is reported to the thread's uncaught-exception handler.
+throw reaching it ends the window's recomposer and tears down every content composition the window
+holds. The throw is reported to the thread's uncaught-exception handler.
 
 So contain what the caller supplied, at the edge their code sits behind. The two-way binding already
 does: `declare`'s `onSettled` and anything a write through `mirror.write { }` provokes are contained

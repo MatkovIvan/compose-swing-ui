@@ -19,8 +19,8 @@ package org.jetbrains.compose.swing.tooling
  * once per occurrence, each under what that occurrence states:
  *
  * ```
- * @Preview(name = "Light", lookAndFeel = "com.formdev.flatlaf.FlatLightLaf")
- * @Preview(name = "Dark", lookAndFeel = "com.formdev.flatlaf.FlatDarkLaf")
+ * @Preview(name = "Metal", lookAndFeel = "javax.swing.plaf.metal.MetalLookAndFeel")
+ * @Preview(name = "Nimbus", lookAndFeel = "javax.swing.plaf.nimbus.NimbusLookAndFeel")
  * @Composable
  * fun LoginFormPreview() = LoginForm(user = "", onSubmit = {})
  * ```
@@ -30,17 +30,17 @@ package org.jetbrains.compose.swing.tooling
  * may carry others, so sets compose:
  *
  * ```
- * @Preview(name = "Light", lookAndFeel = "com.formdev.flatlaf.FlatLightLaf")
- * @Preview(name = "Dark", lookAndFeel = "com.formdev.flatlaf.FlatDarkLaf")
- * annotation class PreviewThemes
+ * @Preview(name = "Metal", lookAndFeel = "javax.swing.plaf.metal.MetalLookAndFeel")
+ * @Preview(name = "Nimbus", lookAndFeel = "javax.swing.plaf.nimbus.NimbusLookAndFeel")
+ * annotation class PreviewLookAndFeels
  *
- * @PreviewThemes
+ * @PreviewLookAndFeels
  * @Composable
  * fun LoginFormPreview() = LoginForm(user = "", onSubmit = {})
  * ```
  *
- * Such sets are the application's to declare: what "light and dark" means is its own look and feel,
- * which the library cannot name for it.
+ * Such sets are the application's to declare: the look and feels a preview is worth seeing under are
+ * its own to choose, and the library cannot name them for it.
  *
  * @property name the label this rendering is shown under. Defaults to the empty string, meaning the
  *   function's own name where it is rendered one way, and its position where it is rendered several.

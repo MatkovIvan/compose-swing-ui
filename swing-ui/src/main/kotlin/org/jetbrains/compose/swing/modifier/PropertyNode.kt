@@ -14,15 +14,15 @@ import java.beans.PropertyChangeListener
  * value, so no value is stored or cast back through erasure.
  *
  * For a property a component inherits from its parent when it declares none of its own - cursor, font,
- * background, foreground - [read] must return the component's *own* value, and `null` when the matching
+ * background, foreground - [read] must return the component's *own* value, and `null` where the matching
  * `isXSet` is false.
  *
- * [interference] names the way another write and this one reach each other, where they do; see
- * [PropertyInterference]. A second property this [write] overwrites is held beside the declared one and
- * put back after it, which is the last write to overwrite it - without that, a removal leaves it
- * wherever the restore's own write left it, with no declaration naming it.
+ * [interference] names the way another write and this one reach each other; see [PropertyInterference].
+ * A second property this [write] overwrites is held beside the declared one and put back after it, so
+ * its restore is the last write to reach it. Without that, a removal leaves it wherever the declared
+ * property's restore left it, with no declaration naming it.
  *
- * Both are held through the chain's [PropertyCaptures].
+ * Both are held through the modifier's [PropertyCaptures].
  */
 internal class PropertyNode<T : Component, V>(
     private val slot: Any,
@@ -39,14 +39,14 @@ internal class PropertyNode<T : Component, V>(
     /** This slot's holds on the properties [write] overwrites besides the one it declares. */
     private var overwritten: List<PropertyCaptures.Hold> = emptyList()
 
-    /** Writes the value applied last, held as a closure over it for the reason [restore] is. */
+    /** Writes the value applied last, held as a closure over it. */
     private var reapply: (() -> Unit)? = null
 
     override fun onAttach() {
         val component = component
-        // A node built outside the chain machinery holds no state, which this refuses rather than
+        // A node built outside the modifier machinery holds no state, which this refuses rather than
         // capturing nothing.
-        val state = checkNotNull(modifierState) { "A property node is attached by the chain it belongs to" }
+        val state = checkNotNull(modifierState) { "A property node is attached by the modifier it belongs to" }
         val captures = state.captures()
         declared = captures.hold(slot, component, read, write)
         overwritten =
@@ -140,14 +140,13 @@ internal open class PropertyElement<T : Component, V>(
 /**
  * Builds a single-property [SwingModifier.NodeElement], deriving
  * [targetType][SwingModifier.NodeElement.targetType] from the reified [T]. The element's last-wins slot
- * is keyed by the class of its [write] lambda, so one modifier builder must declare exactly one
- * `write` accessor (call this exactly once): every invocation of that builder then shares one slot
- * (last wins), while a different builder declares a different lambda - a different class, an
- * independent slot.
+ * is keyed by the class of its [write] lambda, so each property gets its own `write` accessor, written
+ * out once: every invocation of the builder holding it shares one slot (last wins), while another
+ * `write` is a different class and an independent slot.
  *
  * [read] captures the property's pre-modifier value for restore; [write] applies a value. Both are
  * `noinline` - they are stored in the node, not invoked at the call site. [name] is the Swing property
- * being written, which is what an error about the element and a tool showing the chain both name it by.
+ * being written, which is what an error about the element and a tool showing the modifier both name it by.
  *
  * [interference] is fixed per builder, so it takes no part in equality. See [PropertyInterference]. A
  * property the component works out again for itself is built with [derivedPropertyElement] instead.
@@ -179,10 +178,14 @@ internal inline fun <reified T : Component, V> derivedPropertyElement(
     noinline write: (component: T, value: V) -> Unit,
     interference: PropertyInterference<T>? = null,
 ): SwingModifier.NodeElement<T, PropertyNode<T, V>> =
-    DerivedPropertyElement(T::class.java, name, value, read, write, interference)
+    UnrestoredPropertyElement(T::class.java, name, value, read, write, interference)
 
-/** The element [derivedPropertyElement] builds, which is a [PropertyElement] that puts nothing back. */
-internal class DerivedPropertyElement<T : Component, V>(
+/**
+ * A [PropertyElement] that puts nothing back when it leaves, for a property whose value at attach says
+ * nothing about what it should be given back: one the component works out again for itself, and one the
+ * component offers no way to give back at all.
+ */
+internal class UnrestoredPropertyElement<T : Component, V>(
     targetType: Class<T>,
     name: String,
     value: V,
@@ -247,7 +250,7 @@ internal sealed interface PropertyInterference<T : Component> {
         private vararg val properties: PropertyAccessors<T, S>,
     ) : PropertyInterference<T> {
         /**
-         * Takes a hold on each of [properties], capturing the ones this slot is the first of the chain
+         * Takes a hold on each of [properties], capturing the ones this slot is the first of the modifier
          * to write. The accessors are the ones the builder declaring each property uses, so the two
          * meet on one capture rather than taking one each.
          */
@@ -257,7 +260,7 @@ internal sealed interface PropertyInterference<T : Component> {
         ): List<PropertyCaptures.Hold> =
             properties.map { captures.hold(it.write.javaClass, component, it.read, it.write) }
 
-        /** What each of [properties] is named, for a caller that has to be told what the slot holds. */
+        /** What each of [properties] is named. */
         fun names(): Set<String> = properties.mapTo(LinkedHashSet()) { it.name }
     }
 }
@@ -277,18 +280,18 @@ internal class PropertyAccessors<in T : Component, V>(
 )
 
 /**
- * What each property a chain writes stood at before any slot of that chain wrote it, held once for
+ * What each property a modifier writes stood at before any slot of that modifier wrote it, held once for
  * every slot that writes it: the slot declaring it, and each slot whose own write lands on it besides
  * the property that slot declares.
  *
  * The first of those slots to attach captures the value. Capturing per slot instead would read whatever
- * a sibling had already written wherever a slot joins the chain on a later pass, and put that back as if
+ * a sibling had already written wherever a slot joins the modifier on a later pass, and put that back as if
  * it were the value the component came with.
  *
  * A property is named the way its slot is keyed, and a [PropertyInterference.AlsoOverwrites] names the
  * second property by the class of the write accessor it holds - the same name the builder declaring
- * that property is keyed under, since the two hold one accessor. Held on the chain's own state, so it
- * covers one component and lives as long as the chain applied to it.
+ * that property is keyed under, since the two hold one accessor. Held on the modifier's own state, so it
+ * covers one component and lives as long as the modifier applied to it.
  */
 internal class PropertyCaptures {
     private val held = HashMap<Any, Hold>()
@@ -314,7 +317,7 @@ internal class PropertyCaptures {
         return Hold(name) { write(component, captured) }.also { held[name] = it }
     }
 
-    /** What one captured property stands at before the chain wrote it, and the slots holding it there. */
+    /** What one captured property stands at before the modifier wrote it, and the slots holding it there. */
     internal inner class Hold(
         private val name: Any,
         private val restore: () -> Unit,
@@ -326,13 +329,12 @@ internal class PropertyCaptures {
             users++
         }
 
-        /** Gives up this hold and puts the property back where it stood before the chain wrote it. */
+        /** Gives up this hold and puts the property back where it stood before the modifier wrote it. */
         fun release() {
             // Every slot that leaves puts the property back: a declaration that goes has to hand it
             // over whether or not a slot naming it in passing still stands. The value is the same one
-            // each time, so the last of them leaves the property where the chain found it. The record
-            // goes with the last hold, and a declaration made again later captures afresh - by then the
-            // property stands where the chain found it.
+            // each time, so the last of them leaves the property where the modifier found it. The record
+            // goes with the last hold, so a declaration made again later captures afresh.
             if (--users == 0) held.remove(name)
             restore()
         }

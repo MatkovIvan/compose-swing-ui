@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -46,11 +47,12 @@ import javax.swing.JComboBox
  * @param onValueCommit callback invoked with the editor's text when an [editable] combo box's editor is
  *   committed; a text that matches no item is reported here and nowhere else, since [selectedItem]
  *   can only name an item. Left out, such a text goes unreported
- * @param maximumRowCount the maximum number of items the popup shows before it scrolls; `8` by default
+ * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
+ *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The selected-value display area composes a cell only for one of
- *   [items]: the text typed into an [editable] combo box's editor renders empty there on the pass
- *   that turns [editable] off, until the next one writes [selectedItem] back
+ *   the default `toString` rendering. The display area composes a cell only for one of [items]: text
+ *   typed into an [editable] editor renders empty there on the pass that turns [editable] off, until
+ *   the next writes [selectedItem] back
  * @see javax.swing.JComboBox
  */
 @Composable
@@ -61,7 +63,7 @@ public fun <T> ComboBox(
     modifier: SwingModifier = SwingModifier,
     editable: Boolean = false,
     onValueCommit: (@Nls String) -> Unit = {},
-    maximumRowCount: Int = 8,
+    maximumRowCount: Int? = null,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     val declaredItems = rememberDeclaredList(items)
@@ -92,11 +94,12 @@ public fun <T> ComboBox(
  * @param editable whether the user can type a value into the combo box's editor; `false` by default.
  *   An editor commit reaches [actionListener] under the `"comboBoxEdited"` action command, carrying
  *   whatever was typed as the combo box's selected item
- * @param maximumRowCount the maximum number of items the popup shows before it scrolls; `8` by default
+ * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
+ *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The selected-value display area composes a cell only for one of
- *   [items]: the text typed into an [editable] combo box's editor renders empty there on the pass
- *   that turns [editable] off, until the next one writes [selectedItem] back
+ *   the default `toString` rendering. The display area composes a cell only for one of [items]: text
+ *   typed into an [editable] editor renders empty there on the pass that turns [editable] off, until
+ *   the next writes [selectedItem] back
  * @see javax.swing.JComboBox
  */
 @Composable
@@ -106,7 +109,7 @@ public fun <T> ComboBox(
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
     editable: Boolean = false,
-    maximumRowCount: Int = 8,
+    maximumRowCount: Int? = null,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     val declaredItems = rememberDeclaredList(items)
@@ -149,11 +152,12 @@ public fun <T> ComboBox(
  * @param onValueCommit callback invoked with the editor's text when an [editable] combo box's editor is
  *   committed; a text that matches no item in the [model] is reported here and nowhere else, since the
  *   selected index can only name an item
- * @param maximumRowCount the maximum number of items the popup shows before it scrolls; `8` by default
+ * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
+ *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The selected-value display area composes a cell only for a value
- *   the [model] lists among its elements. A selection outside them leaves it empty, as does the text
- *   typed into an [editable] combo box's editor
+ *   the default `toString` rendering. The display area composes a cell only for a value the [model]
+ *   lists among its elements. A selection outside them leaves it empty, as does text typed into an
+ *   [editable] editor
  * @see javax.swing.JComboBox
  */
 @Composable
@@ -163,7 +167,7 @@ public fun <T> ComboBox(
     onSelectionChange: (Int) -> Unit = {},
     editable: Boolean = false,
     onValueCommit: (@Nls String) -> Unit = {},
-    maximumRowCount: Int = 8,
+    maximumRowCount: Int? = null,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     // The model owns its selection, and its index is what this overload reports; nothing is declared, so
@@ -192,11 +196,12 @@ public fun <T> ComboBox(
  * @param editable whether the user can type a value into the combo box's editor; `false` by default.
  *   An editor commit reaches [actionListener] under the `"comboBoxEdited"` action command, carrying
  *   whatever was typed as the combo box's selected item
- * @param maximumRowCount the maximum number of items the popup shows before it scrolls; `8` by default
+ * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
+ *   leave the count the box already carries
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The selected-value display area composes a cell only for a value
- *   the [model] lists among its elements. A selection outside them leaves it empty, as does the text
- *   typed into an [editable] combo box's editor
+ *   the default `toString` rendering. The display area composes a cell only for a value the [model]
+ *   lists among its elements. A selection outside them leaves it empty, as does text typed into an
+ *   [editable] editor
  * @see javax.swing.JComboBox
  */
 @Composable
@@ -205,7 +210,7 @@ public fun <T> ComboBox(
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
     editable: Boolean = false,
-    maximumRowCount: Int = 8,
+    maximumRowCount: Int? = null,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     ComboBoxNode(
@@ -230,17 +235,16 @@ public fun <T> ComboBox(
 private inline fun <T> ComboBoxNode(
     modifier: SwingModifier,
     editable: Boolean,
-    maximumRowCount: Int,
+    maximumRowCount: Int?,
     noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
     crossinline installContent: SwingNodeUpdater<JComboBox<T>>.() -> Unit,
 ) {
     val cells = itemContent?.let { rememberListItemRenderer(null, it) }
     SwingNode(
         factory = { JComboBox<T>() },
-        modifier = modifier.declaredListItemRenderer(cells),
+        modifier = modifier.declaredListItemRenderer(cells).declaredMaximumRowCount(maximumRowCount),
         update = {
             set(editable) { this.isEditable = it }
-            set(maximumRowCount) { this.maximumRowCount = it }
             installContent()
         },
     )
@@ -326,11 +330,10 @@ private fun <V> SwingModifier.onSelectionAction(
         } else if (isEditable) {
             // Committing the editor publishes two action events: `BasicComboBoxUI`'s editor listener
             // puts the text in through `setSelectedItem`, which fires this one with the editor's text
-            // and the selection already agreeing - just as a choice made in the popup leaves them - and
-            // `JComboBox.actionPerformed` then puts the editor's item on the model and fires a
-            // second one under EDITOR_COMMITTED. Settling here would reconfigure the editor over the
-            // very text that commit puts on the model, so every change an editable combo box makes is
-            // only mirrored, and the pass it brings settles after the commit.
+            // and the selection already agreeing, and `JComboBox.actionPerformed` then fires a second
+            // one under EDITOR_COMMITTED. Settling here would reconfigure the editor over the very
+            // text that commit puts on the model, so an editable combo box only mirrors its changes,
+            // and the pass one brings settles after the commit.
             if (mirror.observed(selection)) onSelectionChange(selection)
         } else {
             mirror.report(selection, onSelectionChange)
@@ -362,3 +365,20 @@ private val COMBO_ITEM_SELECTION =
         { component, listener -> component.addItemListener(listener) },
         { component, listener -> component.removeItemListener(listener) },
     )
+
+/**
+ * The rows a combo box popup shows. The `ComboBox.maximumRowCount` key cannot answer for it: the count
+ * reaches the box by a write onto the box itself, not through that key, so the box can carry one no key
+ * names.
+ */
+private fun SwingModifier.declaredMaximumRowCount(maximumRowCount: Int?): SwingModifier =
+    if (maximumRowCount == null) {
+        this
+    } else {
+        property<JComboBox<*>, Int>(
+            name = "maximumRowCount",
+            value = maximumRowCount,
+            read = { it.maximumRowCount },
+            write = { box, value -> box.maximumRowCount = value },
+        )
+    }

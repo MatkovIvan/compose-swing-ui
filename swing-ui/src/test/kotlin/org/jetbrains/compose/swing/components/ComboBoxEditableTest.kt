@@ -96,9 +96,8 @@ class ComboBoxEditableTest {
 
     @Test
     fun aTypedValueOutsideTheItemsReachesTheCommitCallbackBeforeTheSelectionIsPutBack() = runSwingTest {
-        // On the recomposer the library drives, a reported change settles inside the event that made it,
-        // so this pins the commit against a pass that can run between the two events a commit is
-        // published as.
+        // On the recomposer the library drives, a reported change settles inside the event that made it.
+        // This pins the commit against a pass that can run between the two events a commit is published as.
         val composition = JPanel()
         val recomposer = SwingRecomposer.create(composition)
         val reported = mutableListOf<String?>()
@@ -228,4 +227,33 @@ class ComboBoxEditableTest {
         awaitIdle()
         assertEquals(5, combo.maximumRowCount, "changing the maximum row count should reach the combo box")
     }
+
+    @Test
+    fun aWithdrawnRowCountGoesBackToTheCountTheComboBoxCarried() = runComposeSwingTest {
+        var rows by mutableStateOf<Int?>(null)
+        setContent {
+            ComboBox(items = listOf("red"), selectedItem = null, onSelectionChange = {}, maximumRowCount = rows)
+        }
+        val combo = onNodeOfType<JComboBox<*>>().fetch()
+
+        // A count written onto this box, the way a look and feel installs one onto the boxes it builds.
+        // The withdrawal owes the count this box carried, which a freshly built box need not carry.
+        val carried = combo.maximumRowCount + 1
+        combo.maximumRowCount = carried
+
+        rows = POPUP_ROWS
+        awaitIdle()
+        assertEquals(POPUP_ROWS, combo.maximumRowCount, "the declared maximum row count should reach the combo box")
+
+        rows = null
+        awaitIdle()
+        assertEquals(
+            carried,
+            combo.maximumRowCount,
+            "withdrawing the count should hand back the one the combo box was carrying",
+        )
+    }
 }
+
+/** A declared row count, chosen apart from any count a combo box carries of its own. */
+private const val POPUP_ROWS: Int = 15

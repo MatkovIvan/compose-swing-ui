@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
@@ -18,6 +19,12 @@ import kotlin.test.assertEquals
  * They assert observable behavior on the rendered [JList].
  */
 class ListBoxBehaviorTest {
+    @Test
+    fun anUndeclaredListBoxIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { ListBox(items = emptyList<String>()) }
+        onNodeOfType<JList<*>>().assertTreeMatches(JList<String>())
+    }
+
     @Test
     fun itemsRenderIntoTheModel() = runComposeSwingTest {
         setContent { ListBox(items = listOf("a", "b", "c")) }
