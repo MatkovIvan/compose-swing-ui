@@ -12,7 +12,6 @@ import java.awt.Point
 import javax.swing.JDialog
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests asserting that [Dialog] geometry is two-way with the realized [JDialog]:
@@ -29,7 +28,7 @@ class DialogGeometryTest {
         val state = DialogState(position = WindowPosition.Absolute(140, 90), size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-initial-geometry") {} }
         val dialog = onWindow().fetch<JDialog>()
-        assertEquals(Dimension(360, 260), dialog.size)
+        assertReaches(Dimension(360, 260)) { dialog.size }
         assertEquals(Point(140, 90), dialog.location)
     }
 
@@ -41,7 +40,7 @@ class DialogGeometryTest {
         val state = DialogState(position = WindowPosition.Absolute(140, 90), size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-position-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        assertEquals(Point(140, 90), dialog.location, "the dialog must realize at the position the state holds")
+        assertReaches(Point(140, 90), "the dialog must realize at the position the state holds") { dialog.location }
         // Moving a realized dialog is an asynchronous native reshape; wait for it to reach the declared
         // placement rather than assert right after the compose frame that requests it.
         state.position = WindowPosition.Absolute(240, 170)
@@ -66,7 +65,7 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-size-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        assertEquals(Dimension(360, 260), dialog.size)
+        assertReaches(Dimension(360, 260)) { dialog.size }
         state.size = Dimension(520, 420)
         // Applying size to the peer is an asynchronous native resize; wait for the dialog to reach the
         // target rather than assert right after the compose frame that requests it.
@@ -80,7 +79,7 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-width-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        assertEquals(Dimension(360, 260), dialog.size, "the dialog must realize with the size the state holds")
+        assertReaches(Dimension(360, 260), "the dialog must realize with the size the state holds") { dialog.size }
         state.width = 520
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 260) }
         assertEquals(
@@ -96,7 +95,7 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-height-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        assertEquals(Dimension(360, 260), dialog.size, "the dialog must realize with the size the state holds")
+        assertReaches(Dimension(360, 260), "the dialog must realize with the size the state holds") { dialog.size }
         state.height = 420
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(360, 420) }
         assertEquals(
@@ -247,9 +246,3 @@ class DialogGeometryTest {
         )
     }
 }
-
-/**
- * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
- * maximize transitions), which arrive with real latency - including window-manager animations.
- */
-private val NATIVE_EVENT_TIMEOUT = 10.seconds

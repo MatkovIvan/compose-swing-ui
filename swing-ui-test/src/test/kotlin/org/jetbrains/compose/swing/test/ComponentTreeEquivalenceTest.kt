@@ -1,7 +1,10 @@
 package org.jetbrains.compose.swing.test
 
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
+import org.jetbrains.compose.swing.test.interaction.onParent
 import java.awt.BorderLayout
 import java.awt.Canvas
 import java.awt.Color
@@ -12,6 +15,8 @@ import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.LayoutManager
 import java.awt.Point
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.util.Vector
 import javax.swing.BorderFactory
 import javax.swing.JButton
@@ -31,6 +36,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import org.jetbrains.compose.swing.test.lookalike.first.Widget as FirstWidget
 import org.jetbrains.compose.swing.test.lookalike.second.Widget as SecondWidget
 
@@ -492,6 +498,30 @@ class ComponentTreeEquivalenceTest {
         node.assertTreeMatches(reference)
 
         assertEquals(node.fetch().size, reference.size)
+    }
+
+    @Test
+    fun theReferenceIsToldOfTheResizeItWasLaidOutAt() = runComposeSwingTest {
+        setContent { BorderPanel { Label("a") } }
+        var announced: Dimension? = null
+        var announcements = 0
+        val label =
+            JLabel("a").apply {
+                addComponentListener(
+                    object : ComponentAdapter() {
+                        override fun componentResized(e: ComponentEvent) {
+                            announced = e.component.size
+                            announcements++
+                        }
+                    },
+                )
+            }
+
+        onNodeWithText("a").onParent().assertTreeMatches(JPanel(BorderLayout()).apply { add(label) })
+
+        assertEquals(label.size, announced, "a descendant of the reference must be told of its resize")
+        assertTrue(label.size.width > 0, "the size it was told of must be the one it was laid out at")
+        assertEquals(1, announcements, "it must be told of that resize once, the way the toolkit tells it")
     }
 
     @Test

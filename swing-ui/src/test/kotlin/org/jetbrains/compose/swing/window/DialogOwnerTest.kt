@@ -12,13 +12,11 @@ import java.awt.Point
 import java.awt.Window
 import javax.swing.JDialog
 import javax.swing.JFrame
-import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests for the window a [Dialog] names as its owner: the named window owns the dialog
@@ -149,15 +147,16 @@ class DialogOwnerTest {
             }
 
             val dialog = onWindowWithTitle("dialog-centered-on-named-owner").fetch<JDialog>()
-            val ownerLocation = named.locationOnScreen
-            assertNearOwner(
-                Point(
-                    ownerLocation.x + (named.width - dialog.width) / 2,
-                    ownerLocation.y + (named.height - dialog.height) / 2,
-                ),
-                dialog.location,
+            assertReachesNear(
                 "a CenteredOnOwner position must center the dialog on the window the dialog names as its owner",
-            )
+                expected = {
+                    val ownerLocation = named.locationOnScreen
+                    Point(
+                        ownerLocation.x + (named.width - dialog.width) / 2,
+                        ownerLocation.y + (named.height - dialog.height) / 2,
+                    )
+                },
+            ) { dialog.location }
         } finally {
             named.dispose()
         }
@@ -192,28 +191,3 @@ class DialogOwnerTest {
         }
     }
 }
-
-/**
- * Asserts that [actual] is [expected] up to [OWNER_POSITION_TOLERANCE_PIXELS], absorbing the pixel or
- * two a window manager may shave off a placement it honors.
- */
-private fun assertNearOwner(
-    expected: Point,
-    actual: Point,
-    message: String,
-) {
-    assertTrue(
-        abs(actual.x - expected.x) <= OWNER_POSITION_TOLERANCE_PIXELS &&
-            abs(actual.y - expected.y) <= OWNER_POSITION_TOLERANCE_PIXELS,
-        "$message (expected around $expected, was $actual)",
-    )
-}
-
-/**
- * Wall-clock deadline for conditions gated on native window-system notifications, which arrive with
- * real latency - including window-manager animations.
- */
-private val NATIVE_EVENT_TIMEOUT = 10.seconds
-
-/** Slack allowed on a realized placement, in pixels. */
-private const val OWNER_POSITION_TOLERANCE_PIXELS = 4

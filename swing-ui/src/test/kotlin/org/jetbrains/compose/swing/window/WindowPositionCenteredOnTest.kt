@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.window
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -12,13 +13,11 @@ import java.awt.Point
 import java.awt.Rectangle
 import java.awt.Window
 import javax.swing.JFrame
-import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests for [WindowPosition.CenteredOn], the position that names the window to center on:
@@ -233,46 +232,25 @@ private fun shownFrame(
 }
 
 /**
- * Asserts that [centered] stands centered on [reference]'s current bounds, up to
- * [CENTERING_TOLERANCE_PIXELS].
+ * Waits for [centered] to stand centered on [reference]'s current bounds and asserts that it does.
+ *
+ * A window system asked to place a window it is still putting on screen may decline the placement and
+ * report no move, and the composition answers by asking again - an exchange that outlives the pass
+ * declaring the position.
  */
-private fun assertCenteredOn(
+private suspend fun ComposeSwingTest.assertCenteredOn(
     reference: Window,
     centered: Window,
     message: String,
 ) {
-    val referenceLocation = reference.locationOnScreen
-    assertNearCenter(
-        Point(
-            referenceLocation.x + (reference.width - centered.width) / 2,
-            referenceLocation.y + (reference.height - centered.height) / 2,
-        ),
-        centered.location,
+    assertReachesNear(
         message,
-    )
+        expected = {
+            val referenceLocation = reference.locationOnScreen
+            Point(
+                referenceLocation.x + (reference.width - centered.width) / 2,
+                referenceLocation.y + (reference.height - centered.height) / 2,
+            )
+        },
+    ) { centered.location }
 }
-
-/**
- * Asserts that [actual] is [expected] up to [CENTERING_TOLERANCE_PIXELS], absorbing the pixel or two a
- * window manager may shave off a placement it honors.
- */
-private fun assertNearCenter(
-    expected: Point,
-    actual: Point,
-    message: String,
-) {
-    assertTrue(
-        abs(actual.x - expected.x) <= CENTERING_TOLERANCE_PIXELS &&
-            abs(actual.y - expected.y) <= CENTERING_TOLERANCE_PIXELS,
-        "$message (expected around $expected, was $actual)",
-    )
-}
-
-/**
- * Wall-clock deadline for conditions gated on native window-system notifications (moves, shows), which
- * arrive with real latency - including window-manager animations.
- */
-private val NATIVE_EVENT_TIMEOUT = 10.seconds
-
-/** Slack allowed on a realized placement, in pixels. */
-private const val CENTERING_TOLERANCE_PIXELS = 4

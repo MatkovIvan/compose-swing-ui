@@ -12,11 +12,8 @@ import java.awt.GraphicsEnvironment
 import java.awt.Point
 import javax.swing.JDialog
 import javax.swing.JFrame
-import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests asserting that a centering [WindowPosition] places a realized peer:
@@ -45,14 +42,15 @@ class WindowCenteringTest {
         }
         val frame = onWindow().fetch<JFrame>()
         val screen = GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
-        assertNear(
-            Point(
-                screen.x + screen.width / 2 - frame.width / 2,
-                screen.y + screen.height / 2 - frame.height / 2,
-            ),
-            frame.location,
+        assertReachesNear(
             "a CenteredOnScreen position must center the frame on the screen's usable area",
-        )
+            expected = {
+                Point(
+                    screen.x + screen.width / 2 - frame.width / 2,
+                    screen.y + screen.height / 2 - frame.height / 2,
+                )
+            },
+        ) { frame.location }
     }
 
     @Test
@@ -79,15 +77,16 @@ class WindowCenteringTest {
         dialogComposed = true
         awaitIdle()
         val dialog = onWindowWithTitle("centered-on-owner").fetch<JDialog>()
-        val ownerLocation = owner.locationOnScreen
-        assertNear(
-            Point(
-                ownerLocation.x + (owner.width - dialog.width) / 2,
-                ownerLocation.y + (owner.height - dialog.height) / 2,
-            ),
-            dialog.location,
+        assertReachesNear(
             "a CenteredOnOwner position must center the dialog on its owning window",
-        )
+            expected = {
+                val ownerLocation = owner.locationOnScreen
+                Point(
+                    ownerLocation.x + (owner.width - dialog.width) / 2,
+                    ownerLocation.y + (owner.height - dialog.height) / 2,
+                )
+            },
+        ) { dialog.location }
     }
 
     @Test
@@ -112,14 +111,15 @@ class WindowCenteringTest {
         dialogComposed = true
         awaitIdle()
         val dialog = onWindowWithTitle("owned-centered-on-screen").fetch<JDialog>()
-        assertNear(
-            Point(
-                screen.x + screen.width / 2 - dialog.width / 2,
-                screen.y + screen.height / 2 - dialog.height / 2,
-            ),
-            dialog.location,
+        assertReachesNear(
             "a CenteredOnScreen position must center a dialog on the screen even where it has an owner",
-        )
+            expected = {
+                Point(
+                    screen.x + screen.width / 2 - dialog.width / 2,
+                    screen.y + screen.height / 2 - dialog.height / 2,
+                )
+            },
+        ) { dialog.location }
     }
 
     @Test
@@ -139,28 +139,3 @@ class WindowCenteringTest {
         )
     }
 }
-
-/**
- * Asserts that [actual] is [expected] up to [POSITION_TOLERANCE_PIXELS], absorbing the pixel or two a
- * window manager may shave off a placement it honors.
- */
-private fun assertNear(
-    expected: Point,
-    actual: Point,
-    message: String,
-) {
-    assertTrue(
-        abs(actual.x - expected.x) <= POSITION_TOLERANCE_PIXELS &&
-            abs(actual.y - expected.y) <= POSITION_TOLERANCE_PIXELS,
-        "$message (expected around $expected, was $actual)",
-    )
-}
-
-/**
- * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
- * maximize transitions), which arrive with real latency - including window-manager animations.
- */
-private val NATIVE_EVENT_TIMEOUT = 10.seconds
-
-/** Slack allowed on a realized placement, in pixels. */
-private const val POSITION_TOLERANCE_PIXELS = 4

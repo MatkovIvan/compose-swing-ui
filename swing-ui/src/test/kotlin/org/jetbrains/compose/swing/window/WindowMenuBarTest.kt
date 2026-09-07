@@ -8,7 +8,10 @@ import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
+import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.menuItemTexts
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -18,6 +21,8 @@ import javax.swing.JDialog
 import javax.swing.JFrame
 import javax.swing.JMenu
 import javax.swing.JMenuBar
+import javax.swing.JMenuItem
+import javax.swing.JRadioButtonMenuItem
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -42,6 +47,42 @@ import kotlin.test.assertTrue
  * A menu bar lives on a realized peer's root pane, so these are skipped in headless environments.
  */
 class WindowMenuBarTest {
+    @Test
+    fun aDeclaredMenuBarMatchesTheOneSwingBuilds() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        // A menu bar declaring nothing of its own is held to the bar built by hand, which is what
+        // catches a default a menu wrapper states for itself where the widget takes its own from the
+        // look and feel. Every kind a menu can hold stands in one bar, so one comparison covers them.
+        setContent {
+            Window(onCloseRequest = {}, title = "menu-bar-parity", visible = false) {
+                MenuBar {
+                    Menu("File") {
+                        MenuItem("Open", onClick = {})
+                        MenuSeparator()
+                        CheckBoxMenuItem("Wrap", checked = false, onCheckedChange = {})
+                        RadioButtonMenuItem("Compact", selected = false, onSelectedChange = {})
+                    }
+                }
+            }
+        }
+
+        val reference =
+            JMenuBar().apply {
+                add(
+                    JMenu("File").apply {
+                        add(JMenuItem("Open"))
+                        addSeparator()
+                        add(JCheckBoxMenuItem("Wrap"))
+                        add(JRadioButtonMenuItem("Compact"))
+                    },
+                )
+            }
+
+        onWindowWithTitle("menu-bar-parity")
+            .onNode(SwingMatcher.isOfType<JMenuBar>())
+            .assertTreeMatches(reference)
+    }
+
     @Test
     fun aDeclaredMenuBarIsRealizedOnTheWindow() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")

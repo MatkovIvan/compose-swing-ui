@@ -18,7 +18,6 @@ import javax.swing.JFrame
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests asserting that a [Window] or [Dialog] created without an explicit size is sized to
@@ -36,11 +35,10 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
-        assertEquals(
-            frame.preferredSize,
-            frame.size,
+        assertReaches(
             "a window with no explicit size must pack to its preferred size",
-        )
+            { frame.preferredSize },
+        ) { frame.size }
         assertEquals(
             Dimension(CONTENT_WIDTH, CONTENT_HEIGHT),
             frame.contentPane.size,
@@ -60,11 +58,10 @@ class WindowPackToContentTest {
             }
         }
         val dialog = onWindow().fetch<JDialog>()
-        assertEquals(
-            dialog.preferredSize,
-            dialog.size,
+        assertReaches(
             "a dialog with no explicit size must pack to its preferred size",
-        )
+            { dialog.preferredSize },
+        ) { dialog.size }
         assertEquals(
             Dimension(CONTENT_WIDTH, CONTENT_HEIGHT),
             dialog.contentPane.size,
@@ -84,11 +81,10 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
-        assertEquals(
+        assertReaches(
             Dimension(420, 300),
-            frame.size,
             "an explicit size must be applied verbatim rather than packed to content",
-        )
+        ) { frame.size }
     }
 
     @Test
@@ -101,11 +97,10 @@ class WindowPackToContentTest {
             }
         }
         val dialog = onWindow().fetch<JDialog>()
-        assertEquals(
+        assertReaches(
             Dimension(360, 240),
-            dialog.size,
             "an explicit size must be applied verbatim rather than packed to content",
-        )
+        ) { dialog.size }
     }
 
     @Test
@@ -198,9 +193,3 @@ private const val CONTENT_HEIGHT = 211
  */
 private val INVENTED_WINDOW_SIZE = Dimension(800, 600)
 private val INVENTED_DIALOG_SIZE = Dimension(400, 300)
-
-/**
- * Wall-clock deadline for conditions gated on native window-system notifications (the resize echo that
- * follows a pack), which arrive with real latency.
- */
-private val NATIVE_EVENT_TIMEOUT = 10.seconds

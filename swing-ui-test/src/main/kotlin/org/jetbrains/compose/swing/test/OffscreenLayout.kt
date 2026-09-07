@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.test
 
+import kotlinx.coroutines.yield
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
@@ -28,6 +29,28 @@ internal fun Component.layoutOffscreen(size: Dimension) {
 }
 
 /**
+ * Lays out the parts of this tree that no container lays out: a menu's popup, which [childComponents]
+ * reaches and which Swing sizes only when the menu is shown. Everything a parent does place keeps the
+ * bounds that layout gave it.
+ *
+ * A tree standing in a real window is laid out by that window, and a window never reaches a popup. That
+ * leaves such a tree comparable against a reference that [layoutOffscreen] laid out, which sizes a
+ * popup itself.
+ *
+ * Must be called on the Event Dispatch Thread.
+ */
+internal fun Component.layoutUnplacedSubtrees() {
+    for (child in childComponents()) {
+        if (child.parent !== this) {
+            child.size = child.preferredSize
+            layoutSubtree(child)
+        } else {
+            child.layoutUnplacedSubtrees()
+        }
+    }
+}
+
+/**
  * Lays [component] out, then each of its children, so a child is sized before it lays out its own.
  *
  * A menu's items are reached the way the tree walk reaches them, through [childComponents]. The popup
@@ -41,4 +64,22 @@ private fun layoutSubtree(component: Component) {
         if (child.parent !== component) child.size = child.preferredSize
         layoutSubtree(child)
     }
+}
+
+/**
+ * Suspends until everything already queued on the event dispatch thread has been dispatched.
+ *
+ * Sizing a component tells its listeners through an event the toolkit posts, so a tree just laid out
+ * carries its new bounds while nothing on it has been told of them yet. A component that places a child
+ * of its own from that announcement rather than from a layout manager - the Aqua internal frame's
+ * resize box, placed against its layered pane - is otherwise left where its previous size put it.
+ *
+ * The yield is what delivers those announcements: the test body runs on the event dispatch thread, and
+ * a continuation dispatched there is queued behind everything already posted. [ComposeSwingTest.awaitEventsDelivered]
+ * then drains the runnables they scheduled; it cannot stand alone here, because it counts only queued
+ * invocations and a resize announcement is not one.
+ */
+internal suspend fun ComposeSwingTest.deliverQueuedEvents() {
+    yield()
+    awaitEventsDelivered()
 }

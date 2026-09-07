@@ -107,8 +107,8 @@ class StructuralMatcherTest {
     fun hasAnyDescendantMatchesAtEveryDepthBelow() = runComposeSwingTest {
         setNestedContent()
 
-        // The panel holding the label matches, and so does everything above it.
-        onAllNodes(SwingMatcher.hasAnyDescendant(SwingMatcher.hasText("gamma"))).assertCountEquals(2)
+        // The panel holding the label matches, and so does everything above it, the root included.
+        onAllNodes(SwingMatcher.hasAnyDescendant(SwingMatcher.hasText("gamma"))).assertCountEquals(3)
         onNode(
             SwingMatcher.isOfType<JPanel>() and
                 SwingMatcher.hasAnyDescendant(SwingMatcher.hasText("gamma")) and

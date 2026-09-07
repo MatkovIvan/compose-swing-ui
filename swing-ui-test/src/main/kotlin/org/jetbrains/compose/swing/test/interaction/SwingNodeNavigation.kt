@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.test.interaction
 
+import org.jetbrains.compose.swing.test.ancestorPathTo
 import org.jetbrains.compose.swing.test.childComponents
 import org.jetbrains.compose.swing.test.descendantComponents
 import org.jetbrains.compose.swing.test.siblingComponents
@@ -60,18 +61,10 @@ public fun SwingNodeInteraction<*>.onSibling(): SwingNodeInteraction<Component> 
 
 /**
  * Returns a handle to the matched node's ancestors, nearest first, up to and including the root the
- * query searches - the composition root, or the content pane for a window-scoped query. A node that
- * is itself that root yields an empty collection.
+ * node was found under. A node that is itself a root yields an empty collection.
  */
 public fun SwingNodeInteraction<*>.onAncestors(): SwingNodeInteractionCollection<Component> =
-    derivedNodes("onAncestors()") { node ->
-        val stop = root()
-        if (node === stop) {
-            emptyList()
-        } else {
-            generateSequence(node.parent) { if (it === stop) null else it.parent }.toList()
-        }
-    }
+    derivedNodes("onAncestors()") { node -> roots().ancestorPathTo(node) }
 
 /**
  * Returns a handle to every component below the matched node, at any depth, in depth-first
@@ -93,11 +86,11 @@ private fun SwingNodeInteraction<*>.derivedNode(
     stepName: String,
     step: (Component) -> List<Component>,
 ): SwingNodeInteraction<Component> =
-    SwingNodeInteraction(test, "$description.$stepName", root, NodePick.Single, { it }) { step(resolve()) }
+    SwingNodeInteraction(test, "$description.$stepName", roots, NodePick.Single, { it }) { step(resolve()) }
 
 /** The collection counterpart of [derivedNode]: every component [step] derives, in the step's order. */
 private fun SwingNodeInteraction<*>.derivedNodes(
     stepName: String,
     step: (Component) -> List<Component>,
 ): SwingNodeInteractionCollection<Component> =
-    SwingNodeInteractionCollection(test, "$description.$stepName", root, { it }) { step(resolve()) }
+    SwingNodeInteractionCollection(test, "$description.$stepName", roots, { it }) { step(resolve()) }

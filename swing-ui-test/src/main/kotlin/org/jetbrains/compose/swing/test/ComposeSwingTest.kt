@@ -258,7 +258,7 @@ public interface ComposeSwingTest {
     /**
      * Finds all nodes matching [matcher].
      *
-     * @param matcher applied to every component under [root], in depth-first pre-order.
+     * @param matcher applied to [root] and every component under it, in depth-first pre-order.
      * @return a handle to the match set, empty rather than failing when nothing matches.
      */
     public fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component>
@@ -880,7 +880,7 @@ private class ComposeSwingTestImpl(
     override fun onNodeWithTag(tag: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasTestTag(tag))
 
     override fun onNode(matcher: SwingMatcher): SwingNodeInteraction<Component> =
-        SwingNodeInteraction(this, matcher.description, { root }, NodePick.Single, { it }) {
+        SwingNodeInteraction(this, matcher.description, { listOf(root) }, NodePick.Single, { it }) {
             root.findMatchingIncludingSelf(matcher)
         }
 
@@ -893,12 +893,12 @@ private class ComposeSwingTestImpl(
         onAllNodes(SwingMatcher.hasTestTag(tag))
 
     override fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component> =
-        SwingNodeInteractionCollection(this, matcher.description, { root }, { it }) {
-            root.findMatching(matcher)
+        SwingNodeInteractionCollection(this, matcher.description, { listOf(root) }, { it }) {
+            root.findMatchingIncludingSelf(matcher)
         }
 
     override fun onRoot(): SwingNodeInteraction<Component> =
-        SwingNodeInteraction(this, "root", { root }, NodePick.Single, { it }) {
+        SwingNodeInteraction(this, "root", { listOf(root) }, NodePick.Single, { it }) {
             root.findMatchingIncludingSelf(SwingMatcher.isRoot(root))
         }
 

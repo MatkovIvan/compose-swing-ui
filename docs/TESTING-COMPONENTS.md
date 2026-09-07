@@ -229,16 +229,15 @@ inside the container being queried matches alongside the widgets beside it — a
 `AbstractButton` over such a tree matches every `JMenuItem` too — and is narrowed with a matcher that
 describes where the widget sits.
 
-A window's menu bar is the one that does not sit there: a declared `MenuBar { }` installs onto the
-window's root pane, while node queries root at the content pane beside it, so no finder reaches it.
-Read it — and a component's `componentPopupMenu`, which hangs off its component rather than being
-held in the tree — through the typed `fetch<T>()`, then read the content through `JMenu`'s own
-`itemCount` and `getItem(index)`, which reports a separator as `null`:
+A window's menu bar does not sit there: a declared `MenuBar { }` installs onto the window's root
+pane, beside the content pane. A window query searches both, so a menu bar, a menu and its items are
+each reachable by node query, and `JMenu`'s own `itemCount` and `getItem(index)` read a menu's
+content, reporting a separator as `null`:
 
 ```kotlin
-import javax.swing.JFrame
+import javax.swing.JMenu
 
-val fileMenu = onWindowWithTitle("Editor").fetch<JFrame>().jMenuBar.getMenu(0)
+val fileMenu = onWindowWithTitle("Editor").onNodeWithText("File").fetch<JMenu>()
 val items = (0 until fileMenu.itemCount).map { fileMenu.getItem(it)?.text }
 assertEquals(listOf("New", null, "Open"), items)
 ```
@@ -247,6 +246,21 @@ assertEquals(listOf("New", null, "Open"), items)
 
 Only the menu's own level is read this way: a submenu appears as its own item, named by its `text`,
 and what it drops down is read the same way, off the `JMenu` that item is.
+
+A component's `componentPopupMenu` is not reachable by node query — it hangs off its component
+rather than being held in the tree — so fetch the component through the typed `fetch<T>()` and read
+the popup's own components: a separator is not a `JMenuItem`, so casting one reads as `null`:
+
+```kotlin
+import javax.swing.JButton
+import javax.swing.JMenuItem
+
+val actions = onNodeWithTag("actions").fetch<JButton>().componentPopupMenu
+val items = (0 until actions.componentCount).map { (actions.getComponent(it) as? JMenuItem)?.text }
+assertEquals(listOf("Copy", null, "Delete"), items)
+```
+
+<!--- CLEAR -->
 
 ## Driving interactions
 
@@ -374,7 +388,7 @@ is shown:
 
 A `SwingWindowInteraction` offers `assertExists()` / `assertDoesNotExist()`, `assertIsVisible()` /
 `assertIsNotVisible()`, the typed `fetch<T>()` for the realized `JFrame`/`JDialog`, and the node
-finders scoped to that window's content pane:
+finders scoped to that window's content pane and menu bar:
 
 <!--- INCLUDE .*testing-case-02.*
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -527,9 +541,11 @@ state. Where a pixel comparison says only that two screens differ, this names th
 differs and the property it differs in.
 
 Bounds are among what it compares, and the reference is laid out at the node's size before the
-comparison, so a tree built for the assertion needs no layout pass of its own. A menu's items are
-laid out too, in the popup that holds them. The two roots stand in trees of their own, so they are
-compared on their size alone; every node below them on its full bounds within its parent.
+comparison, so a tree built for the assertion needs no layout pass of its own. Both trees are then told
+of their resize, the way the toolkit tells a component, so a child placed from that announcement stands
+where its parent's size puts it. A menu's items are laid out too, in the popup that holds them. The two
+roots stand in trees of their own, so they are compared on their size alone; every node below them on
+its full bounds within its parent.
 
 ```kotlin
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches

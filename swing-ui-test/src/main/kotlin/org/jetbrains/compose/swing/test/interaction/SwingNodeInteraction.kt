@@ -3,8 +3,9 @@ package org.jetbrains.compose.swing.test.interaction
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.ancestorPathTo
 import org.jetbrains.compose.swing.test.describeComponent
-import org.jetbrains.compose.swing.test.dumpTree
+import org.jetbrains.compose.swing.test.dumpTrees
 import org.jetbrains.compose.swing.test.textOrNull
 import java.awt.BorderLayout
 import java.awt.Component
@@ -27,7 +28,7 @@ import java.awt.KeyboardFocusManager
 public class SwingNodeInteraction<out T : Component> internal constructor(
     internal val test: ComposeSwingTest,
     internal val description: String,
-    internal val root: () -> Container,
+    internal val roots: () -> List<Container>,
     private val pick: NodePick,
     private val asNode: (Component) -> T,
     private val candidates: () -> List<Component>,
@@ -35,7 +36,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
     private fun resolveOrNull(): Component? {
         val matches = candidates()
         if (pick == NodePick.Single && matches.size > 1) {
-            throw AssertionError("${singleMatchMessage(matches.size)}\nTree:\n${root().dumpTree()}")
+            throw AssertionError("${singleMatchMessage(matches.size)}\nTree:\n${roots().dumpTrees()}")
         }
         return selectTarget(matches)
     }
@@ -45,7 +46,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
     internal fun resolve(): Component {
         val matches = candidates()
         return selectTarget(matches)
-            ?: throw AssertionError("${noTargetMessage(matches.size)}\nTree:\n${root().dumpTree()}")
+            ?: throw AssertionError("${noTargetMessage(matches.size)}\nTree:\n${roots().dumpTrees()}")
     }
 
     /** The single component this query's [pick] selects among [matches], or null when none is selected. */
@@ -114,7 +115,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      */
     @PublishedApi
     internal fun <R : Component> retype(asNode: (Component) -> R): SwingNodeInteraction<R> =
-        SwingNodeInteraction(test, description, root, pick, asNode, candidates)
+        SwingNodeInteraction(test, description, roots, pick, asNode, candidates)
 
     // region assertions
 
@@ -153,7 +154,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
         if (!matcher.matches(component)) {
             throw AssertionError(
                 "Node '$description' does not satisfy '${matcher.description}'. " +
-                    "The node is ${describeComponent(component)}.\nTree:\n${root().dumpTree()}",
+                    "The node is ${describeComponent(component)}.\nTree:\n${roots().dumpTrees()}",
             )
         }
         return this
@@ -202,7 +203,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      * without a display), [java.awt.Component.isShowing] is permanently `false`, and it cannot be
      * used. Instead, "displayed" here means the node has **non-zero bounds** produced by the forced
      * layout pass the harness runs - a real width and height assigned by its ancestor's layout
-     * manager within the query's root, the harness root or the window's content pane for a
+     * manager within the query's root, the harness root or the window's own content for a
      * window-scoped query.
      *
      * What this catches off-screen, without requiring an on-screen peer, is a node a layout
@@ -212,20 +213,20 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      */
     public fun assertIsDisplayed(): SwingNodeInteraction<T> {
         val component = resolve()
-        val currentRoot = root()
-        // Every query resolves its target by walking down from its root, so a resolved node is
+        val currentRoots = roots()
+        // Every query resolves its target by walking down from one of its roots, so a resolved node is
         // attached to that root. Guards that invariant for future resolution strategies.
-        if (!component.isAttachedTo(currentRoot)) {
+        if (!component.standsUnder(currentRoots)) {
             throw AssertionError(
                 "Node '$description' is not displayed: it is not attached under the query root.\n" +
-                    "Tree:\n${currentRoot.dumpTree()}",
+                    "Tree:\n${currentRoots.dumpTrees()}",
             )
         }
         if (component.width <= 0 || component.height <= 0) {
             throw AssertionError(
                 "Node '$description' is not displayed: it has zero laid-out size " +
                     "(${component.width}x${component.height}). The forced layout pass assigned " +
-                    "it no bounds within its ancestor.\nTree:\n${currentRoot.dumpTree()}",
+                    "it no bounds within its ancestor.\nTree:\n${currentRoots.dumpTrees()}",
             )
         }
         return this
@@ -241,7 +242,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      * hidden node keeps the bounds of the pass that last laid it out, so it satisfies that assertion
      * while failing this one.
      *
-     * The root bounds the walk: a query scoped to a window stops at that window's content pane, so
+     * The root bounds the walk: a query scoped to a window stops at that window's own content, so
      * whether the window itself is shown is [SwingWindowInteraction.assertIsVisible]'s question.
      */
     public fun assertIsVisible(): SwingNodeInteraction<T> {
@@ -255,7 +256,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
                     "the enclosing ${hidden.javaClass.simpleName} is hidden"
                 }
             throw AssertionError(
-                "Node '$description' is not visible: $where.\nTree:\n${root().dumpTree()}",
+                "Node '$description' is not visible: $where.\nTree:\n${roots().dumpTrees()}",
             )
         }
         return this
@@ -270,7 +271,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
         if (component.hiddenSelfOrAncestor() == null) {
             throw AssertionError(
                 "Node '$description' is visible: neither it nor any ancestor up to the query root " +
-                    "is hidden.\nTree:\n${root().dumpTree()}",
+                    "is hidden.\nTree:\n${roots().dumpTrees()}",
             )
         }
         return this
@@ -280,21 +281,12 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      * The node itself or its nearest hidden ancestor, searching up to and including the query's root;
      * null when nothing on that path is hidden.
      */
-    private fun Component.hiddenSelfOrAncestor(): Component? {
-        val stop = root()
-        return generateSequence(this) { if (it === stop) null else it.parent }
-            .firstOrNull { !it.isVisible }
-    }
+    private fun Component.hiddenSelfOrAncestor(): Component? =
+        (listOf(this) + roots().ancestorPathTo(this)).firstOrNull { !it.isVisible }
 
-    /** Walks parents from [this] up to (and including) [ancestor], returning true if reached. */
-    private fun Component.isAttachedTo(ancestor: Component): Boolean {
-        var current: Component? = this
-        while (current != null) {
-            if (current === ancestor) return true
-            current = current.parent
-        }
-        return false
-    }
+    /** Whether [this] is one of [roots] or stands somewhere under one, as the query's own walk reads the tree. */
+    private fun Component.standsUnder(roots: List<Container>): Boolean =
+        roots.any { it === this } || roots.ancestorPathTo(this).isNotEmpty()
 
     /**
      * Asserts the matched node is placed under the layout constraint [expected] by its parent, and
@@ -346,7 +338,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
                 "Node '$description' should ${if (expected) "be" else "not be"} the focus owner. " +
                     "Focus is currently held by ${owner ?: "nothing"}. Only a component of a realized, " +
                     "focused window can hold it, and the harness root is never attached to a window." +
-                    "\nTree:\n${root().dumpTree()}",
+                    "\nTree:\n${roots().dumpTrees()}",
             )
         }
         return this

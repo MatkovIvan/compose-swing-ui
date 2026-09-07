@@ -21,7 +21,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests covering the platform decorations of a [Window] and a [Dialog]: a peer declared
@@ -98,11 +97,10 @@ class WindowDecorationTest {
             "the realized window must carry its platform decorations once undecorated recomposes to false",
         )
         assertFalse(realized.isDisplayable, "the window the change replaced must be released")
-        assertEquals(
+        assertReaches(
             Dimension(320, 240),
-            decorated.size,
             "the size held in the state must be applied to the window that replaces the released one",
-        )
+        ) { decorated.size }
         window.assertIsVisible()
         window.onNodeWithText("window-content").assertExists()
 
@@ -144,11 +142,10 @@ class WindowDecorationTest {
             "the realized dialog must carry its platform decorations once undecorated recomposes to false",
         )
         assertFalse(realized.isDisplayable, "the dialog the change replaced must be released")
-        assertEquals(
+        assertReaches(
             Dimension(320, 240),
-            decorated.size,
             "the size held in the state must be applied to the dialog that replaces the released one",
-        )
+        ) { decorated.size }
         dialog.assertIsVisible()
         dialog.onNodeWithText("dialog-content").assertExists()
 
@@ -177,18 +174,17 @@ class WindowDecorationTest {
         }
         val window = onWindowWithTitle("position-replacement-test")
         val realized = window.fetch<JFrame>()
-        assertEquals(Point(140, 90), realized.location, "the window must realize at the position the state holds")
+        assertReaches(Point(140, 90), "the window must realize at the position the state holds") { realized.location }
 
         undecorated = false
         awaitIdle()
 
         val replacement = window.fetch<JFrame>()
         assertNotSame(realized, replacement, "a decoration change must realize a replacement window")
-        assertEquals(
+        assertReaches(
             Point(140, 90),
-            replacement.location,
             "the position held in the state must be applied to the window that replaces the released one",
-        )
+        ) { replacement.location }
     }
 
     @Test
@@ -206,18 +202,17 @@ class WindowDecorationTest {
         }
         val dialog = onWindowWithTitle("dialog-position-replacement-test")
         val realized = dialog.fetch<JDialog>()
-        assertEquals(Point(160, 110), realized.location, "the dialog must realize at the position the state holds")
+        assertReaches(Point(160, 110), "the dialog must realize at the position the state holds") { realized.location }
 
         undecorated = false
         awaitIdle()
 
         val replacement = dialog.fetch<JDialog>()
         assertNotSame(realized, replacement, "a decoration change must realize a replacement dialog")
-        assertEquals(
+        assertReaches(
             Point(160, 110),
-            replacement.location,
             "the position held in the state must be applied to the dialog that replaces the released one",
-        )
+        ) { replacement.location }
     }
 
     @Test
@@ -350,9 +345,3 @@ class WindowDecorationTest {
         )
     }
 }
-
-/**
- * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
- * maximize transitions), which arrive with real latency - including window-manager animations.
- */
-private val NATIVE_EVENT_TIMEOUT = 10.seconds

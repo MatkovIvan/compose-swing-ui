@@ -4,7 +4,9 @@
 package org.jetbrains.compose.swing.test.interaction
 
 import org.jetbrains.compose.swing.test.assertComponentTreesEquivalent
+import org.jetbrains.compose.swing.test.deliverQueuedEvents
 import org.jetbrains.compose.swing.test.layoutOffscreen
+import org.jetbrains.compose.swing.test.layoutUnplacedSubtrees
 import java.awt.Component
 
 /**
@@ -46,7 +48,9 @@ import java.awt.Component
  * the elements, rows or value it stands for, a document by its text, so two models built apart match on
  * what they carry. One that holds nothing of its own - a renderer, a caret, a transfer handler - is
  * compared by its class, the way a border is, and a library-installed one against a hand-built reference
- * is a difference this reports.
+ * is a difference this reports. An icon is compared by its class and the space it takes, so a look and
+ * feel that builds its own icon per tree still matches, and two icons of one class and size are not told
+ * apart.
  *
  * Listeners are not compared: one listener is never equal to another.
  *
@@ -59,12 +63,22 @@ import java.awt.Component
  * @throws AssertionError if the query has no single target, or if the trees differ, naming the first
  *   differing property, its path from the root of the two trees, and a dump of both trees.
  */
-public fun <T : Component> SwingNodeInteraction<T>.assertTreeMatches(
+public suspend fun <T : Component> SwingNodeInteraction<T>.assertTreeMatches(
     expected: Component,
     allowSubclasses: Boolean = true,
 ): SwingNodeInteraction<T> {
     val actual = fetch()
+    // A window lays its content out on an event-dispatch turn of its own, so a tree just realized can
+    // still be carrying the size it was built at. The reference is laid out at the matched tree's size,
+    // which has to be the size that pass leaves it standing at.
+    test.deliverQueuedEvents()
     expected.layoutOffscreen(actual.size)
+    // The window laid the matched tree out, and a window never lays out a menu's popup, so the popup
+    // is given the size it takes when shown - which is what the reference was just laid out with.
+    actual.layoutUnplacedSubtrees()
+    // Neither layout above gave up the event dispatch thread, so both trees carry new bounds that
+    // nothing on them has been told of. This is where both are told, and each is told once.
+    test.deliverQueuedEvents()
     assertComponentTreesEquivalent(expected, actual, allowSubclasses)
     return this
 }

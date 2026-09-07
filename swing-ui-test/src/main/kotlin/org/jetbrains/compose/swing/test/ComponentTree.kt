@@ -56,6 +56,31 @@ internal fun Component.siblingComponents(): List<Component> =
 internal fun Component.ancestorComponents(): Sequence<Component> = generateSequence(parent) { it.parent }
 
 /**
+ * The path from [node] up to whichever of these roots holds it, nearest first and ending at that root;
+ * empty when [node] is itself a root or stands under none of them. Must be called on the EDT.
+ *
+ * The tree is read the way [childComponents] reads it, not by walking parents. A menu keeps its items in
+ * a popup that is not added to it, so an item's parents lead to that popup rather than to the menu bar
+ * the query searched, and a look and feel drawing the popup inside the window parents it somewhere else
+ * again. Walking down from the roots gives the same answer whatever a look and feel does with a popup,
+ * and only ever names components the query could itself resolve.
+ */
+internal fun List<Container>.ancestorPathTo(node: Component): List<Component> =
+    firstNotNullOfOrNull { root -> if (root === node) emptyList() else pathWithin(root, node) }.orEmpty()
+
+/**
+ * The ancestors of [target] within [from]'s subtree, nearest first and ending at [from]; null where
+ * [from] holds it nowhere.
+ */
+private fun pathWithin(
+    from: Component,
+    target: Component,
+): List<Component>? =
+    from.childComponents().firstNotNullOfOrNull { child ->
+        if (child === target) listOf(from) else pathWithin(child, target)?.plus(from)
+    }
+
+/**
  * Every component below [this] one, in depth-first pre-order and excluding [this] itself. Must be
  * called on the EDT.
  */
@@ -84,6 +109,12 @@ internal fun Container.findMatchingIncludingSelf(matcher: SwingMatcher): List<Co
     val self = if (matcher.matches(this)) listOf<Component>(this) else emptyList()
     return self + findMatching(matcher)
 }
+
+/**
+ * Renders the tree under each of [this] query's roots, one after the other, for failure messages. A
+ * query with one root reads as [dumpTree] does.
+ */
+internal fun List<Container>.dumpTrees(): String = joinToString(separator = "") { it.dumpTree() }
 
 /**
  * Renders the subtree rooted at [this] as an indented, readable string for failure messages.

@@ -25,7 +25,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests asserting that a [Dialog] declaration is reactive: mutating Compose state that
@@ -157,11 +156,11 @@ class DialogReactivityTest {
                 minimumSize = Dimension(320, 240),
             ) {}
         }
-        assertEquals(
+        val dialog = onWindow().fetch<JDialog>()
+        assertReaches(
             Dimension(320, 240),
-            onWindow().fetch<JDialog>().size,
             "a declared size below the declared minimum size must be raised to that minimum",
-        )
+        ) { dialog.size }
     }
 
     @Test
@@ -304,11 +303,10 @@ class DialogReactivityTest {
 
             val replacement = dialog.fetch<JDialog>()
             assertNotSame(realized, replacement, "an owner change must realize a replacement dialog")
-            assertEquals(
+            assertReaches(
                 Dimension(360, 260),
-                replacement.size,
                 "the size held in the state must be applied to the dialog that replaces the released one",
-            )
+            ) { replacement.size }
             dialog.onNodeWithText("dialog-reowned-content").assertExists()
 
             replacement.size = Dimension(520, 420)
@@ -337,9 +335,3 @@ class DialogReactivityTest {
         onWindow().assertIsVisible()
     }
 }
-
-/**
- * Wall-clock deadline for conditions gated on native window-system notifications (resizes), which
- * arrive with real latency.
- */
-private val NATIVE_EVENT_TIMEOUT = 10.seconds

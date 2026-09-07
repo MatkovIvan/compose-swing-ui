@@ -17,7 +17,6 @@ import javax.swing.JDialog
 import javax.swing.JFrame
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests asserting that the arguments of [rememberWindowState] and [rememberDialogState] are
@@ -136,9 +135,3 @@ class WindowStateSeedTest {
         )
     }
 }
-
-/**
- * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
- * maximize transitions), which arrive with real latency - including window-manager animations.
- */
-private val NATIVE_EVENT_TIMEOUT = 10.seconds

@@ -6,17 +6,23 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.menu.Menu
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.window.MenuBar
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 import javax.swing.JLabel
+import javax.swing.JMenu
+import javax.swing.JMenuBar
 import javax.swing.JPanel
+import javax.swing.JPopupMenu
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -162,6 +168,32 @@ class NodeNavigationTest {
         ancestors.assertCountEquals(2)
         ancestors.onFirst().assert(SwingMatcher.hasName("in-window"))
         ancestors.onLast().assert(SwingMatcher.isOfType<JPanel>())
+    }
+
+    @Test
+    fun onAncestorsStopsAtAWindowsMenuBar() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        setContent {
+            Window(onCloseRequest = {}, title = "with-menus", visible = false) {
+                MenuBar { Menu("File") { MenuItem("Open", onClick = {}) } }
+            }
+        }
+
+        // The menu bar is the other root a window-scoped query searches, so it bounds the walk the way
+        // the content pane bounds the walk out of the content.
+        val window = onWindowWithTitle("with-menus")
+        val ancestors = window.onNode(SwingMatcher.isOfType<JMenu>()).onAncestors()
+        ancestors.assertCountEquals(1)
+        ancestors.onLast().assert(SwingMatcher.isOfType<JMenuBar>())
+        window.onNode(SwingMatcher.isOfType<JMenuBar>()).onAncestors().assertCountEquals(0)
+
+        // A menu keeps its items in a popup that is not added to it, so an item's parent chain ends at
+        // that popup. The walk down is what the query resolves through, and the walk up reads the tree
+        // the same way, so an item's ancestors run to the bar like anything else the query can find.
+        val item = window.onNodeWithText("Open").onAncestors()
+        item.assertCountEquals(3)
+        item.onFirst().assert(SwingMatcher.isOfType<JPopupMenu>())
+        item.onLast().assert(SwingMatcher.isOfType<JMenuBar>())
     }
 
     @Test

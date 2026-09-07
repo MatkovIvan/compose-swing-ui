@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.test.interaction
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.describeComponent
-import org.jetbrains.compose.swing.test.dumpTree
+import org.jetbrains.compose.swing.test.dumpTrees
 import java.awt.Component
 import java.awt.Container
 
@@ -22,7 +22,7 @@ import java.awt.Container
 public class SwingNodeInteractionCollection<out T : Component> internal constructor(
     internal val test: ComposeSwingTest,
     internal val description: String,
-    internal val root: () -> Container,
+    internal val roots: () -> List<Container>,
     private val asNode: (Component) -> T,
     private val candidates: () -> List<Component>,
 ) {
@@ -40,7 +40,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
      */
     @PublishedApi
     internal fun <R : Component> retype(asNode: (Component) -> R): SwingNodeInteractionCollection<R> =
-        SwingNodeInteractionCollection(test, description, root, asNode, candidates)
+        SwingNodeInteractionCollection(test, description, roots, asNode, candidates)
 
     /**
      * Returns a collection of the matches that also satisfy [matcher]. Like every interaction, the
@@ -59,7 +59,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
         SwingNodeInteractionCollection(
             test,
             "$description.filter(${matcher.description})",
-            root,
+            roots,
             asNode,
         ) { resolveAll().filter(matcher::matches) }
 
@@ -79,7 +79,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
         SwingNodeInteraction(
             test,
             "$description.filterToOne(${matcher.description})",
-            root,
+            roots,
             NodePick.Single,
             asNode,
         ) { resolveAll().filter(matcher::matches) }
@@ -101,7 +101,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
         SwingNodeInteraction(
             test,
             "$description[$index]",
-            root,
+            roots,
             NodePick.AtIndex(index),
             asNode,
             ::resolveAll,
@@ -119,7 +119,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
      * it fails on use when nothing matches.
      */
     public fun onLast(): SwingNodeInteraction<T> =
-        SwingNodeInteraction(test, "$description.onLast()", root, NodePick.Last, asNode, ::resolveAll)
+        SwingNodeInteraction(test, "$description.onLast()", roots, NodePick.Last, asNode, ::resolveAll)
 
     /**
      * Asserts that exactly [expected] nodes match.
@@ -133,7 +133,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
         if (actual != expected) {
             throw AssertionError(
                 "Expected $expected nodes matching '$description' but found $actual.\n" +
-                    "Tree:\n${root().dumpTree()}",
+                    "Tree:\n${roots().dumpTrees()}",
             )
         }
         return this
@@ -172,7 +172,7 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
         if (nodes.isEmpty()) {
             throw AssertionError(
                 "Expected a node matching '$description' to satisfy '${matcher.description}', " +
-                    "but the query matched no node at all.\nTree:\n${root().dumpTree()}",
+                    "but the query matched no node at all.\nTree:\n${roots().dumpTrees()}",
             )
         }
         if (nodes.none(matcher::matches)) {

@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.menu.Menu
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onAllWindows
@@ -11,11 +13,16 @@ import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Dialog
+import org.jetbrains.compose.swing.window.MenuBar
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 import javax.swing.JDialog
 import javax.swing.JFrame
+import javax.swing.JLabel
+import javax.swing.JLayeredPane
+import javax.swing.JMenuBar
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -26,8 +33,8 @@ import kotlin.test.assertTrue
  * Validates the window-query surface of the harness: [ComposeSwingTest.onWindow]/[ComposeSwingTest.onAllWindows]
  * resolve the top-level windows realized by `Window { }`/`Dialog { }` composables in the composition
  * under test - whether or not they are shown - window-scoped node finders resolve inside one window's
- * content pane, and [ComposeSwingTest.awaitIdle] settles a window show that is applied on its own
- * event-dispatch turn.
+ * own content, its content pane and its menu bar, and [ComposeSwingTest.awaitIdle] settles a window
+ * show that is applied on its own event-dispatch turn.
  *
  * Every case realizes a real top-level peer, so each declares its display requirement up front and is
  * skipped in headless environments.
@@ -152,6 +159,59 @@ class WindowInteractionTest {
         // The frame carrying the hidden flag sits above the content pane the query is rooted at, so a
         // node under it reports the visibility it was given rather than the window's.
         window.onNodeWithText("content").assertIsVisible()
+    }
+
+    @Test
+    fun aComponentTheLookAndFeelParentsBesideTheContentIsNotSearched() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        setContent {
+            Window(onCloseRequest = {}, title = "layered", visible = false) {
+                Label(text = "content")
+            }
+        }
+
+        // A look and feel that draws a popup inside the window parents it into the layered pane, at the
+        // popup layer beside the content pane and the menu bar. Nothing there is declared, so nothing
+        // there is searched, whichever look and feel is installed.
+        val frame = onWindowWithTitle("layered").fetch<JFrame>()
+        frame.rootPane.layeredPane.add(JLabel("drawn by the look and feel"), JLayeredPane.POPUP_LAYER)
+
+        onWindowWithTitle("layered").onNodeWithText("content").assertExists()
+        onWindowWithTitle("layered").onNodeWithText("drawn by the look and feel").assertDoesNotExist()
+    }
+
+    @Test
+    fun anOpenMenusItemIsReachedOnceWhileItsPopupStandsInTheLayeredPane() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        setContent {
+            Window(onCloseRequest = {}, title = "open-menu", visible = false) {
+                MenuBar { Menu("File") { MenuItem("Open", onClick = {}) } }
+            }
+        }
+
+        // An open menu's popup, taken out of the menu that owns it and parented into the layered pane.
+        // The walk reaches the item through the menu bar either way, so searching the layered pane too
+        // would reach it twice and leave every query for it ambiguous.
+        val frame = onWindowWithTitle("open-menu").fetch<JFrame>()
+        val menu = frame.jMenuBar.getMenu(0)
+        frame.rootPane.layeredPane.add(JPanel().apply { add(menu.popupMenu) }, JLayeredPane.POPUP_LAYER)
+
+        onWindowWithTitle("open-menu").onNodeWithText("Open").assertExists()
+    }
+
+    @Test
+    fun aWindowsMenuBarIsMatchedByBothTheSingleAndTheCollectionQuery() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        setContent {
+            Window(onCloseRequest = {}, title = "menu-bar", visible = false) {
+                MenuBar { Menu("File") { MenuItem("Open", onClick = {}) } }
+            }
+        }
+
+        // The menu bar is one of the roots a window query walks from, so it is a match itself, not
+        // only an ancestor of one. Both queries search the same components.
+        onWindowWithTitle("menu-bar").onNode(SwingMatcher.isOfType<JMenuBar>()).assertExists()
+        onWindowWithTitle("menu-bar").onAllNodes(SwingMatcher.isOfType<JMenuBar>()).assertCountEquals(1)
     }
 
     @Test

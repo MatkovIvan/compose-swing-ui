@@ -3,14 +3,14 @@ package org.jetbrains.compose.swing.test.interaction
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
-import org.jetbrains.compose.swing.test.dumpTree
-import org.jetbrains.compose.swing.test.findMatching
+import org.jetbrains.compose.swing.test.dumpTrees
 import org.jetbrains.compose.swing.test.findMatchingIncludingSelf
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dialog
 import java.awt.Frame
 import java.awt.Window
+import javax.swing.JRootPane
 import javax.swing.RootPaneContainer
 
 /**
@@ -24,8 +24,9 @@ import javax.swing.RootPaneContainer
  * composition is disposed, which retires its peer and drops it out of the match set; a disposed peer
  * lingering in the global AWT window list is likewise excluded because it is no longer realized.
  *
- * Beyond asserting on the window itself, the interaction scopes node queries to that window's
- * content pane, so a test can assert on the content of each top-level peer independently:
+ * Beyond asserting on the window itself, the interaction scopes node queries to that window's own
+ * content - its content pane and its menu bar - so a test can assert on the content of each
+ * top-level peer independently:
  *
  * ```
  * onWindowWithTitle("Settings").onNodeWithText("Apply").assertIsEnabled()
@@ -131,10 +132,10 @@ public class SwingWindowInteraction internal constructor(
     // region window-scoped node finders
 
     /**
-     * Finds the single node matching [matcher] inside this window's content pane. Both the window
+     * Finds the single node matching [matcher] inside this window's content. Both the window
      * and the node are resolved lazily when the returned interaction is first used.
      *
-     * @param matcher applied to the content pane and everything under it, never to the window
+     * @param matcher applied to this window's content and everything under it, never to the window
      *   itself; the window is what this interaction's own query matched.
      * @return a handle that fails on use unless exactly one node in this window matches.
      */
@@ -142,13 +143,13 @@ public class SwingWindowInteraction internal constructor(
         SwingNodeInteraction(
             test,
             "${matcher.description} in window '$description'",
-            ::contentRoot,
+            ::declaredContent,
             NodePick.Single,
             { it },
-        ) { contentRoot().findMatchingIncludingSelf(matcher) }
+        ) { declaredContent().flatMap { root -> root.findMatchingIncludingSelf(matcher) } }
 
     /**
-     * Finds the single node inside this window's content pane whose text equals [text] (or contains
+     * Finds the single node inside this window's content whose text equals [text] (or contains
      * it when [substring] is `true`).
      *
      * @param text matched against a label's, button's or text component's own text.
@@ -161,7 +162,7 @@ public class SwingWindowInteraction internal constructor(
     ): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasText(text, substring))
 
     /**
-     * Finds the single node inside this window's content pane whose [java.awt.Component.getName]
+     * Finds the single node inside this window's content whose [java.awt.Component.getName]
      * equals [name].
      *
      * @param name the name to match, as [SwingMatcher.hasName] matches it.
@@ -170,7 +171,7 @@ public class SwingWindowInteraction internal constructor(
     public fun onNodeWithName(name: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasName(name))
 
     /**
-     * Finds the single node inside this window's content pane tagged with [tag] via
+     * Finds the single node inside this window's content tagged with [tag] via
      * `SwingModifier.testTag`.
      *
      * @param tag the tag declared on the node; several nodes of this window sharing one are reached
@@ -180,21 +181,22 @@ public class SwingWindowInteraction internal constructor(
     public fun onNodeWithTag(tag: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasTestTag(tag))
 
     /**
-     * Finds all nodes matching [matcher] inside this window's content pane.
+     * Finds all nodes matching [matcher] inside this window's content.
      *
-     * @param matcher applied to every component under the content pane, in depth-first pre-order.
+     * @param matcher applied to this window's content and everything under it, never to the window
+     *   itself.
      * @return a handle to the match set, empty rather than failing when nothing matches.
      */
     public fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component> =
         SwingNodeInteractionCollection(
             test,
             "${matcher.description} in window '$description'",
-            ::contentRoot,
+            ::declaredContent,
             { it },
-        ) { contentRoot().findMatching(matcher) }
+        ) { declaredContent().flatMap { root -> root.findMatchingIncludingSelf(matcher) } }
 
     /**
-     * Finds all nodes inside this window's content pane whose text equals [text] (or contains it
+     * Finds all nodes inside this window's content whose text equals [text] (or contains it
      * when [substring] is `true`).
      *
      * @param text matched against each candidate's own text, as [onNodeWithText] matches it.
@@ -207,7 +209,7 @@ public class SwingWindowInteraction internal constructor(
     ): SwingNodeInteractionCollection<Component> = onAllNodes(SwingMatcher.hasText(text, substring))
 
     /**
-     * Finds all nodes inside this window's content pane tagged with [tag] via
+     * Finds all nodes inside this window's content tagged with [tag] via
      * `SwingModifier.testTag`.
      *
      * @param tag the tag declared on the nodes; every node of this window carrying it matches.
@@ -218,10 +220,30 @@ public class SwingWindowInteraction internal constructor(
 
     // endregion
 
-    // A window realized by Window { }/Dialog { } is a JFrame/JDialog, both RootPaneContainers, so the
-    // cast holds for the peers content queries target.
-    private fun contentRoot(): Container = (resolve() as RootPaneContainer).contentPane
+    /**
+     * What a query scoped to this window searches: the window's content pane and its menu bar, each
+     * walked from the top.
+     *
+     * A window realized by Window { }/Dialog { } is a JFrame/JDialog, both RootPaneContainers, so the
+     * cast holds for the peers content queries target.
+     */
+    private fun declaredContent(): List<Container> = (resolve() as RootPaneContainer).rootPane.windowContent()
 }
+
+/**
+ * The window content a query scoped to a root pane searches: its content pane and its menu bar, each
+ * walked from the top.
+ *
+ * A `JMenuBar` is not added to the content pane: `JRootPane` puts it in the layered pane beside it. The
+ * content pane alone would leave a menu, a menu item and the bar itself unreachable.
+ *
+ * The two are named one by one rather than through the layered pane that holds them. A look and feel
+ * that draws a popup inside the window parents that popup into the layered pane. Searching the layered
+ * pane would then reach a component no composition declared, and would reach an open menu's items a
+ * second time. Whether a look and feel draws a popup that way is its own choice, so such a search would
+ * answer differently under each.
+ */
+internal fun JRootPane.windowContent(): List<Container> = listOfNotNull(contentPane, jMenuBar)
 
 /**
  * Every top-level window whose native peer is currently realized. A window realized by a
@@ -241,7 +263,8 @@ internal fun describeWindow(window: Window): String {
             else -> ""
         }
     val visibility = if (window.isVisible) "visible" else "hidden"
-    return "${window.javaClass.simpleName} title=\"$title\" $visibility ${window.width}x${window.height}"
+    return "${window.javaClass.simpleName} title=\"$title\" $visibility " +
+        "${window.width}x${window.height} at ${window.x},${window.y}"
 }
 
 /** A readable, one-line-per-window summary of all realized windows for failure messages. */
@@ -252,12 +275,14 @@ internal fun realizedWindowsSummary(): String {
 }
 
 /**
- * Renders each realized window that carries a content pane as a header line plus its content-pane tree,
- * for appending to a failure message's tree dump. Empty when no realized window carries a content pane.
+ * Renders each realized window that carries a root pane as a header line plus the tree a query scoped
+ * to it searches, for appending to a failure message's tree dump. Empty when no realized window carries
+ * one.
  */
 internal fun realizedWindowsTreeDump(): String =
     realizedWindows()
         .filter { it is RootPaneContainer }
         .joinToString(separator = "") { window ->
-            "Visible window: ${describeWindow(window)}\n" + (window as RootPaneContainer).contentPane.dumpTree()
+            val content = (window as RootPaneContainer).rootPane.windowContent()
+            "Visible window: ${describeWindow(window)}\n" + content.dumpTrees()
         }

@@ -22,7 +22,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests asserting that [Window] arguments are reactive: mutating Compose state that
@@ -136,7 +135,7 @@ class WindowReactivityTest {
         val state = WindowState(position = WindowPosition.Absolute(120, 80), size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "initial-geometry-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        assertEquals(Dimension(320, 240), frame.size)
+        assertReaches(Dimension(320, 240)) { frame.size }
         assertEquals(Point(120, 80), frame.location)
     }
 
@@ -148,7 +147,7 @@ class WindowReactivityTest {
         val state = WindowState(position = WindowPosition.Absolute(120, 80), size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "position-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        assertEquals(Point(120, 80), frame.location, "the frame must realize at the position the state holds")
+        assertReaches(Point(120, 80), "the frame must realize at the position the state holds") { frame.location }
         // Moving a realized frame is an asynchronous native reshape; wait for it to reach the declared
         // placement rather than assert right after the compose frame that requests it.
         state.position = WindowPosition.Absolute(220, 160)
@@ -173,7 +172,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "size-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        assertEquals(Dimension(320, 240), frame.size)
+        assertReaches(Dimension(320, 240)) { frame.size }
         state.size = Dimension(500, 400)
         // Applying size to the peer is an asynchronous native resize; wait for the frame to reach the
         // target rather than assert right after the compose frame that requests it.
@@ -187,7 +186,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "width-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the size the state holds")
+        assertReaches(Dimension(320, 240), "the frame must realize with the size the state holds") { frame.size }
         state.width = 500
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(500, 240) }
         assertEquals(
@@ -203,7 +202,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "height-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the size the state holds")
+        assertReaches(Dimension(320, 240), "the frame must realize with the size the state holds") { frame.size }
         state.height = 400
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(320, 400) }
         assertEquals(
@@ -225,11 +224,11 @@ class WindowReactivityTest {
                 minimumSize = Dimension(320, 240),
             ) {}
         }
-        assertEquals(
+        val frame = onWindow().fetch<JFrame>()
+        assertReaches(
             Dimension(320, 240),
-            onWindow().fetch<JFrame>().size,
             "a declared size below the declared minimum size must be raised to that minimum",
-        )
+        ) { frame.size }
     }
 
     @Test
@@ -246,11 +245,11 @@ class WindowReactivityTest {
                 FlowPanel(modifier = SwingModifier.preferredSize(40, 30))
             }
         }
-        assertEquals(
+        val frame = onWindow().fetch<JFrame>()
+        assertReaches(
             Dimension(320, 240),
-            onWindow().fetch<JFrame>().size,
             "a size taken from content smaller than the declared minimum must be raised to that minimum",
-        )
+        ) { frame.size }
     }
 
     @Test
@@ -465,11 +464,10 @@ class WindowReactivityTest {
         assertEquals(Frame.NORMAL, frame.extendedState, "a window starts in the normal extended state")
         state.extendedState = Frame.MAXIMIZED_BOTH
         awaitIdle()
-        assertEquals(
+        assertReaches(
             Frame.MAXIMIZED_BOTH,
-            frame.extendedState,
             "assigning MAXIMIZED_BOTH must maximize the realized frame",
-        )
+        ) { frame.extendedState }
     }
 
     @Test
@@ -478,11 +476,11 @@ class WindowReactivityTest {
         assumeMaximizeIsSupported()
         val state = WindowState(extendedState = Frame.MAXIMIZED_BOTH)
         setContent { Window(onCloseRequest = {}, state = state, title = "initial-extended-state-test") {} }
-        assertEquals(
+        val frame = onWindow().fetch<JFrame>()
+        assertReaches(
             Frame.MAXIMIZED_BOTH,
-            onWindow().fetch<JFrame>().extendedState,
             "an initial MAXIMIZED_BOTH must reach the frame before it is shown",
-        )
+        ) { frame.extendedState }
     }
 
     @Test
@@ -534,9 +532,3 @@ private fun assumeMaximizeIsSupported() {
         "Maximizing a frame requires toolkit support for MAXIMIZED_BOTH",
     )
 }
-
-/**
- * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
- * maximize transitions), which arrive with real latency - including window-manager animations.
- */
-private val NATIVE_EVENT_TIMEOUT = 10.seconds
