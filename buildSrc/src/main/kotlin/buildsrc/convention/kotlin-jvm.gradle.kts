@@ -20,10 +20,11 @@ kotlin {
         // @JvmDefaultWithCompatibility annotations (re-adding bridges per interface where androidx
         // promises them) are only accepted by the compiler under it.
         jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
-        // Published binaries and metadata stay consumable from Kotlin 2.1 toolchains, independent of
-        // the (newer) Kotlin the build itself runs on.
-        languageVersion.set(KotlinVersion.KOTLIN_2_1)
-        apiVersion.set(KotlinVersion.KOTLIN_2_1)
+        // Published binaries and metadata stay consumable from Kotlin 2.2 toolchains, independent of
+        // the (newer) Kotlin the build itself runs on. 2.2 is the floor the compiler allows: it
+        // rejects 2.1 as deprecated, and this build turns that warning into an error.
+        languageVersion.set(KotlinVersion.KOTLIN_2_2)
+        apiVersion.set(KotlinVersion.KOTLIN_2_2)
     }
 }
 

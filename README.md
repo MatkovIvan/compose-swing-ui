@@ -229,13 +229,13 @@ Full quality-gate command (what CI runs):
 
 ## Stability
 
-Pre-1.0: breaking API changes may land in any minor release. Kotlin 2.1 or newer is required to
+Pre-1.0: breaking API changes may land in any minor release. Kotlin 2.2 or newer is required to
 consume the libraries.
 
 ## License
 
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
-`swing-ui-animation` additionally redistributes source code from the Android Open Source Project's
-Jetpack Compose `animation-core` under the same license; see that module's `META-INF/NOTICE` and the
-per-file headers for attribution.
+`swing-ui-animation` redistributes source code from the Android Open Source Project's Jetpack Compose
+`animation-core` under the same license; see that module's `META-INF/NOTICE` and the per-file headers
+for attribution.

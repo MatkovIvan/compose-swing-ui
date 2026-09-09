@@ -82,7 +82,7 @@ Two kinds of declaration are outside the dumps, so the gate cannot answer for th
 ## Why the build rejects code that compiles in an IDE
 
 `allWarningsAsErrors` is on, so a warning fails the build. Published binaries target Java 11 and
-Kotlin language and API level 2.1, independent of the toolchain the build runs on, so a newer language
+Kotlin language and API level 2.2, independent of the toolchain the build runs on, so a newer language
 feature or standard-library API fails to compile even on a current JDK.
 
 ## Configuration

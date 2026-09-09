@@ -338,7 +338,7 @@ private val ColumnHeaderAttachment =
  * is moved by the name rather than by this attachment.
  */
 private class CornerAttachment(
-    @ScrollPaneCorner val corner: String,
+    @param:ScrollPaneCorner val corner: String,
 ) : SlotAttachment {
     override fun install(
         host: Container,

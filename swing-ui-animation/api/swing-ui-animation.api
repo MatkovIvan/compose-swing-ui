@@ -159,7 +159,7 @@ public final class org/jetbrains/compose/swing/animation/core/AnimationVector1D 
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getValue ()F
 	public fun hashCode ()I
-	public synthetic fun newVector$swing_ui_animation ()Lorg/jetbrains/compose/swing/animation/core/AnimationVector;
+	public synthetic fun newVector$org_jetbrains_compose_swing_swing_ui_animation ()Lorg/jetbrains/compose/swing/animation/core/AnimationVector;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -170,7 +170,7 @@ public final class org/jetbrains/compose/swing/animation/core/AnimationVector2D 
 	public final fun getV1 ()F
 	public final fun getV2 ()F
 	public fun hashCode ()I
-	public synthetic fun newVector$swing_ui_animation ()Lorg/jetbrains/compose/swing/animation/core/AnimationVector;
+	public synthetic fun newVector$org_jetbrains_compose_swing_swing_ui_animation ()Lorg/jetbrains/compose/swing/animation/core/AnimationVector;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -182,7 +182,7 @@ public final class org/jetbrains/compose/swing/animation/core/AnimationVector3D 
 	public final fun getV2 ()F
 	public final fun getV3 ()F
 	public fun hashCode ()I
-	public synthetic fun newVector$swing_ui_animation ()Lorg/jetbrains/compose/swing/animation/core/AnimationVector;
+	public synthetic fun newVector$org_jetbrains_compose_swing_swing_ui_animation ()Lorg/jetbrains/compose/swing/animation/core/AnimationVector;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -195,7 +195,7 @@ public final class org/jetbrains/compose/swing/animation/core/AnimationVector4D 
 	public final fun getV3 ()F
 	public final fun getV4 ()F
 	public fun hashCode ()I
-	public synthetic fun newVector$swing_ui_animation ()Lorg/jetbrains/compose/swing/animation/core/AnimationVector;
+	public synthetic fun newVector$org_jetbrains_compose_swing_swing_ui_animation ()Lorg/jetbrains/compose/swing/animation/core/AnimationVector;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -208,6 +208,7 @@ public final class org/jetbrains/compose/swing/animation/core/AnimationVectorsKt
 
 public final class org/jetbrains/compose/swing/animation/core/ArcAnimationSpec : org/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec {
 	public static final field $stable I
+	public fun <init> ()V
 	public synthetic fun <init> (IIILorg/jetbrains/compose/swing/animation/core/Easing;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (IIILorg/jetbrains/compose/swing/animation/core/Easing;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
@@ -500,7 +501,7 @@ public final class org/jetbrains/compose/swing/animation/core/KeyframesSpec$Keyf
 	public fun at (Ljava/lang/Object;I)Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec$KeyframeEntity;
 	public synthetic fun atFraction (Ljava/lang/Object;F)Lorg/jetbrains/compose/swing/animation/core/KeyframeBaseEntity;
 	public fun atFraction (Ljava/lang/Object;F)Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec$KeyframeEntity;
-	public synthetic fun createEntityFor$swing_ui_animation (Ljava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/KeyframeBaseEntity;
+	public synthetic fun createEntityFor$org_jetbrains_compose_swing_swing_ui_animation (Ljava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/KeyframeBaseEntity;
 	public final fun using-0JVMp9Q (Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec$KeyframeEntity;I)Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec$KeyframeEntity;
 	public final fun with (Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec$KeyframeEntity;Lorg/jetbrains/compose/swing/animation/core/Easing;)V
 }
@@ -529,7 +530,7 @@ public final class org/jetbrains/compose/swing/animation/core/KeyframesWithSplin
 public final class org/jetbrains/compose/swing/animation/core/KeyframesWithSplineSpec$KeyframesWithSplineSpecConfig : org/jetbrains/compose/swing/animation/core/KeyframesSpecBaseConfig {
 	public static final field $stable I
 	public fun <init> ()V
-	public synthetic fun createEntityFor$swing_ui_animation (Ljava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/KeyframeBaseEntity;
+	public synthetic fun createEntityFor$org_jetbrains_compose_swing_swing_ui_animation (Ljava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/KeyframeBaseEntity;
 }
 
 public abstract interface class org/jetbrains/compose/swing/animation/core/MotionDurationScale : kotlin/coroutines/CoroutineContext$Element {
@@ -555,7 +556,7 @@ public final class org/jetbrains/compose/swing/animation/core/MutableTransitionS
 	public fun getTargetState ()Ljava/lang/Object;
 	public final fun isIdle ()Z
 	public fun setTargetState (Ljava/lang/Object;)V
-	public synthetic fun setTargetState$swing_ui_animation (Ljava/lang/Object;)V
+	public synthetic fun setTargetState$org_jetbrains_compose_swing_swing_ui_animation (Ljava/lang/Object;)V
 }
 
 public final class org/jetbrains/compose/swing/animation/core/RepeatMode : java/lang/Enum {
@@ -706,7 +707,6 @@ public final class org/jetbrains/compose/swing/animation/core/TargetBasedAnimati
 
 public abstract class org/jetbrains/compose/swing/animation/core/Transition {
 	public static final field $stable I
-	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/TransitionState;Lorg/jetbrains/compose/swing/animation/core/Transition;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/TransitionState;Lorg/jetbrains/compose/swing/animation/core/Transition;Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getAnimations ()Ljava/util/List;
 	public final fun getCurrentState ()Ljava/lang/Object;

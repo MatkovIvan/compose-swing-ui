@@ -13,7 +13,6 @@ kotlin {
 
     @OptIn(ExperimentalAbiValidation::class)
     abiValidation {
-        enabled.set(true)
         filters {
             exclude {
                 annotatedWith.add("org.jetbrains.compose.swing.annotations.InternalSwingUiApi")

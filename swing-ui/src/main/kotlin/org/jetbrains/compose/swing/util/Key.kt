@@ -23,7 +23,7 @@ import javax.swing.JComponent
  * keys sharing a [name] are two slots.
  */
 internal class Key<T>(
-    @NonNls val name: String,
+    @param:NonNls val name: String,
 ) {
     /** The property name a write fires under: `putClientProperty` names the event `key.toString()`. */
     override fun toString(): String = name

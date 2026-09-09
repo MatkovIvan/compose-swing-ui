@@ -13,9 +13,7 @@ kotlin {
     explicitApi()
 
     @OptIn(ExperimentalAbiValidation::class)
-    abiValidation {
-        enabled.set(true)
-    }
+    abiValidation {}
 }
 
 dependencies {

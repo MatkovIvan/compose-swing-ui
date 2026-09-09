@@ -12,7 +12,7 @@ detekt = "2.0.0-alpha.6"
 dokka = "2.2.0"
 jetbrainsAnnotations = "23.0.0"
 knit = "0.5.1"
-kotlin = "2.3.20"
+kotlin = "2.4.20"
 ktlint = "1.8.0"
 ktlint-gradle = "14.2.0"
 
@@ -25,7 +25,9 @@ androidxNavigation3Runtime = { module = "androidx.navigation3:navigation3-runtim
 androidxTracing = { module = "androidx.tracing:tracing", version.ref = "androidxTracing" }
 composeLintChecks = { module = "com.slack.lint.compose:compose-lint-checks", version.ref = "composeLintChecks" }
 composeRuntime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }
+detekt-api = { module = "dev.detekt:detekt-api", version.ref = "detekt" }
 detekt-gradle-plugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref = "detekt" }
+detekt-test = { module = "dev.detekt:detekt-test", version.ref = "detekt" }
 dokka-gradle-plugin = { module = "org.jetbrains.dokka:dokka-gradle-plugin", version.ref = "dokka" }
 dokka-versioning-plugin = { module = "org.jetbrains.dokka:versioning-plugin", version.ref = "dokka" }
 jetbrainsAnnotations = { module = "org.jetbrains:annotations", version.ref = "jetbrainsAnnotations" }

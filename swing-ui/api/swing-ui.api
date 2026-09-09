@@ -38,7 +38,7 @@ public final class org/jetbrains/compose/swing/components/ComponentsKt {
 public final class org/jetbrains/compose/swing/components/ComposableSingletons$TrayKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/ComposableSingletons$TrayKt;
 	public fun <init> ()V
-	public final fun getLambda$-1905108586$swing_ui ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$-1905108586$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class org/jetbrains/compose/swing/components/button/ButtonComponentsKt {
@@ -184,25 +184,25 @@ public abstract interface class org/jetbrains/compose/swing/components/layout/Co
 public final class org/jetbrains/compose/swing/components/layout/ComposableSingletons$BoxPanelKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/ComposableSingletons$BoxPanelKt;
 	public fun <init> ()V
-	public final fun getLambda$1819195700$swing_ui ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$1819195700$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class org/jetbrains/compose/swing/components/layout/ComposableSingletons$FlowPanelKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/ComposableSingletons$FlowPanelKt;
 	public fun <init> ()V
-	public final fun getLambda$1343816618$swing_ui ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$1343816618$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class org/jetbrains/compose/swing/components/layout/ComposableSingletons$GridPanelKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/ComposableSingletons$GridPanelKt;
 	public fun <init> ()V
-	public final fun getLambda$1253374999$swing_ui ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$1253374999$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class org/jetbrains/compose/swing/components/layout/ComposableSingletons$ToolBarKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/ComposableSingletons$ToolBarKt;
 	public fun <init> ()V
-	public final fun getLambda$-965484763$swing_ui ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$-965484763$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/layout/GridBagPanelScope {
@@ -283,19 +283,19 @@ public abstract interface class org/jetbrains/compose/swing/components/layout/Ta
 public final class org/jetbrains/compose/swing/components/menu/ComposableSingletons$ContextMenuKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/menu/ComposableSingletons$ContextMenuKt;
 	public fun <init> ()V
-	public final fun getLambda$790984614$swing_ui ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$790984614$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class org/jetbrains/compose/swing/components/menu/ComposableSingletons$MenuKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/menu/ComposableSingletons$MenuKt;
 	public fun <init> ()V
-	public final fun getLambda$-1876829487$swing_ui ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$-1876829487$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class org/jetbrains/compose/swing/components/menu/ComposableSingletons$PopupMenuKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/menu/ComposableSingletons$PopupMenuKt;
 	public fun <init> ()V
-	public final fun getLambda$1300389638$swing_ui ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$1300389638$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class org/jetbrains/compose/swing/components/menu/MenuComponentsKt {
@@ -1113,7 +1113,6 @@ public final class org/jetbrains/compose/swing/window/WindowPosition$PlatformDef
 
 public final class org/jetbrains/compose/swing/window/WindowScope {
 	public static final field $stable I
-	public synthetic fun <init> (Ljavax/swing/JRootPane;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class org/jetbrains/compose/swing/window/WindowState {
