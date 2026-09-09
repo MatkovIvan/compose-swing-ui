@@ -33,6 +33,68 @@ complexity:
     # precedented exemption as MagicNumber below.
     ignoreAnnotated: ["Composable"]
 
+# The Compose rules (io.nlopez.compose.rules), which arrive with `:swing-ui-detekt`, pointed at this
+# library's own types: SwingModifier is the chain the modifier rules are about, and every widget bottoms
+# out in one of two node primitives, so a call reaching either is what "emits content" means here. A
+# consumer configures the same block; swing-ui-detekt/README.md carries it.
+#
+# Several of these rules ask how an API is shaped or what a composition costs. A test fixture is
+# neither: it stands a composable up to drive one assertion and is gone.
+Compose:
+  ConditionHoist:
+    contentEmitters: ['SwingNode', 'MenuNode']
+  ContentEmitterReturningValues:
+    contentEmitters: ['SwingNode', 'MenuNode']
+  LambdaParameterEventTrailing:
+    contentEmitters: ['SwingNode', 'MenuNode']
+  ModifierClickableOrder:
+    # Reads androidx's Modifier.clickable, which has no counterpart here.
+    active: false
+  ModifierComposed:
+    # Reads androidx's Modifier.composed, which has no counterpart here.
+    active: false
+  ModifierMissing:
+    customModifiers: ['SwingModifier']
+    contentEmitters: ['SwingNode', 'MenuNode']
+  ModifierNaming:
+    customModifiers: ['SwingModifier']
+  ModifierNotUsedAtRoot:
+    customModifiers: ['SwingModifier']
+    contentEmitters: ['SwingNode', 'MenuNode']
+  ModifierReused:
+    customModifiers: ['SwingModifier']
+    contentEmitters: ['SwingNode', 'MenuNode']
+  ModifierWithoutDefault:
+    # No visibility threshold upstream, so it reports every private node helper a widget is built from.
+    # SwingModifierWithoutDefault checks the same thing where a caller outside the module sees it.
+    active: false
+  MultipleEmitters:
+    contentEmitters: ['SwingNode', 'MenuNode']
+  CompositionLocalAllowlist:
+    excludes: ["**/src/test/**"]
+    # Layout constraints and the window a content composition has settled on are part of this
+    # framework's design, not an app's implicit dependency.
+    allowedCompositionLocals: ['LocalProvidableWindow']
+  LambdaParameterInRestartableEffect:
+    excludes: ["**/src/test/**"]
+  MutableStateAutoboxing:
+    excludes: ["**/src/test/**"]
+  ParameterNaming:
+    # Settlement is this library's own vocabulary, and the callback fires once the value has settled.
+    allowedLambdaParameterNames: ['onValueSettled']
+  StateParam:
+    excludes: ["**/src/test/**"]
+  VarsWithoutStateBacking:
+    excludes: ["**/src/test/**"]
+
+# Off by default in the artifact: these say nothing about what the library requires, and are declared
+# there only because no published ruleset provides them. This repository holds itself to them.
+compose-swing-internal:
+  PreferImportsOverFqn:
+    active: true
+  PublicDataClass:
+    active: true
+
 naming:
   FunctionNaming:
     # @Composable functions use PascalCase by Compose convention (e.g. Button, BorderPanel).

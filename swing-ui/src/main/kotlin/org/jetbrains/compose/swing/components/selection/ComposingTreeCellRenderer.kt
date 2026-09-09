@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
@@ -152,6 +153,7 @@ internal class ComposingTreeCellRenderer<T>(
  * stamp names a node, so [valueState] always holds that node's value here - itself `null` among the
  * values a node can hold.
  */
+@Suppress("StateParam")
 @Composable
 private fun <T> TreeNodeCell(
     valueState: State<T?>,
@@ -165,7 +167,7 @@ private fun <T> TreeNodeCell(
 
 /** The mutable backing of [TreeNodeScope]; its fields are written once per stamp. */
 private class MutableTreeNodeScope : TreeNodeScope {
-    override var row: Int by mutableStateOf(-1)
+    override var row: Int by mutableIntStateOf(-1)
     override var isSelected: Boolean by mutableStateOf(false)
     override var isExpanded: Boolean by mutableStateOf(false)
     override var isLeaf: Boolean by mutableStateOf(false)

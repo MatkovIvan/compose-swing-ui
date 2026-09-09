@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -212,7 +213,7 @@ class SpinnerEditorBehaviorTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
-                var value by mutableStateOf<Number>(3)
+                var value by remember { mutableStateOf<Number>(3) }
                 Spinner(value = value, onValueChange = { value = it }) { Label("value $value") }
             }
         }

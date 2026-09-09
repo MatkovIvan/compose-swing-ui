@@ -89,8 +89,12 @@ internal fun CompositionOwnedWindowHost(
     setPosition: (WindowPosition) -> Unit,
     setSize: (width: Int, height: Int) -> Unit,
     appliedGeometry: AppliedGeometry,
+    // Installed once per peer; the remover it returns must tear down that same installation.
+    @Suppress("LambdaParameterInRestartableEffect")
     installExtras: () -> () -> Unit,
     applyExtras: () -> Unit,
+    // Disposes the peer that keys the effect, so the captured function and effect have the same lifetime.
+    @Suppress("LambdaParameterInRestartableEffect")
     disposePeer: () -> Unit,
     content: @Composable WindowScope.() -> Unit,
 ) {

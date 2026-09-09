@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
@@ -117,6 +118,7 @@ internal class ComposingTableCellRenderer<R>(
  * a row can hold. A column that declares no cell body composes nothing regardless: that one is about the
  * declaration, not the row.
  */
+@Suppress("StateParam")
 @Composable
 private fun <R> TableCell(
     rowState: State<R?>,
@@ -132,8 +134,8 @@ private fun <R> TableCell(
 
 /** The mutable backing of [TableCellScope]; its fields are written once per stamp. */
 private class MutableTableCellScope : TableCellScope {
-    override var rowIndex: Int by mutableStateOf(-1)
-    override var columnIndex: Int by mutableStateOf(-1)
+    override var rowIndex: Int by mutableIntStateOf(-1)
+    override var columnIndex: Int by mutableIntStateOf(-1)
     override var isSelected: Boolean by mutableStateOf(false)
     override var hasFocus: Boolean by mutableStateOf(false)
 }

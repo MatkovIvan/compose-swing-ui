@@ -120,6 +120,7 @@ internal class CellStampComposition(
  * root of `setContent`, so the composition state a stamp writes invalidates this scope alone and the
  * synchronous recompose re-runs exactly it.
  */
+@Suppress("StateParam")
 @Composable
 private fun Stamp(
     hasCell: State<Boolean>,

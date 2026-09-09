@@ -8,6 +8,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
@@ -164,6 +165,7 @@ internal class ComposingListCellRenderer<T>(
  * stamp names an item, so [itemState] always holds that item here - itself `null` among the values an
  * item can hold.
  */
+@Suppress("StateParam")
 @Composable
 private fun <T> Cell(
     itemState: State<Any?>,
@@ -179,7 +181,7 @@ private fun <T> Cell(
 
 /** The mutable backing of [ListItemScope]; its fields are written once per stamp. */
 private class MutableListItemScope : ListItemScope {
-    override var index: Int by mutableStateOf(-1)
+    override var index: Int by mutableIntStateOf(-1)
     override var isSelected: Boolean by mutableStateOf(false)
     override var cellHasFocus: Boolean by mutableStateOf(false)
 }

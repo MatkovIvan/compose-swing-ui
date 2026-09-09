@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.samples.widgets.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,7 +34,7 @@ internal fun ColumnScope.IntSpinnerCard() {
 @Composable
 internal fun ColumnScope.DoubleSpinnerCard() {
     ExampleCard("Spinner (Double)") {
-        var rate by remember { mutableStateOf(1.5) }
+        var rate by remember { mutableDoubleStateOf(1.5) }
         FlowPanel {
             Label("Rate:")
             Spinner(
@@ -110,7 +111,7 @@ internal fun ColumnScope.FormatSpinnerCard() {
 @Composable
 internal fun ColumnScope.EditorSpinnerCard() {
     ExampleCard("Spinner (composed editor)") {
-        var weight by remember { mutableStateOf(70.0) }
+        var weight by remember { mutableDoubleStateOf(70.0) }
         FlowPanel {
             Label("Weight:")
             // The editor composition is part of this one, so it reads the same state the card does and

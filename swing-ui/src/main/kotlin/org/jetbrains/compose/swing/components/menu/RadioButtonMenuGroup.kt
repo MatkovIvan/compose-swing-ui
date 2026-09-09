@@ -43,6 +43,9 @@ import javax.swing.KeyStroke
  * @see javax.swing.ButtonGroup
  */
 @Composable
+// Every option declares a chain of its own through the scope, so the group has no single item a
+// modifier of its own could reach.
+@Suppress("ModifierMissing")
 public fun RadioButtonMenuGroup(
     selectedIndex: Int,
     onSelectionChange: (Int) -> Unit,

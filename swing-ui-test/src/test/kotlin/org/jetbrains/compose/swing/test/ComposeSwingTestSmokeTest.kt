@@ -19,8 +19,8 @@ class ComposeSwingTestSmokeTest {
     fun clickRecomposesAndUpdatesLabel() = runComposeSwingTest {
         val count = mutableIntStateOf(0)
         setContent {
-            Button(text = "Increment", onClick = { count.value++ })
-            Label(text = "Count: ${count.value}")
+            Button(text = "Increment", onClick = { count.intValue++ })
+            Label(text = "Count: ${count.intValue}")
         }
 
         onNodeWithText("Count: 0").assertExists()

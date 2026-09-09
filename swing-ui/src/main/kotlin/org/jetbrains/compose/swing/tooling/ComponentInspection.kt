@@ -151,8 +151,11 @@ private fun InspectedEffect(host: JComponent) {
     // would throw away everything recorded so far and leave a trace naming no file. The one time it is
     // asked again is when this call stands afresh after the switch went off and on, and the content it
     // records for is re-inserted on that same pass.
-    remember { composer.collectParameterInformation() }
-    val data = composer.compositionData
+    val data =
+        remember {
+            composer.collectParameterInformation()
+            composer.compositionData
+        }
     DisposableEffect(Unit) {
         host.publishCompositionData(data)
         // Only this composition's own publication is withdrawn, so a teardown can never blind a live

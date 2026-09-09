@@ -37,8 +37,9 @@ jobs:
           ./gradlew --no-daemon --stacktrace --continue \
             :buildSrc:ktlintCheck :buildSrc:detekt
 
-      # `build` runs `check` for every module (compile, ktlintCheck, detekt, the Android Lint
-      # Compose checks, test, checkKotlinAbi, and the jacocoTestCoverageVerification floors)
+      # `build` runs `check` for every module (compile, ktlintCheck, detekt including this
+      # project's own rules and the Compose rules, the Android Lint checks, test, checkKotlinAbi,
+      # and the jacocoTestCoverageVerification floors)
       # plus `assemble`. Driving it generically gates new modules automatically without
       # enumerating them. `checkKotlinAbi` validates the committed api/*.api dumps; it is named
       # explicitly alongside `build` so it stands out in the step's task list. `--continue`

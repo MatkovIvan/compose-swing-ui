@@ -61,6 +61,7 @@ internal val LocalProvidableWindow: ProvidableCompositionLocal<Window?> = static
  * that already has a window stands under it from its first pass. It is observable, so a content
  * composition that inherited none reads the window its container reaches once it arrives there.
  */
+@Suppress("StateParam")
 @Composable
 @ComposableOpenTarget(-1)
 internal fun ProvideContentLocals(
@@ -94,6 +95,7 @@ internal fun ProvideContentLocals(
  *
  * A caller wanting another [LocalLifecycleOwner] inside such a window provides one within its content.
  */
+@Suppress("StateParam")
 @Composable
 @ComposableOpenTarget(-1)
 internal fun ProvideWindowLocals(

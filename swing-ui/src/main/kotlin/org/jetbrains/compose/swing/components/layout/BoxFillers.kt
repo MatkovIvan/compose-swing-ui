@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.NonRestartableComposable
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
@@ -33,6 +34,7 @@ import javax.swing.SwingConstants
  * @see javax.swing.Box.Filler
  */
 @Composable
+@NonRestartableComposable
 public fun RigidArea(
     width: Int,
     height: Int,

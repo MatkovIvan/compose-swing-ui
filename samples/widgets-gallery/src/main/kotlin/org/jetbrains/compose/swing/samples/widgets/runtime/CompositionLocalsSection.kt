@@ -19,6 +19,7 @@ import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 
 // The accent color flowing down the composition; consumed several layers deep to style labels.
+@Suppress("CompositionLocalAllowlist")
 private val LocalAccent = staticCompositionLocalOf { Color.BLUE }
 
 // A staticCompositionLocalOf driving Swing components: a picker provides the chosen accent near the top,

@@ -87,7 +87,8 @@ feature or standard-library API fails to compile even on a current JDK.
 
 ## Configuration
 
-- detekt: `config/detekt/detekt.yml`, layered on the default config.
+- detekt: `config/detekt/detekt.yml`, layered on the default config and on the defaults
+  `:swing-ui-detekt` ships. The file states the reason for each rule it turns off.
 - Android Lint, hosting the Compose lint checks: `config/lint/lint.xml`. The file states the reason
   for each check it disables.
 - Coverage floors and ABI filters: each module's `build.gradle.kts`.

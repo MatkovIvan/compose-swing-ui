@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.samples.widgets.runtime
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -158,6 +159,7 @@ private fun PulsingDisc() {
 }
 
 @Composable
+@NonRestartableComposable
 private fun StaticDisc() {
     Disc(PULSE_MAX)
 }
