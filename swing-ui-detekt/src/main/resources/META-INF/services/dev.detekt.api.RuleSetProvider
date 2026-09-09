@@ -1,0 +1,2 @@
+org.jetbrains.compose.swing.detekt.ComposeSwingRuleSetProvider
+org.jetbrains.compose.swing.detekt.ComposeSwingInternalRuleSetProvider

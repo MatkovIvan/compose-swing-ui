@@ -223,6 +223,8 @@ Full quality-gate command (what CI runs):
   components and layouts. See [`swing-ui/README.md`](swing-ui/README.md).
 - `swing-ui-animation` - the animation engine. See
   [`swing-ui-animation/README.md`](swing-ui-animation/README.md).
+- `swing-ui-detekt` - this library's own detekt rules. See
+  [`swing-ui-detekt/README.md`](swing-ui-detekt/README.md).
 - `swing-ui-test` - the test harness. See [`swing-ui-test/README.md`](swing-ui-test/README.md).
 - `samples/todo-app`, `samples/widgets-gallery` - runnable showcases.
 - `samples/docs` - the Kotlin snippets in this repository's Markdown, compiled by the build.
@@ -237,5 +239,5 @@ consume the libraries.
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
 `swing-ui-animation` redistributes source code from the Android Open Source Project's Jetpack Compose
-`animation-core` under the same license; see that module's `META-INF/NOTICE` and the per-file headers
-for attribution.
+`animation-core` under the same license, and `swing-ui-detekt` one of that project's Android Lint
+checks; see each module's `META-INF/NOTICE` and the per-file headers for attribution.

@@ -37,7 +37,10 @@ ktlint {
 
 detekt {
     buildUponDefaultConfig.set(true)
-    config.setFrom(rootDir.resolve("../config/detekt/detekt.yml"))
+    config.setFrom(
+        rootDir.resolve("../config/detekt/detekt.yml"),
+        rootDir.resolve("../config/detekt/rule-provider-overrides.yml"),
+    )
     ignoreFailures.set(false)
     parallel.set(true)
 }

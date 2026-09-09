@@ -109,12 +109,12 @@ Piece by piece:
   ```bash
   ./gradlew updateKotlinAbi
   ```
-  Commit whichever of `swing-ui/api/swing-ui.api`, `swing-ui-test/api/swing-ui-test.api` and
-  `swing-ui-animation/api/swing-ui-animation.api` the change moved. A public-API change should be
-  intentional and reviewed.
+  Commit whichever of `swing-ui/api/swing-ui.api`, `swing-ui-detekt/api/swing-ui-detekt.api`,
+  `swing-ui-test/api/swing-ui-test.api` and `swing-ui-animation/api/swing-ui-animation.api` the change
+  moved. A public-API change should be intentional and reviewed.
 - **`:buildSrc:ktlintCheck` / `:buildSrc:detekt`** - formatting, lint and static analysis for the
   convention plugins. Run them whenever you touch anything under `buildSrc/`.
-- **`jacocoTestCoverageVerification`** - `swing-ui`, `swing-ui-test` and `swing-ui-animation` each
+- **`jacocoTestCoverageVerification`** - `swing-ui`, `swing-ui-detekt`, `swing-ui-test` and `swing-ui-animation` each
   enforce a line-coverage floor and a branch-coverage floor, measured per module against that
   module's own tests. A change that drops a ratio below its floor fails the build. Add tests for any
   new behavior you can reach through the test harness. The floors are held, not chased: if a branch is

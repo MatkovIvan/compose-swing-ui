@@ -1,0 +1,33 @@
+# What this artifact turns on for anyone who adds it, before their own detekt.yml has a say.
+#
+# Only this artifact's own rulesets appear here. The Compose rules arrive with it and are configured in
+# the consumer's own detekt.yml, because detekt reads every plugin's bundled config as one document and
+# a section two plugins both declare is a duplicate key. swing-ui-detekt/README.md carries that block.
+
+compose-swing:
+  ComposableSwingModifierFactory:
+    active: true
+  ModifierNodeInspectableProperties:
+    active: true
+    # An element declared in a test describes itself to nothing - no tool reads a fixture. Scoped to
+    # the test source set rather than detekt's default `test` segment match, so a published module
+    # whose own package is named "test" stays covered.
+    excludes: ["**/src/test/**"]
+  SwingModifierFactoryExtensionFunction:
+    active: true
+  SwingModifierFactoryReturnType:
+    active: true
+  SwingModifierThen:
+    active: true
+  SwingModifierUnreferencedReceiver:
+    active: true
+  SwingModifierWithoutDefault:
+    active: true
+  UnheldColumnComparator:
+    active: true
+
+compose-swing-internal:
+  PreferImportsOverFqn:
+    active: false
+  PublicDataClass:
+    active: false

@@ -1,0 +1,8 @@
+# Layered on top of detekt.yml where the project's own rules are not on detekt's classpath.
+#
+# A module cannot contribute its ruleset to itself, and buildSrc is an included build that cannot
+# depend on it; neither sees the Compose rules that arrive with it either. Config validation rejects a
+# section whose ruleset is absent, so those sections are excluded here rather than in detekt.yml, which
+# keeps them validated everywhere the rules do run.
+config:
+  excludes: ["Compose", "compose-swing", "compose-swing-internal"]
