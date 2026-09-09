@@ -43,6 +43,12 @@ class TableRowSortingTest {
     private fun tableModel(vararg names: String): DefaultTableModel =
         DefaultTableModel(names.map { arrayOf<Any?>(it) }.toTypedArray(), arrayOf<Any?>("Name"))
 
+    private val byLengthDescending =
+        Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
+
+    private val byNameAscending =
+        Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
+
     /** The names the table shows, top to bottom. */
     private fun JTable.shownNames(): List<Any?> = (0 until rowCount).map { getValueAt(it, 0) }
 
@@ -132,7 +138,7 @@ class TableRowSortingTest {
         awaitIdle()
         assertEquals(setOf(0, 1, 2), received.last(), "every row is selected to start with")
 
-        filter = RowFilter.regexFilter<TableModel, Int>("Ada", 0)
+        filter = RowFilter.regexFilter("Ada", 0)
         awaitIdle()
 
         assertEquals(listOf("Ada"), table.shownNames(), "only the rows the filter admits are shown")
@@ -164,7 +170,7 @@ class TableRowSortingTest {
 
         // A filter takes hidden rows out of the table's selection - the wrapper's own write. The rows it drops
         // are re-selected once the filter admits them again, and reach no callback.
-        filter = RowFilter.regexFilter<TableModel, Int>("Ada", 0)
+        filter = RowFilter.regexFilter("Ada", 0)
         awaitIdle()
         assertEquals(setOf(0), table.selectedModelRows(), "the row the filter hides has no screen row to hold")
 
@@ -229,7 +235,7 @@ class TableRowSortingTest {
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(people.map { it.name }, table.shownNames(), "every row is shown before a filter is declared")
 
-        filter = RowFilter.regexFilter<TableModel, Int>("Ada", 0)
+        filter = RowFilter.regexFilter("Ada", 0)
         selection = setOf(1)
         awaitIdle()
 
@@ -381,14 +387,13 @@ class TableRowSortingTest {
 
     @Test
     fun aColumnsComparatorOrdersItsRows() = runComposeSwingTest {
-        val byLength = Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
         setContent {
             Table(
                 rows = people,
                 sortable = true,
                 sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
             ) {
-                column(header = "Name", comparator = byLength) { it.name }
+                column(header = "Name", comparator = byLengthDescending) { it.name }
                 column("Age") { it.age }
             }
         }
@@ -425,11 +430,10 @@ class TableRowSortingTest {
 
     @Test
     fun aColumnsComparatorSurvivesARebuildOfTheColumns() = runComposeSwingTest {
-        val byLength = Comparator<Any?> { first, second -> (second as String).length - (first as String).length }
         var header by mutableStateOf("Name")
         setContent {
             Table(rows = people, sortable = true, sortKeys = listOf(SortKey(0, SortOrder.ASCENDING))) {
-                column(header = header, comparator = byLength) { it.name }
+                column(header = header, comparator = byLengthDescending) { it.name }
             }
         }
 
@@ -532,7 +536,6 @@ class TableRowSortingTest {
     fun aColumnWhoseDeclaredComparatorIsHeldIsNotSortedAgainOnEveryPass() = runComposeSwingTest {
         // Held across passes: a comparator compared by identity has to be, for the pass that redeclares
         // it to leave the ordering alone.
-        val byName = Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
         var rowHeight by mutableStateOf(20)
         setContent {
             Table(
@@ -541,7 +544,7 @@ class TableRowSortingTest {
                 sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
                 rowHeight = rowHeight,
             ) {
-                column("Name", comparator = byName) { it.name }
+                column("Name", comparator = byNameAscending) { it.name }
             }
         }
 
@@ -560,7 +563,6 @@ class TableRowSortingTest {
     @Test
     fun aShiftExtensionAfterAnUnrelatedPassRunsFromTheRowTheSelectionStartedOn() = runComposeSwingTest {
         val rows = List(10) { "row $it" }
-        val byName = Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
         var rowHeight by mutableStateOf(20)
         setContent {
             Table(
@@ -569,7 +571,7 @@ class TableRowSortingTest {
                 sortKeys = listOf(SortKey(0, SortOrder.ASCENDING)),
                 rowHeight = rowHeight,
             ) {
-                column("Name", comparator = byName) { it }
+                column("Name", comparator = byNameAscending) { it }
             }
         }
 

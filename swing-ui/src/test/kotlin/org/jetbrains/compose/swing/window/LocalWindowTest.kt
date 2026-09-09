@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Container
 import java.awt.GraphicsEnvironment
+import java.awt.Window
 import javax.swing.JDialog
 import javax.swing.JFrame
 import javax.swing.JMenuBar
@@ -259,7 +260,7 @@ class LocalWindowTest {
         var composed: Boolean = false
             private set
 
-        var seen: java.awt.Window? = null
+        var seen: Window? = null
             private set
 
         @Composable

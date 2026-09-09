@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.interaction.performMouseWheel
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Component
 import java.awt.Dimension
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -203,7 +204,7 @@ class ScrollableDefaultsTest {
     }
 
     /** A line of [view]'s own font, which is what the library's components scroll by. */
-    private fun lineOf(view: java.awt.Component): Int =
+    private fun lineOf(view: Component): Int =
         assertIs<JComponent>(view, "the content is the viewport's view as it stands").let {
             it.getFontMetrics(it.font).height
         }

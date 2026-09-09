@@ -10,6 +10,7 @@ import java.awt.Dialog
 import java.awt.Dimension
 import java.awt.Image
 import java.awt.Toolkit
+import java.awt.Window
 import javax.swing.JDialog
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
@@ -87,7 +88,7 @@ import javax.swing.WindowConstants
 public fun Dialog(
     onCloseRequest: () -> Unit,
     state: DialogState = rememberDialogState(),
-    owner: java.awt.Window? = null,
+    owner: Window? = null,
     title: @Nls String = "",
     modality: Dialog.ModalityType = Dialog.ModalityType.MODELESS,
     visible: Boolean = true,

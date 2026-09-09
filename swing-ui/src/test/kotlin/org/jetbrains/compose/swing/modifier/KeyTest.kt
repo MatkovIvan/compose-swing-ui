@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JTextField
+import javax.swing.text.Caret
 import javax.swing.text.DefaultCaret
 import javax.swing.text.JTextComponent
 import kotlin.test.Test
@@ -290,7 +291,7 @@ class KeyTest {
         class Node(
             private val caret: DefaultCaret,
         ) : SwingModifier.Node<JTextComponent>() {
-            private var found: javax.swing.text.Caret? = null
+            private var found: Caret? = null
 
             override fun onAttach() {
                 found = component.caret

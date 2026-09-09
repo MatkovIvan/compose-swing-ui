@@ -812,6 +812,9 @@ private class TreeContentElement(
 
     override val additive: Boolean get() = true
 
+    /** [due] is a token standing for a change, not something a reader declared, so it is left out. */
+    override val declaredValues: Map<String, Any?> get() = mapOf("content" to content)
+
     /** The model and the selection the tree stands on are content the next declaration replaces. */
     override val restores: RestorePolicy get() = RestorePolicy.None
 
