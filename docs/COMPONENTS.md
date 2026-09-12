@@ -861,7 +861,9 @@ written where there is a window to carry it.
 
 `GlassPane { }` is the sheet above everything else in the window: it covers the whole window, it is
 transparent where its content paints nothing, and while it is shown the window's mouse events reach
-it - a drag-and-drop hint, a progress veil, anything drawn over the window rather than in it.
+it rather than the content underneath - a drag-and-drop hint, a progress veil, anything drawn over the
+window rather than in it. The overlay's own content is reached first, so a button in it still gets its
+clicks.
 The content fills the pane, so a layout composable inside it places what the overlay is made of. The
 pane is over the window while the declaration is composed, and the window carries the glass pane it
 carried before once the declaration leaves, so an overlay that comes and goes is an `if` around the

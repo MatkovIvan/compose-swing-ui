@@ -5,26 +5,33 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
+import java.awt.Rectangle
+import java.awt.event.InputEvent
+import java.awt.event.MouseEvent
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JDialog
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JRootPane
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests for the declarative glass pane of a [Window] and a [Dialog]: the declared content
@@ -45,7 +52,12 @@ import kotlin.time.Duration.Companion.seconds
  * about a window outliving that composition - one already carrying a pane of its own - host the
  * content over a window of the test's own, the way a window's own host does.
  *
- * A glass pane lives on a realized peer's root pane, so these are skipped in headless environments.
+ * The overlay covers the window and takes its mouse events, so both are pinned: the pane carries the
+ * window's bounds as it arrives, and a click over the window's own content stops at the pane while a
+ * click over the overlay's content reaches it.
+ *
+ * A case reaching a window needs a realized peer, so it is skipped in headless environments; a case
+ * about the pane itself lays a root pane out on its own and runs anywhere.
  */
 class WindowGlassPaneTest {
     @Test
@@ -326,16 +338,92 @@ class WindowGlassPaneTest {
         overlaid = true
         awaitIdle()
 
-        // A root pane sizes its glass pane to the whole window as it lays itself out, so an arriving
-        // pane is given those bounds once the root pane has been laid out again.
         val pane = frame.rootPane.glassPane
-        waitUntil(timeout = LAYOUT_PASS_TIMEOUT) { pane.size == frame.rootPane.size }
         assertEquals(
             frame.rootPane.size,
             pane.size,
             "the arriving pane should cover the whole window rather than a part of it",
         )
         assertTrue(pane.width > 0 && pane.height > 0, "the covering pane should be given the window's real bounds")
+    }
+
+    @Test
+    fun aDeclaredGlassPaneCoversTheWindowAsItArrives() = runComposeSwingTest {
+        val rootPane = JRootPane().apply { size = Dimension(320, 240) }
+        val scope = WindowScope.of(rootPane)
+
+        setContent {
+            with(scope) {
+                GlassPane { Label(text = "overlay") }
+            }
+        }
+
+        // A root pane sizes its glass pane to the whole window as it lays itself out, and nothing here
+        // lays this tree out but the declaration itself.
+        val pane = rootPane.glassPane
+        assertEquals(
+            Rectangle(0, 0, 320, 240),
+            pane.bounds,
+            "the pane should carry the window's bounds from the moment it is installed",
+        )
+    }
+
+    @Test
+    fun aGlassPaneTakesTheWindowsMouseEventsOffTheContentUnderneath() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        var beneathClicks = 0
+        var overlayClicks = 0
+        // The frame is realized but never shown: a realized frame dispatches to its lightweight children,
+        // and showing it would take the window system's focus away from whatever is running alongside.
+        val frame = JFrame("glass-pane-blocking")
+        try {
+            frame.contentPane.layout = BorderLayout()
+            val beneath = JButton("beneath").apply { addActionListener { beneathClicks++ } }
+            frame.contentPane.add(beneath, BorderLayout.CENTER)
+            frame.pack()
+            frame.size = Dimension(320, 240)
+
+            setContent {
+                with(WindowScope.of(frame.rootPane)) {
+                    GlassPane {
+                        Button(
+                            text = "Dismiss",
+                            onClick = { overlayClicks++ },
+                            modifier = SwingModifier.layoutConstraint(BorderLayout.NORTH),
+                        )
+                    }
+                }
+            }
+            layOutTree(frame)
+
+            frame.clickOver(beneath)
+            assertEquals(0, beneathClicks, "a shown glass pane should take the click off the window's content")
+
+            val dismiss = frame.rootPane.glassPane.singleButton()
+            frame.clickOver(dismiss)
+            assertEquals(1, overlayClicks, "the overlay's own content should still get the clicks over it")
+        } finally {
+            frame.dispose()
+        }
+    }
+}
+
+/** Dispatches a click at the center of [target] the way the window system does, through this window. */
+private fun JFrame.clickOver(target: Component) {
+    val center = SwingUtilities.convertPoint(target, target.width / 2, target.height / 2, this)
+    val at = System.currentTimeMillis()
+    for (id in listOf(MouseEvent.MOUSE_PRESSED, MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_CLICKED)) {
+        dispatchEvent(
+            MouseEvent(this, id, at, InputEvent.BUTTON1_DOWN_MASK, center.x, center.y, 1, false, MouseEvent.BUTTON1),
+        )
+    }
+}
+
+/** Runs each container's layout, top down, so a hit test reads real bounds off a window never shown. */
+private fun layOutTree(container: Container) {
+    container.doLayout()
+    for (child in container.components) {
+        if (child is Container) layOutTree(child)
     }
 }
 
@@ -353,9 +441,3 @@ private fun Component.componentsBelow(): Sequence<Component> = sequence {
         yieldAll(child.componentsBelow())
     }
 }
-
-/**
- * Wall-clock deadline for a layout pass a root pane schedules for itself, which a realized window runs
- * off its own event queue.
- */
-private val LAYOUT_PASS_TIMEOUT = 10.seconds
