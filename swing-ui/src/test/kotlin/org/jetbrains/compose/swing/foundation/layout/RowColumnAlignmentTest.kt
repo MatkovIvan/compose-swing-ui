@@ -354,6 +354,33 @@ class RowColumnAlignmentTest {
             "both children must fit within the height the row asked for, on one baseline",
         )
     }
+
+    @Test
+    fun aRowMeasuredByItsParentStillHoldsTheDeepestBaselineAndTheDeepestRemainder() = runComposeSwingTest {
+        setContent {
+            Column(modifier = SwingModifier.preferredSize(ACROSS_EXTENT, ACROSS_EXTENT)) {
+                Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    BaselineChild(DEEP_BASELINE, SwingModifier.alignByBaseline())
+                    BaselineChild(SHALLOW_BASELINE, SwingModifier.alignByBaseline())
+                }
+            }
+        }
+
+        assertEquals(
+            Dimension(CHILD_WIDTH * 2, DEEP_BASELINE + CHILD_HEIGHT - SHALLOW_BASELINE),
+            containerSize(),
+            "a row its column measures settles on the same height it would ask for: the deepest baseline " +
+                "above the shared line and the deepest remainder below it, not merely its tallest child",
+        )
+        assertEquals(
+            listOf(
+                Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(CHILD_WIDTH, DEEP_BASELINE - SHALLOW_BASELINE, CHILD_WIDTH, CHILD_HEIGHT),
+            ),
+            childBounds(),
+            "so both children still fit within it, on one baseline",
+        )
+    }
 }
 
 /** The extent a fixture container is given across its axis, far wider than a child asks for. */

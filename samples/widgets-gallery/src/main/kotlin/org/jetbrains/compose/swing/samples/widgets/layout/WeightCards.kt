@@ -25,11 +25,10 @@ import java.awt.Dimension
 import javax.swing.BorderFactory
 import javax.swing.SwingConstants
 
-// weight() cards outside a filled row: every row here keeps its own preferred width, so a weighted
-// child's share shows up as room the row itself asks its parent for, not room the parent hands down.
-// A gray outline on each row makes that width legible, a colored swatch stands in for the weighted
-// child, and the width the layout actually granted is printed beside every card - the share a child
-// declines to take, or is capped out of, is empty space no border can name on its own.
+// weight() cards: each one hands a share of a row's width to a colored swatch and prints the width the
+// layout granted it. A gray outline on the row makes the extent that share comes out of legible, and the
+// printed width names what the outline cannot - the part of a share a child declines to take, or is
+// capped out of, is empty space that looks the same as room no child ever claimed.
 @Composable
 internal fun ColumnScope.WeightCards() {
     WeightSharesCard()
@@ -51,23 +50,36 @@ private fun Swatch(
     )
 }
 
-// Both swatches ask for the same 50 px, so the width each weight unit implies is 50 px, and the row
-// asks its parent for that much for every share it hands out. Sliding the second swatch's weight up is
-// the row growing, not the parent giving: nothing outside the row changed.
+// Every child of this row claims a share, so between them they divide the whole width the row is offered
+// and the row spans its parent. Sliding the second swatch's weight up moves the boundary between the two
+// swatches, not the row's own edge: what one swatch gains the other gives up. A swatch's preferred size
+// stands for its height alone, since a share fills the whole width it is granted.
 @Composable
 internal fun ColumnScope.WeightSharesCard() {
-    ExampleCard("weight (shares set the row's own width)") {
+    ExampleCard("weight (shares divide the row's width)") {
         var weight by remember { mutableIntStateOf(3) }
         var rowWidth by remember { mutableIntStateOf(0) }
+        var lightWidth by remember { mutableIntStateOf(0) }
+        var heavyWidth by remember { mutableIntStateOf(0) }
         Label("Second swatch weight: ${weight}f")
         Slider(value = weight, onValueChange = { weight = it }, min = 1, max = 5)
-        Label("Row asks for: $rowWidth px")
+        Label("Shares granted: $lightWidth px and $heavyWidth px of the row's $rowWidth px")
         Row(modifier = rowOutline.componentListener(onComponentResized = { rowWidth = it.component.width })) {
-            Swatch("1f", Color(0xC8, 0xE6, 0xC9), SwingModifier.weight(1f).preferredSize(Dimension(50, 28)))
+            Swatch(
+                "1f",
+                Color(0xC8, 0xE6, 0xC9),
+                SwingModifier
+                    .weight(1f)
+                    .preferredSize(Dimension(50, 28))
+                    .componentListener(onComponentResized = { lightWidth = it.component.width }),
+            )
             Swatch(
                 "${weight}f",
                 Color(0xFF, 0xE0, 0xB2),
-                SwingModifier.weight(weight.toFloat()).preferredSize(Dimension(50, 28)),
+                SwingModifier
+                    .weight(weight.toFloat())
+                    .preferredSize(Dimension(50, 28))
+                    .componentListener(onComponentResized = { heavyWidth = it.component.width }),
             )
         }
     }

@@ -49,11 +49,31 @@ internal fun SizedChild(
     Label("child $index", modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT))
 }
 
+/** The fixture child at a size of its own, for a container holding children of more than one size. */
+@Composable
+internal fun Child(
+    index: Int,
+    width: Int,
+    height: Int,
+    modifier: SwingModifier = SwingModifier,
+) {
+    Label("child $index", modifier = modifier.preferredSize(width, height))
+}
+
 /** The bounds the container under test assigned each of its children, in declaration order. */
 internal fun ComposeSwingTest.childBounds(): List<Rectangle> = container().components.map { it.bounds }
 
 /** The size the container under test asks of its own parent. */
 internal fun ComposeSwingTest.containerPreferredSize(): Dimension = container().preferredSize
+
+/** The extent the container under test can shrink to, the counterpart of [containerPreferredSize]. */
+internal fun ComposeSwingTest.containerMinimumSize(): Dimension = container().minimumSize
+
+/** The last entry of this modifier that describes itself - the one the builder under test declared. */
+internal fun SwingModifier.lastElement(): SwingModifier.InspectableElement =
+    foldIn<SwingModifier.InspectableElement?>(null) { last, element ->
+        element as? SwingModifier.InspectableElement ?: last
+    } ?: error("the modifier declares nothing that describes itself")
 
 /** The size the container under test was laid out at. */
 internal fun ComposeSwingTest.containerSize(): Dimension = container().size

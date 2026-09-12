@@ -88,21 +88,30 @@ class BoxAndWeightSectionsTest {
         }
 
     @Test
-    fun aHeavierShareWidensTheRowThatGrantsIt() =
+    fun aHeavierShareTakesWidthFromItsNeighborRatherThanFromTheRow() =
         runComposeSwingTest {
             openSection("Weight & alignment")
 
             onNodeWithText("Second swatch weight: 3f").assertExists()
-            val before = readoutNumbers("Row asks for: ").first()
+            val (lightBefore, heavyBefore, rowBefore) = readoutNumbers("Shares granted: ")
 
             sliders()[0].value = 5
             awaitIdle()
 
             onNodeWithText("Second swatch weight: 5f").assertExists()
-            val after = readoutNumbers("Row asks for: ").first()
+            val (lightAfter, heavyAfter, rowAfter) = readoutNumbers("Shares granted: ")
             assertTrue(
-                after > before,
-                "a heavier share makes the row ask its parent for more width; was $before, now $after",
+                heavyAfter > heavyBefore,
+                "the heavier swatch is granted more width; was $heavyBefore, now $heavyAfter",
+            )
+            assertTrue(
+                lightAfter < lightBefore,
+                "the swatch beside it gives up what the heavier one gains; was $lightBefore, now $lightAfter",
+            )
+            assertEquals(
+                rowBefore,
+                rowAfter,
+                "the weights divide the width the row was offered, so the row itself never moves",
             )
         }
 
