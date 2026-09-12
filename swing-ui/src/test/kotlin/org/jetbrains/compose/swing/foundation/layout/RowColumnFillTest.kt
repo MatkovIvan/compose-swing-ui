@@ -143,6 +143,21 @@ class RowColumnFillTest {
     }
 
     @Test
+    fun aChildThatDoesNotFillStopsAtTheMaximumWidthItDeclares() = runComposeSwingTest {
+        setContent {
+            Column(modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT)) {
+                SizedChild(0, SwingModifier.maximumSize(NARROW_CROSS, CHILD_HEIGHT))
+            }
+        }
+
+        assertEquals(
+            listOf(Rectangle(0, 0, NARROW_CROSS, CHILD_HEIGHT)),
+            childBounds(),
+            "a maximum holds back a child that declares no fill too, short of the width it prefers",
+        )
+    }
+
+    @Test
     fun aChildTakesTheWholeWidthAndItsShareOfTheHeightAtOnce() = runComposeSwingTest {
         setContent {
             Column(modifier = containerModifier(CROSS_EXTENT, WEIGHTED_MAIN_EXTENT)) {
@@ -158,6 +173,29 @@ class RowColumnFillTest {
             ),
             childBounds(),
             "a child that declares both must take the whole width and the height the column has left over",
+        )
+    }
+
+    /**
+     * The same declaration the other way round. A chain folds in the order it is written, so the fill
+     * meets an empty constraint here and the weight meets the one the fill left behind.
+     */
+    @Test
+    fun aChildDeclaringItsFillBeforeItsWeightIsPlacedTheSameWay() = runComposeSwingTest {
+        setContent {
+            Column(modifier = containerModifier(CROSS_EXTENT, WEIGHTED_MAIN_EXTENT)) {
+                SizedChild(0)
+                SizedChild(1, SwingModifier.fillWidth().weight(1f))
+            }
+        }
+
+        assertEquals(
+            listOf(
+                Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(0, CHILD_HEIGHT, CROSS_EXTENT, WEIGHTED_MAIN_EXTENT - CHILD_HEIGHT),
+            ),
+            childBounds(),
+            "the order the two are declared in must not change where the child is placed",
         )
     }
 
@@ -253,6 +291,10 @@ class RowColumnFillTest {
 
         // Less than the container's cross extent, so the maximum is what decides the child's extent.
         const val MAXIMUM_CROSS = 70
+
+        // Narrower than a fixture child asks for, so a maximum decides the extent of a child that has
+        // no fill to be held back from.
+        const val NARROW_CROSS = 30
 
         // Wide enough on every side that a child placed through the border would be visibly off.
         const val BORDER = 10

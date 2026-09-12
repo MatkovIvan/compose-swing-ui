@@ -1,8 +1,12 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Dimension
 import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,6 +18,10 @@ import kotlin.test.assertTrue
  * for none has taken the extent it prefers. Weighted children share that space in proportion to their
  * weights; a child that declares a maximum of its own takes no more than that maximum allows, and a
  * child that does not fill takes only as much of its share as it prefers.
+ *
+ * A container nobody imposed a size on asks for room enough that the share each weighted child is
+ * granted covers the extent that child can occupy - what it prefers, or its own maximum where that is
+ * smaller.
  *
  * Each test reads back the extent and position the container assigned, which is the whole of what a
  * caller can observe of a weight.
@@ -142,6 +150,106 @@ class RowColumnWeightTest {
     }
 
     @Test
+    fun aRowAtItsOwnPreferredWidthHoldsTheWidthAWeightedSpacerAsksFor() = runComposeSwingTest {
+        setContent {
+            Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(0)
+                Label("", modifier = SwingModifier.weight(1f).preferredSize(SPACER_WIDTH, CHILD_HEIGHT))
+                SizedChild(1)
+            }
+        }
+
+        assertEquals(
+            Dimension(CHILD_WIDTH * 2 + SPACER_WIDTH, CHILD_HEIGHT),
+            containerPreferredSize(),
+            "a row asking for its own width must hold the width its weighted spacer asks for",
+        )
+        assertEquals(
+            listOf(
+                Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(CHILD_WIDTH, 0, SPACER_WIDTH, CHILD_HEIGHT),
+                Rectangle(CHILD_WIDTH + SPACER_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT),
+            ),
+            childBounds(),
+            "the spacer must keep the labels apart rather than collapse between them",
+        )
+    }
+
+    @Test
+    fun aRowAtItsOwnPreferredWidthCutsNoUnequallyWeightedChildShort() = runComposeSwingTest {
+        setContent {
+            Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(0)
+                SizedChild(1, SwingModifier.weight(1f))
+                SizedChild(2, SwingModifier.weight(2f))
+            }
+        }
+
+        assertEquals(
+            Dimension(CHILD_WIDTH + CHILD_WIDTH + CHILD_WIDTH * 2, CHILD_HEIGHT),
+            containerPreferredSize(),
+            "the child weighted 1f asks for 50px of a width split one share to two, so the two " +
+                "weighted children need 150px between them",
+        )
+        assertEquals(
+            listOf(
+                Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(CHILD_WIDTH * 2, 0, CHILD_WIDTH * 2, CHILD_HEIGHT),
+            ),
+            childBounds(),
+            "neither weighted child may be cut below the width it prefers",
+        )
+    }
+
+    @Test
+    fun aRowAtItsOwnPreferredWidthHoldsNoMoreThanACappedChildCanOccupy() = runComposeSwingTest {
+        setContent {
+            Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(0)
+                SizedChild(1, SwingModifier.weight(1f).maximumSize(MAXIMUM_EXTENT, CHILD_HEIGHT))
+            }
+        }
+
+        assertEquals(
+            Dimension(CHILD_WIDTH + MAXIMUM_EXTENT, CHILD_HEIGHT),
+            containerPreferredSize(),
+            "a row must ask for the width its weighted child can occupy, not the wider width that child " +
+                "prefers and its maximum refuses",
+        )
+        assertEquals(
+            listOf(
+                Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(CHILD_WIDTH, 0, MAXIMUM_EXTENT, CHILD_HEIGHT),
+            ),
+            childBounds(),
+            "and at that width the capped child is granted no share it has to leave empty",
+        )
+    }
+
+    @Test
+    fun aChildKeepsTheLastWeightItDeclares() = runComposeSwingTest {
+        setContent {
+            Row(modifier = containerModifier(SPLIT_ROW_EXTENT, CROSS_EXTENT)) {
+                SizedChild(0)
+                SizedChild(1, SwingModifier.weight(2f, fill = false).weight(1f, fill = true))
+                SizedChild(2, SwingModifier.weight(2f))
+            }
+        }
+
+        assertEquals(
+            listOf(
+                Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(50, 0, 100, CHILD_HEIGHT),
+                Rectangle(150, 0, 200, CHILD_HEIGHT),
+            ),
+            childBounds(),
+            "a modifier is folded in declaration order, so the last weight declared - share and fill " +
+                "alike - wins",
+        )
+    }
+
+    @Test
     fun aWeightThatWouldGrantNoSpaceIsRejected() = runComposeSwingTest {
         val error =
             assertFailsWith<IllegalArgumentException> {
@@ -157,9 +265,45 @@ class RowColumnWeightTest {
         )
     }
 
+    @Test
+    fun aNegativeWeightIsRejected() = runComposeSwingTest {
+        val error =
+            assertFailsWith<IllegalArgumentException> {
+                setContent {
+                    Column { SizedChild(0, SwingModifier.weight(-1f)) }
+                }
+                awaitIdle()
+            }
+
+        assertTrue(
+            "greater than zero" in error.message.orEmpty(),
+            "the error must say what a weight has to be, but was: ${error.message}",
+        )
+    }
+
+    @Test
+    fun aWeightThatIsNotANumberIsRejected() = runComposeSwingTest {
+        val error =
+            assertFailsWith<IllegalArgumentException> {
+                setContent {
+                    Column { SizedChild(0, SwingModifier.weight(Float.NaN)) }
+                }
+                awaitIdle()
+            }
+
+        assertTrue(
+            "greater than zero" in error.message.orEmpty(),
+            "a weight there is no share to compute from must be refused like a zero one, but the " +
+                "error was: ${error.message}",
+        )
+    }
+
     private companion object {
         // Wider than a child asks for, so the cross axis never interferes with what a weight does.
         const val CROSS_EXTENT = 100
+
+        // Narrower than a fixture child, so the width the spacer holds is unmistakably its own.
+        const val SPACER_WIDTH = 20
 
         // 40px of the column goes to the child that claims no share; the rest is what a weight takes.
         const val COLUMN_EXTENT = 300
@@ -168,6 +312,9 @@ class RowColumnWeightTest {
 
         // More height than the capped child could ever accept, so the cap is what decides its extent.
         const val CAPPED_COLUMN_EXTENT = 400
-        const val MAXIMUM_EXTENT = 70
+
+        // Below what a fixture child prefers along either axis, so a cap holds its child back from the
+        // extent it prefers as well as from the share it was granted.
+        const val MAXIMUM_EXTENT = 30
     }
 }

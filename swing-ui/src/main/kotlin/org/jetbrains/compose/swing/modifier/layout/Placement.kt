@@ -148,8 +148,20 @@ internal class SlotElement(
 internal fun twoKindsOfConstraint(): String =
     "A parent registers a child under one layout constraint, and this modifier declares two kinds: one " +
         "named with layoutConstraint(), and one declared to the container's own scope - weight(), " +
-        "align() or a cross-axis fill. Declare the one the enclosing container places its children by, " +
-        "and drop the other."
+        "align(), a cross-axis fill or matchParentSize(). Declare the one the enclosing container " +
+        "places its children by, and drop the other."
+
+/**
+ * Why a modifier declaring to the scopes of two different containers is refused. Both build one
+ * constraint a part at a time, so the parts fold together, and a modifier mixing them describes a
+ * placement in a container that places its children the other way.
+ */
+internal fun twoScopesOfConstraint(): String =
+    "A parent registers a child under one layout constraint, and this modifier declares parts of two " +
+        "kinds, where each container's scope builds one: a Row's or a Column's - weight(), align() or " +
+        "a fill - a Box's - align(), matchParentSize() or zIndex() - and a plain fill on its own, as " +
+        "a container reading nothing else takes it. Declare the one the enclosing container places " +
+        "its children by, and drop the other."
 
 /**
  * Refuses a modifier declaring both kinds of placement, before either is written onto the node. A parent

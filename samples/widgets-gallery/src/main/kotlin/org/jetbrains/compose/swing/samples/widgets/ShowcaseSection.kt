@@ -18,10 +18,12 @@ import org.jetbrains.compose.swing.samples.widgets.components.FormInputsSection
 import org.jetbrains.compose.swing.samples.widgets.components.RadioGroupSection
 import org.jetbrains.compose.swing.samples.widgets.custom.CanvasSection
 import org.jetbrains.compose.swing.samples.widgets.custom.CustomComponentSection
+import org.jetbrains.compose.swing.samples.widgets.layout.BoxSection
 import org.jetbrains.compose.swing.samples.widgets.layout.LayoutsSection
 import org.jetbrains.compose.swing.samples.widgets.layout.ScrollPaneSection
 import org.jetbrains.compose.swing.samples.widgets.layout.SplitToolBarSection
 import org.jetbrains.compose.swing.samples.widgets.layout.TabsSection
+import org.jetbrains.compose.swing.samples.widgets.layout.WeightAndAlignmentSection
 import org.jetbrains.compose.swing.samples.widgets.menu.ContextMenuSection
 import org.jetbrains.compose.swing.samples.widgets.modifier.AccessibilitySection
 import org.jetbrains.compose.swing.samples.widgets.modifier.DataTransferSection
@@ -62,6 +64,8 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Table") { TableSection() },
         ShowcaseSection("Tree") { TreeSection() },
         ShowcaseSection("Layouts") { LayoutsSection() },
+        ShowcaseSection("Box") { BoxSection() },
+        ShowcaseSection("Weight & alignment") { WeightAndAlignmentSection() },
         ShowcaseSection("Split & ToolBar") { SplitToolBarSection() },
         ShowcaseSection("ScrollPane") { ScrollPaneSection() },
         ShowcaseSection("Tabs") { TabsSection() },

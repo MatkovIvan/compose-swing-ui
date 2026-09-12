@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -55,6 +56,13 @@ class LayoutModifierReactivityTest {
     fun aBorderPanelFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("PanelLayout.Border") { modifier ->
             Panel(PanelLayout.Border(), modifier = modifier) { Label("child", SwingModifier.center()) }
+        }
+    }
+
+    @Test
+    fun aBoxFollowsItsModifier() = runComposeSwingTest {
+        assertTheModifierIsFollowed("Box") { modifier ->
+            Box(modifier = modifier) { Label("child") }
         }
     }
 

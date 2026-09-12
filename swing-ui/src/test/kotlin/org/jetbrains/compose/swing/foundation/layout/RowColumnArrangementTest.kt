@@ -343,6 +343,98 @@ class RowColumnArrangementTest {
     }
 
     @Test
+    fun absoluteLeftPacksTheChildrenAgainstTheLeftEdge() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.Absolute.Left) }
+
+        assertEquals(
+            rowCells(0, 50, 100),
+            childBounds(),
+            "Arrangement.Absolute.Left must pack the children against the left edge",
+        )
+    }
+
+    @Test
+    fun absoluteLeftPacksTheChildrenAgainstTheLeftEdgeOfARightToLeftRowToo() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.Absolute.Left, ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            rowCells(0, 50, 100),
+            childBounds(),
+            "Arrangement.Absolute.Left must pack the children against the left edge even under a " +
+                "right-to-left orientation, unlike the mirroring Arrangement.Start",
+        )
+    }
+
+    @Test
+    fun absoluteRightPacksTheChildrenAgainstTheRightEdge() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.Absolute.Right) }
+
+        assertEquals(
+            rowCells(150, 200, 250),
+            childBounds(),
+            "Arrangement.Absolute.Right must pack the children against the right edge",
+        )
+    }
+
+    @Test
+    fun absoluteRightPacksTheChildrenAgainstTheRightEdgeOfARightToLeftRowToo() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.Absolute.Right, ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            rowCells(150, 200, 250),
+            childBounds(),
+            "Arrangement.Absolute.Right must pack the children against the right edge even under a " +
+                "right-to-left orientation, unlike the mirroring Arrangement.End",
+        )
+    }
+
+    @Test
+    fun absoluteSpaceBetweenSplitsTheSurplusInDeclarationOrder() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.Absolute.SpaceBetween) }
+
+        assertEquals(
+            rowCells(0, 125, 250),
+            childBounds(),
+            "Arrangement.Absolute.SpaceBetween must share the surplus out in declaration order",
+        )
+    }
+
+    @Test
+    fun absoluteSpaceBetweenSplitsTheSurplusInDeclarationOrderOnARightToLeftRowToo() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.Absolute.SpaceBetween, ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            rowCells(0, 125, 250),
+            childBounds(),
+            "Arrangement.Absolute.SpaceBetween must share the surplus out in declaration order even " +
+                "under a right-to-left orientation, unlike the mirroring Arrangement.SpaceBetween",
+        )
+    }
+
+    @Test
+    fun absoluteSpacedByPacksTheGroupAgainstTheLeftEdge() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.Absolute.spacedBy(GAP)) }
+
+        assertEquals(
+            rowCells(0, 60, 120),
+            childBounds(),
+            "Arrangement.Absolute.spacedBy must hold its gap and pack the group against the left edge",
+        )
+    }
+
+    @Test
+    fun absoluteSpacedByPacksTheGroupAgainstTheLeftEdgeOfARightToLeftRowToo() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.Absolute.spacedBy(GAP), ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            rowCells(0, 60, 120),
+            childBounds(),
+            "Arrangement.Absolute.spacedBy must hold its gap and pack the group against the left edge " +
+                "even under a right-to-left orientation, unlike the mirroring Arrangement.spacedBy",
+        )
+    }
+
+    @Test
     fun anEmptyColumnPlacesNothingAndAsksForNoSpace() = runComposeSwingTest {
         setContent {
             Column(

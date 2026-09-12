@@ -188,6 +188,31 @@ class RowColumnEdgeCaseTest {
         )
     }
 
+    @Test
+    fun aWeightedNestedRowKeepsItsOwnWidthInAColumnWiderThanItPrefers() = runComposeSwingTest {
+        setContent {
+            Column(modifier = containerModifier(WIDE_CROSS_EXTENT, NESTED_COLUMN_HEIGHT)) {
+                SizedChild(0)
+                Row(
+                    modifier = SwingModifier.testTag(NESTED_ROW_TAG).weight(1f),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    SizedChild(1)
+                    SizedChild(2)
+                }
+            }
+        }
+
+        val nestedRow = onNodeWithTag(NESTED_ROW_TAG).fetch<JPanel>()
+
+        assertEquals(
+            Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH * 2, NESTED_COLUMN_HEIGHT - CHILD_HEIGHT),
+            nestedRow.bounds,
+            "a weighted row that declares no cross-axis fill of its own must keep the width it prefers " +
+                "once its main-axis weight is resolved, not stretch to a column wider than that",
+        )
+    }
+
     private companion object {
         // Narrower, or shorter, than the two 50x40 fixture children combined, so a deficit is unmistakable.
         const val NARROW_MAIN = 30
@@ -217,6 +242,10 @@ class RowColumnEdgeCaseTest {
         // Room for the fixture child plus a weighted nested row's leftover height.
         const val NESTED_COLUMN_HEIGHT = 200
         const val NESTED_ROW_TAG = "nestedRow"
+
+        // Wider than the nested row's own preferred width (two fixture children), so a stretched row
+        // would be caught: a column exactly as wide as the row prefers cannot tell the two apart.
+        const val WIDE_CROSS_EXTENT = 150
     }
 }
 
