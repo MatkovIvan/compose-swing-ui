@@ -6,9 +6,7 @@ import java.awt.Dimension
 import java.awt.Insets
 import java.awt.Rectangle
 import javax.swing.JComponent
-import javax.swing.JFrame
 import javax.swing.JPanel
-import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -469,28 +467,6 @@ private class CountingChild : JPanel() {
     override fun getPreferredSize(): Dimension {
         questions++
         return super.getPreferredSize()
-    }
-}
-
-/**
- * Runs [body] with [root] under a frame that grants it a peer - what makes a container hold between two
- * Swing calls what a pass measured - on the dispatch thread that frame lays its own content out on. The
- * frame is never shown, so nothing takes focus.
- */
-private fun peered(
-    root: JComponent,
-    body: () -> Unit,
-) {
-    val frame = JFrame()
-    try {
-        SwingUtilities.invokeAndWait {
-            frame.contentPane.layout = null
-            frame.contentPane.add(root)
-            frame.addNotify()
-            body()
-        }
-    } finally {
-        SwingUtilities.invokeAndWait { frame.dispose() }
     }
 }
 

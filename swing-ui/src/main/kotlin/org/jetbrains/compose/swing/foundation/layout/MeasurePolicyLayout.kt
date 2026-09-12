@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.modifier.layout.LayoutElement
 import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Container
@@ -49,6 +50,21 @@ internal abstract class MeasurePolicyLayout : LayoutManager2 {
         name: String?,
         component: Component,
     ): Unit = Unit
+
+    /**
+     * Records the layout modifiers [component] is measured through, outermost first, for this
+     * container's policy to measure it under. An empty chain is the ordinary child, measured directly.
+     *
+     * Declared apart from the constraint because the two are orthogonal: a constraint names a place in
+     * this container, and the chain stands between the child and whatever constraints that place earns
+     * it. Redeclared after every [addLayoutComponent], which gives up the measurable the chain lives on.
+     */
+    fun declareLayoutChain(
+        component: Component,
+        chain: List<LayoutElement>,
+    ) {
+        measurables.of(component).layoutChain = chain
+    }
 
     /** Gives up what [component] was registered under, and the extent measured for it. */
     override fun removeLayoutComponent(component: Component) {
@@ -310,19 +326,81 @@ internal class ChildMeasurable(
     Placeable {
     override var layoutConstraint: Any? = null
 
+    /**
+     * The layout modifiers this child is measured through, outermost first; see
+     * `MeasurePolicyLayout.declareLayoutChain`.
+     */
+    var layoutChain: List<LayoutElement> = emptyList()
+
     override var width: Int = 0
         private set
 
     override var height: Int = 0
         private set
 
+    /** The extent the component itself occupies, which a chain holds within the extent it states. */
+    private var placedWidth: Int = 0
+    private var placedHeight: Int = 0
+
+    /** Where within that stated extent the chain puts the component. */
+    private var offsetX: Int = 0
+    private var offsetY: Int = 0
+
     private var preferred: Dimension? = null
 
     override fun measure(constraints: Constraints): Placeable {
+        if (layoutChain.isEmpty()) {
+            measureComponent(constraints)
+            placedWidth = width
+            placedHeight = height
+            offsetX = 0
+            offsetY = 0
+            return this
+        }
+        return measureThroughChain(constraints)
+    }
+
+    /**
+     * The component measured under what the chain leaves of [constraints], then each element in turn
+     * stating what it occupies around what the one inside it settled on, and where it puts it.
+     *
+     * The extent the outermost element states is what this measurable reports, whether or not it falls
+     * inside [constraints]; see [LayoutElement.around] for which elements hold it to what they were
+     * offered.
+     */
+    private fun measureThroughChain(constraints: Constraints): Placeable {
+        val offered = ArrayList<Constraints>(layoutChain.size)
+        var inner = constraints
+        for (element in layoutChain) {
+            offered.add(inner)
+            inner = element.narrow(inner)
+        }
+        measureComponent(inner)
+        placedWidth = width
+        placedHeight = height
+        val leftToRight = component.parent?.componentOrientation?.isLeftToRight ?: true
+        var extent = Dimension(width, height)
+        offsetX = 0
+        offsetY = 0
+        for (index in layoutChain.indices.reversed()) {
+            val element = layoutChain[index]
+            val outer = element.around(extent, offered[index])
+            val within = element.placeWithin(extent, outer, leftToRight)
+            offsetX += within.x
+            offsetY += within.y
+            extent = outer
+        }
+        width = extent.width
+        height = extent.height
+        return this
+    }
+
+    /** What the component itself answers under [constraints], with no chain between. */
+    private fun measureComponent(constraints: Constraints) {
         if (constraints.minWidth == constraints.maxWidth && constraints.minHeight == constraints.maxHeight) {
             width = constraints.minWidth
             height = constraints.minHeight
-            return this
+            return
         }
         val constrained = component as? ConstrainedSize
         if (constrained != null && owner.mode == MeasureMode.Measure) {
@@ -334,13 +412,29 @@ internal class ChildMeasurable(
             width = constraints.constrainWidth(extent.width)
             height = constraints.constrainHeight(extent.height)
         }
-        return this
     }
 
+    /** Lays the component out at the extent it was measured at, where the chain puts it within [x] and [y]. */
+    fun placeAt(
+        x: Int,
+        y: Int,
+    ) {
+        if (component.width != placedWidth || component.height != placedHeight) invalidate()
+        component.setBounds(x + offsetX, y + offsetY, placedWidth, placedHeight)
+    }
+
+    /**
+     * Where the baseline falls within the extent this measurable states. A chain asks the component at
+     * the extent the component itself occupies, and moves the answer down by as much as it moves it.
+     */
     override fun baseline(
         width: Int,
         height: Int,
-    ): Int = component.getBaseline(width, height)
+    ): Int {
+        if (layoutChain.isEmpty()) return component.getBaseline(width, height)
+        val own = component.getBaseline(placedWidth, placedHeight)
+        return if (own < 0) own else own + offsetY
+    }
 
     /** Gives up the extent measured, for a container whose layout has been invalidated. */
     fun invalidate() {
@@ -358,12 +452,16 @@ internal class ChildMeasurable(
 
     /** Captures the mutable placeable state while an intrinsic query temporarily remeasures this child. */
     fun retainMeasurement(): ChildMeasurement =
-        ChildMeasurement(width, height)
+        ChildMeasurement(width, height, placedWidth, placedHeight, offsetX, offsetY)
 
     /** Restores the placeable a retained layout result expects after an intrinsic query. */
     fun restoreMeasurement(measurement: ChildMeasurement) {
         width = measurement.width
         height = measurement.height
+        placedWidth = measurement.placedWidth
+        placedHeight = measurement.placedHeight
+        offsetX = measurement.offsetX
+        offsetY = measurement.offsetY
     }
 }
 
@@ -371,6 +469,10 @@ internal class ChildMeasurable(
 internal data class ChildMeasurement(
     val width: Int,
     val height: Int,
+    val placedWidth: Int,
+    val placedHeight: Int,
+    val offsetX: Int,
+    val offsetY: Int,
 )
 
 /** The component a policy of this library reads a property of - a maximum size, a baseline, a visibility. */
@@ -422,9 +524,6 @@ internal class InnerPlacementScope : PlacementScope {
         x: Int,
         y: Int,
     ) {
-        val child = this as ChildMeasurable
-        val component = child.component
-        if (component.width != width || component.height != height) child.invalidate()
-        component.setBounds(originX + x, originY + y, width, height)
+        (this as ChildMeasurable).placeAt(originX + x, originY + y)
     }
 }

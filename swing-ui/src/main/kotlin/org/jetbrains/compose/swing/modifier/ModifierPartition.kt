@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.modifier
 
 import org.jetbrains.compose.swing.modifier.layout.ConstraintElement
+import org.jetbrains.compose.swing.modifier.layout.LayoutElement
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
 import org.jetbrains.compose.swing.modifier.layout.twoKindsOfConstraint
 
@@ -30,6 +31,15 @@ internal class ModifierPartition {
      */
     var constraint: Any? = null
         private set
+
+    /**
+     * The layout elements the modifier being applied declares, in declaration order - a chain the child's
+     * container measures it through, outermost first. Empty where it declares none.
+     *
+     * Separate from [constraint] because the two fold differently and neither can stand for the other: a
+     * constraint names a place in one parent and is resolved last-of-its-kind, while these compose.
+     */
+    val layoutChain: MutableList<LayoutElement> = ArrayList()
 
     /**
      * Whether the constraint reached so far was stated whole rather than in parts, or `null` where the
@@ -62,6 +72,11 @@ internal class ModifierPartition {
 
             is ConstraintElement -> {
                 takeConstraint(element)
+            }
+
+            // Ordered rather than resolved: a chain of these is applied in the order it was declared.
+            is LayoutElement -> {
+                layoutChain.add(element)
             }
 
             is KeyElement -> {

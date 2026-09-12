@@ -3,7 +3,10 @@ package org.jetbrains.compose.swing.foundation.layout
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Rectangle
+import javax.swing.JComponent
+import javax.swing.JFrame
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 
 /** A manager whose policy a test supplies outright, rather than one that is its own policy. */
 internal class TestPolicyLayout(
@@ -60,3 +63,25 @@ internal fun measuredUnder(
 
 /** Large enough that the panel holding a measured policy never itself decides an extent. */
 private const val MEASURED_PANEL_EXTENT = 1000
+
+/**
+ * Runs [body] with [root] under a frame that grants it a peer - what makes a container hold between two
+ * Swing calls what a pass measured - on the dispatch thread that frame lays its own content out on. The
+ * frame is never shown, so nothing takes focus.
+ */
+internal fun peered(
+    root: JComponent,
+    body: () -> Unit,
+) {
+    val frame = JFrame()
+    try {
+        SwingUtilities.invokeAndWait {
+            frame.contentPane.layout = null
+            frame.contentPane.add(root)
+            frame.addNotify()
+            body()
+        }
+    } finally {
+        SwingUtilities.invokeAndWait { frame.dispose() }
+    }
+}

@@ -10,7 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * [SwingApplier] honors [SwingNodeHolder.constraint] when adding components to a constrained layout
+ * [SwingApplier] honors [ParentDeclaration.constraint] when adding components to a constrained layout
  * (here [BorderLayout]), and preserves each component's constraint across the remove/re-add
  * [SwingApplier.move] performs internally - Swing itself drops a child's constraint on `remove`, so
  * the applier has to carry it across.
@@ -33,7 +33,7 @@ class SwingApplierConstraintTest {
     private fun constrainedHolder(
         component: Component,
         constraint: Any,
-    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.applyConstraint(constraint) }
+    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.declaration.applyConstraint(constraint) }
 
     private val owners = mutableListOf<TestCompositionOwner>()
 

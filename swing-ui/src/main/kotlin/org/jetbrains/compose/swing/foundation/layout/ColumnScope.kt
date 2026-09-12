@@ -16,7 +16,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * ```
  */
 @LayoutScopeMarker
-public sealed interface ColumnScope : FillWidthScope {
+public sealed interface ColumnScope :
+    FillWidthScope,
+    ConstrainedScope {
     /**
      * Claims [weight] shares of the height the column has left over once every child that claims none
      * has taken the height it prefers. Two children weighted `1f` and `2f` take a third and two thirds

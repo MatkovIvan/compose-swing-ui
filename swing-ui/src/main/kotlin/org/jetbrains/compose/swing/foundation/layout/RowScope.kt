@@ -16,7 +16,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * ```
  */
 @LayoutScopeMarker
-public sealed interface RowScope : FillHeightScope {
+public sealed interface RowScope :
+    FillHeightScope,
+    ConstrainedScope {
     /**
      * Claims [weight] shares of the width the row has left over once every child that claims none has
      * taken the width it prefers. Two children weighted `1f` and `2f` take a third and two thirds of it.

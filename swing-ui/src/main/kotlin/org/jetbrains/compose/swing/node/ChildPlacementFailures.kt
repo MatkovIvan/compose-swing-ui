@@ -1,8 +1,10 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.components.layout.ScrollablePanel
 import java.awt.Component
 import java.awt.Container
 import java.lang.reflect.Modifier
+import javax.swing.JPanel
 
 // What the SwingApplier prints when a child cannot be placed where the composition puts it: the
 // container, the component, and the call that fixes it, since only the composition can.
@@ -14,9 +16,17 @@ import java.lang.reflect.Modifier
  */
 internal val Component.declaredName: String
     get() =
-        generateSequence(javaClass as Class<*>) { it.superclass }
-            .first { Modifier.isPublic(it.modifiers) }
-            .simpleName
+        when (this) {
+            is ScrollablePanel -> {
+                JPanel::class.java.simpleName
+            }
+
+            else -> {
+                generateSequence(javaClass as Class<*>) { it.superclass }
+                    .first { Modifier.isPublic(it.modifiers) }
+                    .simpleName
+            }
+        }
 
 /** A child of a region-holding host that names no region: it would be held by nothing and laid out by nobody. */
 internal fun childNamesNoRegion(
@@ -29,6 +39,22 @@ internal fun childNamesNoRegion(
     return "A ${host.declaredName} holds each child in one of its own regions rather than as an " +
         "indexed child, so every child must declare which region it fills. The " +
         "${child.declaredName} declared here names none. $add"
+}
+
+/**
+ * A child measured through layout modifiers arriving at a host that cannot measure it under
+ * constraints. Names the host being joined, not the one being left: on a relocation this fires as the
+ * child attaches, and a message naming where it came from would read as a fault of that container.
+ */
+internal fun hostCannotMeasureChild(
+    host: Container,
+    child: SwingNodeHolder<*>,
+): String {
+    val declared = child.declaration.layoutChain.joinToString { "SwingModifier.${it.name}()" }
+    return "A ${host.declaredName} lays each child out at the size the child asks for, so it never " +
+        "measures one under constraints of its own, and the ${child.component.declaredName} joining it " +
+        "declares $declared. Put the component in a Box inside this container and declare the layout " +
+        "modifiers on the Box's child, which the Box measures."
 }
 
 /** A child naming a region of a host that has none: the container offering that region is elsewhere. */

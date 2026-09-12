@@ -687,7 +687,7 @@ public final class org/jetbrains/compose/swing/foundation/layout/BiasAlignment$V
 	public fun toString ()Ljava/lang/String;
 }
 
-public abstract interface class org/jetbrains/compose/swing/foundation/layout/BoxScope : org/jetbrains/compose/swing/foundation/layout/FillHeightScope, org/jetbrains/compose/swing/foundation/layout/FillWidthScope {
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/BoxScope : org/jetbrains/compose/swing/foundation/layout/ConstrainedScope, org/jetbrains/compose/swing/foundation/layout/FillHeightScope, org/jetbrains/compose/swing/foundation/layout/FillWidthScope {
 	public abstract fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun fillHeight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun fillWidth (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -695,11 +695,28 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/Bo
 	public abstract fun zIndex (Lorg/jetbrains/compose/swing/modifier/SwingModifier;F)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
-public abstract interface class org/jetbrains/compose/swing/foundation/layout/ColumnScope : org/jetbrains/compose/swing/foundation/layout/FillWidthScope {
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/ColumnScope : org/jetbrains/compose/swing/foundation/layout/ConstrainedScope, org/jetbrains/compose/swing/foundation/layout/FillWidthScope {
 	public abstract fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun fillWidth (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun weight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZ)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun weight$default (Lorg/jetbrains/compose/swing/foundation/layout/ColumnScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/ConstrainedScope {
+	public fun absoluteOffset (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun absoluteOffset$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public fun absolutePadding (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIII)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun absolutePadding$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIIIILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public fun aspectRatio (Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZ)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun aspectRatio$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public fun defaultMinSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public fun offset (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun offset$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public fun padding (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public fun padding (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public fun padding (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIII)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun padding$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIIIILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun padding$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/ConstrainedSize {
@@ -791,7 +808,7 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/Pl
 	public fun placeRelative (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;II)V
 }
 
-public abstract interface class org/jetbrains/compose/swing/foundation/layout/RowScope : org/jetbrains/compose/swing/foundation/layout/FillHeightScope {
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/RowScope : org/jetbrains/compose/swing/foundation/layout/ConstrainedScope, org/jetbrains/compose/swing/foundation/layout/FillHeightScope {
 	public abstract fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun alignByBaseline (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun fillHeight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -1001,6 +1018,8 @@ public final class org/jetbrains/compose/swing/modifier/layout/LayoutModifierKt 
 	public static final fun maximumSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun minimumSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun minimumSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun onPlaced (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun onSizeChanged (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun preferredSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun preferredSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun size (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;

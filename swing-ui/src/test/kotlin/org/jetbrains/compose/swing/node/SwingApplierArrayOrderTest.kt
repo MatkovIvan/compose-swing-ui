@@ -35,7 +35,7 @@ class SwingApplierArrayOrderTest {
     private fun constrainedHolder(
         component: Component,
         constraint: Any,
-    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.applyConstraint(constraint) }
+    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.declaration.applyConstraint(constraint) }
 
     private val owners = mutableListOf<TestCompositionOwner>()
 

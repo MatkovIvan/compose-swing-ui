@@ -17,7 +17,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 @LayoutScopeMarker
 public sealed interface BoxScope :
     FillWidthScope,
-    FillHeightScope {
+    FillHeightScope,
+    ConstrainedScope {
     /**
      * Places the child at [alignment] on both axes, in place of the box's own `contentAlignment`.
      *
