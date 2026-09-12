@@ -3,8 +3,11 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.foundation.layout.Constraints
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SlotAttachment
+import java.awt.Dimension
+import java.awt.Point
 
 /**
  * Places the component in its parent container under [constraint] - the value
@@ -82,7 +85,7 @@ internal interface PlacementElement :
 
 /**
  * A modifier element declaring the constraint the node's parent registers its component under. A modifier
- * declares one: the [constraint] a caller names outright, or the one a container's own scope builds from
+ * declares one: the `constraint` a caller names outright, or the one a container's own scope builds from
  * what the child declares to it.
  */
 internal interface ConstraintElement : PlacementElement {
@@ -99,6 +102,64 @@ internal interface ConstraintElement : PlacementElement {
      */
     val statesWholeConstraint: Boolean get() = false
 }
+
+/**
+ * A modifier element standing between a child and the constraints its container offers it: it narrows
+ * what reaches the child, states what the child plus its own room occupies, and places the child inside
+ * that. An aspect ratio, a padding, an offset and a default minimum are each one of these.
+ *
+ * Unlike a [ConstraintElement], which names a place in the parent and is resolved last-of-its-kind, a
+ * chain of these is ordered - a ratio inside a padding is not a padding inside a ratio - so the walk
+ * keeps every one in declaration order and the measure applies them outermost first.
+ *
+ * An implementation is equal by value: the chain is redeclared whenever it differs from the one
+ * standing, and one equal only by identity would rebuild the child's measurable on every pass.
+ */
+internal interface LayoutElement : PlacementElement {
+    /** The constraints the child within this element is measured under, given the [constraints] it is offered. */
+    fun narrow(constraints: Constraints): Constraints = constraints
+
+    /**
+     * What this element occupies with a child that settled on [inner] within it, given the
+     * [constraints] this element itself was offered. An element reserving room of its own holds the
+     * extent it states to them; one whose extent is the child's own states it as it stands, so an
+     * element that sizes a child outside what it was offered reports that size rather than the offer.
+     */
+    fun around(
+        inner: Dimension,
+        constraints: Constraints,
+    ): Dimension = inner
+
+    /**
+     * Where the child sits within the [outer] extent this element occupies, relative to its top left.
+     * [leftToRight] is the reading order the container resolves a leading edge against.
+     */
+    fun placeWithin(
+        inner: Dimension,
+        outer: Dimension,
+        leftToRight: Boolean,
+    ): Point = ORIGIN
+
+    /**
+     * Where the child sits within [outer] in a precision that can compose with the surrounding layout
+     * pass before AWT receives its final [Point]. An element whose displacement already fits a [Point]
+     * uses its [placeWithin] result; one with a wider intermediate coordinate overrides this.
+     */
+    fun placeWithinCoordinate(
+        inner: Dimension,
+        outer: Dimension,
+        leftToRight: Boolean,
+    ): PlacementCoordinate =
+        placeWithin(inner, outer, leftToRight).let { PlacementCoordinate(it.x.toLong(), it.y.toLong()) }
+}
+
+/** A layout element's displacement in a precision that can compose with the surrounding layout pass. */
+internal data class PlacementCoordinate(
+    val x: Long,
+    val y: Long,
+)
+
+private val ORIGIN = Point(0, 0)
 
 /** The layout constraint a caller names outright, through [layoutConstraint]. */
 internal data class LayoutConstraintElement(
@@ -148,8 +209,20 @@ internal class SlotElement(
 internal fun twoKindsOfConstraint(): String =
     "A parent registers a child under one layout constraint, and this modifier declares two kinds: one " +
         "named with layoutConstraint(), and one declared to the container's own scope - weight(), " +
-        "align() or a cross-axis fill. Declare the one the enclosing container places its children by, " +
-        "and drop the other."
+        "align(), a cross-axis fill or matchParentSize(). Declare the one the enclosing container " +
+        "places its children by, and drop the other."
+
+/**
+ * Why a modifier declaring to the scopes of two different containers is refused. Both build one
+ * constraint a part at a time, so the parts fold together, and a modifier mixing them describes a
+ * placement in a container that places its children the other way.
+ */
+internal fun twoScopesOfConstraint(): String =
+    "A parent registers a child under one layout constraint, and this modifier declares parts of two " +
+        "kinds, where each container's scope builds one: a Row's or a Column's - weight(), align() or " +
+        "a fill - a Box's - align(), matchParentSize() or zIndex() - and a plain fill on its own, as " +
+        "a container reading nothing else takes it. Declare the one the enclosing container places " +
+        "its children by, and drop the other."
 
 /**
  * Refuses a modifier declaring both kinds of placement, before either is written onto the node. A parent
@@ -160,7 +233,15 @@ internal fun twoKindsOfConstraint(): String =
 internal fun checkOnePlacement(
     slot: SlotElement?,
     constraint: Any?,
+    layoutChain: List<LayoutElement>,
 ) {
+    require(slot == null || layoutChain.isEmpty()) {
+        val declared = layoutChain.joinToString { "SwingModifier.${it.name}()" }
+        "A component filling a region of its host is laid out by that host's own setter rather than " +
+            "measured by a layout manager, so there is nothing to measure it under the constraints " +
+            "$declared asks for, and this modifier declares both that and ${slot?.regionName}. Put the " +
+            "component in a Box inside the region and declare the layout modifiers on the Box's child."
+    }
     require(slot == null || constraint == null) {
         "A parent holds a child either under a layout constraint its layout manager registers the " +
             "component by, or in a region of its own reached through a setter written for that region, " +

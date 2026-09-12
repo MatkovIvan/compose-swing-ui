@@ -11,6 +11,8 @@ import androidx.compose.runtime.*
 import org.jetbrains.compose.swing.components.*
 import org.jetbrains.compose.swing.components.button.*
 import org.jetbrains.compose.swing.components.layout.*
+import org.jetbrains.compose.swing.foundation.*
+import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.components.menu.*
 import org.jetbrains.compose.swing.components.selection.*
 import org.jetbrains.compose.swing.components.text.*
@@ -32,6 +34,8 @@ import androidx.compose.runtime.*
 import org.jetbrains.compose.swing.components.*
 import org.jetbrains.compose.swing.components.button.*
 import org.jetbrains.compose.swing.components.layout.*
+import org.jetbrains.compose.swing.foundation.*
+import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.components.menu.*
 import org.jetbrains.compose.swing.window.*
 import java.awt.Dimension
@@ -365,7 +369,7 @@ the row's unless `opaque(false)` says otherwise.
 
 ```kotlin
 ComboBox(items = languages, selectedItem = selected, onSelectionChange = { selected = it }) { language ->
-    BorderPanel(modifier = SwingModifier.opaque(false)) {
+    Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(false)) {
         Label(language.glyph, modifier = SwingModifier.west().preferredSize(24, 24))
         Label(language.name)
     }
@@ -433,7 +437,7 @@ ScrollPane {
     ) {
         column("Name", isEditable = true, onCellEdit = { row, _, value -> rename(row, value) }) { it.name }
         column("Age", isCellEditable = { row, _ -> row.isDraft }) { it.age }
-        column("Owner", cellContent = { row -> FlowPanel { Label(row.avatar); Label(row.owner) } }) { it.owner }
+        column("Owner", cellContent = { row -> Panel { Label(row.avatar); Label(row.owner) } }) { it.owner }
     }
 }
 ```
@@ -479,7 +483,7 @@ Tree(
     },
     rowHeight = 0,
 ) { node ->
-    FlowPanel { Label(node.icon); Label(node.label) }
+    Panel { Label(node.icon); Label(node.label) }
 }
 ```
 
@@ -532,13 +536,9 @@ offers it and cannot be named anywhere else.
 
 | Component       | What it is                                                                                                         |
 |-----------------|--------------------------------------------------------------------------------------------------------------------|
-| `BoxPanel`      | A single-axis stack over `BoxLayout`.                                                                              |
 | `Row`, `Column` | A single-axis stack holding each child at the size it prefers, with its leftover space placed by an `Arrangement`. |
-| `FlowPanel`     | A wrapping strip over `FlowLayout`.                                                                                |
-| `GridPanel`     | Equal-sized cells over `GridLayout`.                                                                               |
-| `BorderPanel`   | Four edges and a filling center over `BorderLayout`, each named by the child in it.                                |
-| `GridBagPanel`  | Cell-by-cell placement over `GridBagLayout`, each child naming its cell with `item(...)`.                          |
-| `CardPanel`     | A deck over `CardLayout`, one card visible at a time, addressed by key.                                            |
+| `Box`           | A stack of children in one place, sized to the largest of them, each placed by an `Alignment`.                     |
+| `Panel`         | A `JPanel` under the layout manager its `layout` names, from `PanelLayout`'s set.                                  |
 | `TabbedPane`    | Tabs over `JTabbedPane`, each child the body of the tab it declares with `tab(...)`.                               |
 | `SplitPane`     | Two sides and a draggable divider over `JSplitPane`.                                                               |
 | `ScrollPane`    | A scrolled viewport plus header and corner regions over `JScrollPane`.                                             |
@@ -546,25 +546,45 @@ offers it and cannot be named anywhere else.
 | `LayeredPane`   | Children stacked on integer depth layers over `JLayeredPane`.                                                      |
 | `DesktopPane`   | Floating internal frames over `JDesktopPane`.                                                                      |
 
+`Row`, `Column` and `Box` are the Compose-shaped containers, arranging their children themselves;
+`Panel` hands the arranging to a Swing layout manager, one of the closed set `PanelLayout` names:
+
+| `layout`             | What it lays out                                                                          |
+|----------------------|-------------------------------------------------------------------------------------------|
+| `PanelLayout.Box`    | A single-axis stack over `BoxLayout`.                                                     |
+| `PanelLayout.Flow`   | A wrapping strip over `FlowLayout`.                                                       |
+| `PanelLayout.Grid`   | Equal-sized cells over `GridLayout`.                                                      |
+| `PanelLayout.Border` | Four edges and a filling center over `BorderLayout`, each named by the child in it.       |
+| `PanelLayout.GridBag` | Cell-by-cell placement over `GridBagLayout`, each child naming its cell with `item(...)`. |
+| `PanelLayout.Card`   | A deck over `CardLayout`, one card visible at a time, addressed by key.                   |
+
+A `Panel` that names no layout takes the one a `JPanel` builds itself with, a `PanelLayout.Flow()`.
+
+Each layout carries its own parameters and hands the content the scope through which children declare
+their placement under it. Changing those parameters applies to the panel already standing; changing
+the layout to another kind rebuilds the panel, because the constraints its children carry belong to
+the manager that was there. A manager outside this set is declared with a `SwingNode` of your own -
+see [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md).
+
 Showing and hiding part of a layout is composing and not composing it: emitting a child adds it where
 it declares it belongs, dropping the child takes it out, and declaring a different placement moves it
 without costing the component it already has.
 
 Where a region holds a single child, what a second child naming it costs is the region's own: a
-`BorderPanel` region is taken by the last child registered in it and the panel lays nothing out for the
-first, while a `SplitPane` side and a `CardPanel` card are refused to a second child, naming the side
-or the card. That refusal is over what the composition declares once its changes have reached the
-components, so a child replacing another on a side or a card is a single occupant throughout, whichever
-order the two changes reach the container in. A `BorderPanel` child that names no region occupies
-`center`, the region a `BorderLayout` registers a constraintless child under.
+`PanelLayout.Border` region is taken by the last child registered in it and the panel lays nothing out
+for the first, while a `SplitPane` side and a `PanelLayout.Card` card are refused to a second child,
+naming the side or the card. That refusal is over what the composition declares once its changes have
+reached the components, so a child replacing another on a side or a card is a single occupant
+throughout, whichever order the two changes reach the container in. A `PanelLayout.Border` child that
+names no region occupies `center`, the region a `BorderLayout` registers a constraintless child under.
 
-`BorderPanel` offers two families of edge: the absolute compass (`north`, `south`, `east`, `west`)
-and the orientation-aware one (`pageStart`, `pageEnd`, `lineStart`, `lineEnd`), which resolve
+`PanelLayout.Border` offers two families of edge: the absolute compass (`north`, `south`, `east`,
+`west`) and the orientation-aware one (`pageStart`, `pageEnd`, `lineStart`, `lineEnd`), which resolve
 against the panel's `ComponentOrientation`. `center` is shared. Use one family per edge. Its
 `hgap`/`vgap` default to `0`.
 
 ```kotlin
-BorderPanel {
+Panel(PanelLayout.Border()) {
     Label("Title", modifier = SwingModifier.pageStart())
     Body()
     Label("Status", modifier = SwingModifier.pageEnd())
@@ -573,20 +593,27 @@ BorderPanel {
 
 <!--- CLEAR -->
 
-`Row` and `Column` are the two single-axis stacks you reach for most. Along its axis, a child keeps
-the size it prefers, and the space the container has left over is placed by an `Arrangement`
+`Row` and `Column` are the two single-axis stacks you reach for most. An explicit `maximumSize` caps
+the offer and normally the extent a weighted or unweighted child takes on either axis, which in turn
+bounds the container's own preferred size. A layout modifier whose own contract permits escape from an
+impossible offer - `aspectRatio`, for example - may report an extent outside that maximum; the
+container asks for that returned extent. The space the container has left over is placed by an
+`Arrangement`
 (`Top`, `Bottom`, `Start`, `End`, `Center`, `SpaceBetween`, `SpaceAround`, `SpaceEvenly`,
-`spacedBy(gap)`, `aligned(...)`). Across the axis, a child sits where an `Alignment` puts it, or
-takes the whole cross extent in its place. Spacing and every other measure here is in pixels. An
-`Arrangement` of your own is handed the children's sizes and the positions to write in two arrays the
-container owns and reuses on its next layout pass, so read and write them within the call and keep
-neither.
+`spacedBy(gap)`, `aligned(...)`); `Arrangement.Absolute` holds the same set for a row that should
+read left to right whatever the container's `ComponentOrientation` says. Across the axis, a child
+sits where an `Alignment.Horizontal` or `Alignment.Vertical` puts it - or an `AbsoluteAlignment`,
+which ignores the orientation the same way - or takes the whole cross extent in its place. Spacing
+and every other measure here is in pixels. An `Arrangement` of your own is handed the children's
+sizes and the positions to write in two arrays the container owns and reuses on its next layout
+pass, so read and write them within the call and keep neither.
 
-A child claims a share of the leftover space with `weight`, names its own cross-axis placement
-with `align`, or takes the whole cross extent with `fillWidth` / `fillHeight` in place of both its
-own `align` and the container's cross-axis alignment, capped by an explicit `maximumSize` where it
-declares one - through the `RowScope` / `ColumnScope` its content is written in, modifier
-extensions so children stay plain:
+A child claims a share of the leftover space with `weight`, which also makes the container ask its
+own parent for the room that share needs. It names its own cross-axis placement with `align`, sits
+on the row's shared text baseline with `alignByBaseline`, or takes the whole cross extent with
+`fillWidth` / `fillHeight` in place of all of those and of the container's cross-axis alignment,
+capped by an explicit `maximumSize` where it declares one - through the `RowScope` / `ColumnScope`
+its content is written in, modifier extensions so children stay plain:
 
 ```kotlin
 Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alignment.Start) {
@@ -594,7 +621,7 @@ Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alig
         Button("Back", onClick = ::open)
         Button("Forward", onClick = ::open)
     }
-    FlowPanel(modifier = SwingModifier.weight(1f), hgap = 8, vgap = 4) { Body() }
+    Panel(PanelLayout.Flow(hgap = 8, vgap = 4), modifier = SwingModifier.weight(1f)) { Body() }
     Label("Status", modifier = SwingModifier.align(Alignment.CenterHorizontally))
 }
 ```
@@ -603,22 +630,38 @@ Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alig
 
 A weighted child takes its share of what is left after every child that claims none has taken the
 size it prefers, in proportion to the weights; `weight(w, fill = false)` lets it settle for the size
-it prefers and leaves the rest to the arrangement. An explicit `maximumSize` caps that share.
+it prefers and leaves the rest to the arrangement.
 
-`BoxPanel` is the direct `BoxLayout` wrapper, and a `ToolBar` lays its controls out the same way:
-each shares its leftover space out among the children that have room between the size they prefer and
+Beside the placements, a child of a `Row`, a `Column` or a `Box` declares what stands between the
+extent its container offers and its own measure, through `ConstrainedScope`, which those three scopes
+inherit: `padding` reserves room along the child's edges, `offset` moves it from where it would
+otherwise sit without changing the room it measures into, `aspectRatio` sizes it to a width per unit
+height, and `defaultMinSize` raises its minimum along whichever axis the container leaves at zero. The
+container measures and places the child plus the room its chain reserved as one rectangle, so each of
+these reaches the child through the container rather than by writing anything on the component.
+
+`PanelLayout.Box` is `BoxLayout` itself, and a `ToolBar` lays its controls out the same way: each
+shares its leftover space out among the children that have room between the size they prefer and
 their maximum size, in proportion to that room. `Glue` is empty space with the most room of all, so it
 takes the largest share, and `Strut`, `RigidArea` and `Spacer` (a `RigidArea` square) are the fixed
-gaps between items. `FlowPanel` centers its children and gaps them by `5` pixels, and `GridPanel`
-starts as a single row that grows a column per child, with no gaps.
+gaps between items. `PanelLayout.Flow` centers its children and gaps them by `5` pixels, and
+`PanelLayout.Grid` starts as a single row that grows a column per child, with no gaps.
 
-`GridBagPanel`'s `item` takes one parameter per `GridBagConstraints` field, under the field's own
-name and with its own default, so a grid-bag layout written against Swing carries over field for
+`Box` stacks its children in one place instead of along an axis: it is sized to the largest of them and
+places each one over the ones declared before it, where the box's `contentAlignment` puts it - which is
+what puts a badge on a corner of the thing it marks. A child names its own placement with `align`, takes
+the box's whole extent along one axis with `fillWidth` / `fillHeight` and along both with
+`matchParentSize` - which alone leaves the box's size to its other children, while a filling child is
+still measured on the axis it does not fill - or names where in the stack it sits with `zIndex`, which
+lifts it over every sibling declaring a smaller one wherever the two are declared.
+
+`PanelLayout.GridBag`'s `item` takes one parameter per `GridBagConstraints` field, under the field's
+own name and with its own default, so a grid-bag layout written against Swing carries over field for
 field.
 
 ```kotlin
 var name by remember { mutableStateOf("") }
-GridBagPanel {
+Panel(PanelLayout.GridBag) {
     Label(
         "Name:",
         modifier =
@@ -643,15 +686,15 @@ GridBagPanel {
 A child that declares no `item` is laid out under `GridBagConstraints`' own defaults, which place it
 relative to the child before it.
 
-`CardPanel` shows the card whose key equals its `selectedCard`, so switching pages is a state write. A
-card holds one child, and two children naming the same card are refused. A child that declares no
-card is the card keyed by the empty string, shown by `selectedCard = ""`. The key names the card, not
-the child: a child that declares a new key moves to that card keeping its position among its siblings,
-and its composition identity is the place it is written at, as any child's is.
+`PanelLayout.Card` shows the card whose key equals its `selectedCard`, so switching pages is a state
+write. A card holds one child, and two children naming the same card are refused. A child that
+declares no card is the card keyed by the empty string, shown by `selectedCard = ""`. The key names
+the card, not the child: a child that declares a new key moves to that card keeping its position among
+its siblings, and its composition identity is the place it is written at, as any child's is.
 
 ```kotlin
 var step by remember { mutableStateOf("details") }
-CardPanel(selectedCard = step) {
+Panel(PanelLayout.Card(selectedCard = step)) {
     Details(modifier = SwingModifier.card("details"))
     Payment(modifier = SwingModifier.card("payment"))
 }
@@ -738,10 +781,10 @@ ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
 
 A `ToolBar` is horizontal by default, and leaves `floatable` - whether the user can drag it out - at
 the choice the bar already carries unless declared. A bar that declares `floatable = true` has to
-stand in a container laid out by a `BorderLayout` - a `BorderPanel`, or a window's own content, and is
-refused anywhere else. `floating` declares whether the bar stands in a window of its own, and
-`onFloatingChange` reports where the user dragged it - or hands back the docked state a bar that
-cannot float settles for.
+stand in a container laid out by a `BorderLayout` - a `PanelLayout.Border` panel, or a window's own
+content - and is refused anywhere else. `floating` declares whether the bar stands in a window of its
+own, and `onFloatingChange` reports where the user dragged it - or hands back the docked state a bar
+that cannot float settles for.
 
 ```kotlin
 ToolBar(floatable = false, rollover = true) {
@@ -830,7 +873,9 @@ written where there is a window to carry it.
 
 `GlassPane { }` is the sheet above everything else in the window: it covers the whole window, it is
 transparent where its content paints nothing, and while it is shown the window's mouse events reach
-it - a drag-and-drop hint, a progress veil, anything drawn over the window rather than in it.
+it rather than the content underneath - a drag-and-drop hint, a progress veil, anything drawn over the
+window rather than in it. The overlay's own content is reached first, so a button in it still gets its
+clicks.
 The content fills the pane, so a layout composable inside it places what the overlay is made of. The
 pane is over the window while the declaration is composed, and the window carries the glass pane it
 carried before once the declaration leaves, so an overlay that comes and goes is an `if` around the
@@ -842,7 +887,7 @@ Window(onCloseRequest = ::exitApplication) {
 
     if (loading) {
         GlassPane {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 ProgressBar(value = 0, indeterminate = true)
             }
         }
@@ -887,7 +932,7 @@ if (asking) {
         title = "Confirm",
         modality = java.awt.Dialog.ModalityType.APPLICATION_MODAL,
     ) {
-        BorderPanel {
+        Panel(PanelLayout.Border()) {
             Label("Delete the selection?")
             Button("OK", onClick = { asking = false }, modifier = SwingModifier.pageEnd())
         }

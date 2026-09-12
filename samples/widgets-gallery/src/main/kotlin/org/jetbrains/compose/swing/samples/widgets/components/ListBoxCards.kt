@@ -9,12 +9,13 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.selection.rememberListState
+import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -73,10 +74,9 @@ internal fun ColumnScope.ListBoxCard() {
                 visibleRowCount = visibleRows,
                 layoutOrientation = listBoxOrientations[orientationIndex].second,
             ) { row ->
-                FlowPanel(
+                Panel(
+                    PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
                     modifier = SwingModifier.opaque(false),
-                    alignment = FlowLayout.LEADING,
-                    vgap = 0,
                 ) {
                     Label(if (isSelected) "●" else "○")
                     Label(row)
@@ -92,7 +92,7 @@ private fun ListBoxSelectionModeControl(
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
 ) {
-    FlowPanel {
+    Panel {
         Label("Selection mode:")
         RadioGroup(
             selectedIndex = selectedIndex,
@@ -111,7 +111,7 @@ private fun ListBoxLayoutControls(
     visibleRows: Int,
     onVisibleRowsChange: (Int) -> Unit,
 ) {
-    FlowPanel {
+    Panel {
         Label("Layout:")
         RadioGroup(
             selectedIndex = orientationIndex,
@@ -164,7 +164,7 @@ internal fun ColumnScope.ListBoxModelCard() {
         var entryCount by remember { mutableIntStateOf(model.size()) }
         val state = rememberListState()
 
-        FlowPanel {
+        Panel {
             Button(
                 "Add & reveal",
                 onClick = {

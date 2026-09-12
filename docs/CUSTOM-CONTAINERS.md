@@ -1,16 +1,131 @@
 # Containers and item cells
 
-A container declares its children rather than adding them, and offers the placements its layout
-manager understands as a scope. This document is writing such a container, the shared hierarchies
-assembled from them, hosting a nested composition, and rendering a component's items with a
-composable cell. Building a leaf component is [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+A container declares its children rather than adding them, and offers the placements it understands as
+a scope. This document is writing such a container, the shared hierarchies assembled from them, hosting
+a nested composition, and rendering a component's items with a composable cell. Building a leaf
+component is [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md). How the layout system works is
+[`FOUNDATION-LAYOUT.md`](FOUNDATION-LAYOUT.md).
 
-## A container example
+Where a container of your own starts depends on where its placement rules live:
 
-For a custom container, use the `content` overload and create a `Container` in the factory; children
-emitted by `content` are added by the framework's applier:
+- **They are yours to write.** Hand a `MeasurePolicy` of your own to `Layout`. `Row`, `Column` and
+  `Box` are each such a policy, and a policy you write is asked the same questions theirs are.
+- **They belong to a `LayoutManager` you did not write** - one of Swing's that `PanelLayout` does not
+  name, or a third party's. Build the container around that manager in a `SwingNode` factory.
+
+## Measuring and placing children: `Layout`
+
+`Layout` composes its content under a `MeasurePolicy`. The policy is handed one `Measurable` per child
+and the `Constraints` the container was offered, measures each child under constraints it works out for
+it, and answers with `layout(width, height) { ... }` - a member of the `MeasureScope` it runs in: the
+extent the container occupies, and a block placing what it measured. Both are relative to the
+container's inner rectangle, inside its insets, so a policy places in the coordinates it measured in.
 
 <!--- INCLUDE .*custom-container-01.*
+import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
+import org.jetbrains.compose.swing.foundation.layout.Constraints
+import org.jetbrains.compose.swing.foundation.layout.Layout
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+-->
+
+```kotlin
+/** The placements a stack offers, over the value its own policy reads back. */
+sealed interface StackScope : ConstrainedScope {
+    /** Places the child against the stack's trailing edge rather than its leading one. */
+    fun SwingModifier.alignEnd(): SwingModifier
+}
+
+private object AlignEnd
+
+private object StackScopeImpl : StackScope {
+    override fun SwingModifier.alignEnd(): SwingModifier = layoutConstraint(AlignEnd)
+}
+
+/** Stacks its children down the container, each using the height left by those before it. */
+@Composable
+fun Stack(
+    modifier: SwingModifier = SwingModifier,
+    content: @Composable StackScope.() -> Unit,
+) {
+    Layout(
+        measurePolicy = { measurables, constraints ->
+            var remainingHeight = constraints.maxHeight
+            val placeables = measurables.map { measurable ->
+                val measured = measurable.measure(
+                    Constraints(maxWidth = constraints.maxWidth, maxHeight = remainingHeight)
+                )
+                // A layout modifier may escape an impossible offer, so give an overflowing child no room.
+                val placeable =
+                    if (measured.width <= constraints.maxWidth && measured.height <= remainingHeight) {
+                        measured
+                    } else {
+                        measurable.measure(Constraints(maxWidth = 0, maxHeight = 0))
+                    }
+                remainingHeight = (remainingHeight - placeable.height).coerceAtLeast(0)
+                placeable
+            }
+            val width = constraints.constrainWidth(placeables.maxOfOrNull { it.width } ?: 0)
+            val height = constraints.constrainHeight(constraints.maxHeight - remainingHeight)
+            layout(width, height) {
+                var y = 0
+                for ((index, placeable) in placeables.withIndex()) {
+                    val trailing = measurables[index].layoutConstraint === AlignEnd
+                    placeable.placeRelative(if (trailing) parentWidth - placeable.width else 0, y)
+                    y += placeable.height
+                }
+            }
+        },
+        modifier = modifier,
+        content = { StackScopeImpl.content() },
+    )
+}
+```
+
+<!--- KNIT example-custom-container-01.kt -->
+
+A child is measured under constraints the policy works out for it, not under the ones the policy was
+handed. A container being laid out is offered a fixed extent - `minWidth` equal to `maxWidth`, the same
+for the height - and a policy handing that down forces every child to the container's whole extent. A
+policy that stacks or divides offers each child a ceiling and no floor. The stack above offers the
+container's width ceiling and the height left after earlier children, so a finite parent cannot have a
+later child placed beyond its bottom edge; with an unbounded height, the children can take what they
+prefer. A layout modifier such as `aspectRatio` may report outside an impossible offer, so the example
+remeasures such a child with zero room before placing it.
+
+The measurables arrive in declaration order, hidden children included. `isVisible` is not a layout
+filter in a `Row`, a `Column`, a `Box` or any `Layout`: a child hidden with
+`SwingModifier.visible(false)` is measured and placed like any other, so it keeps the room it reserved
+and its siblings stay where they are. What closes the gap is not composing the child. A `Panel` keeps
+its own manager's answer, which for most of the JDK's is to collapse.
+
+The content receiver is `ConstrainedScope`, so a child of a `Layout` declares its own layout modifiers -
+`padding`, `offset`, `aspectRatio`, `defaultMinSize`. Each narrows what reaches the child, states the
+child plus the room it reserved as what the policy measured, and puts the child inside that; the policy
+measures and places one rectangle per child either way.
+
+Placements of your own go in a scope of your own extending `ConstrainedScope`, as `StackScope` does
+above. Its builders append the value with `layoutConstraint`, and the policy reads that value back
+through `Measurable.layoutConstraint`. Only a policy measures a child through its layout modifiers, so
+a scope over a layout manager must not extend `ConstrainedScope`: a layout modifier under a container
+that cannot measure one is refused when it is applied.
+
+`preferredLayoutSize` and `minimumLayoutSize` hold no extent to offer, so they ask
+`MeasurePolicy.intrinsicSize`, which measures under `Constraints.Unbounded` by default. A policy that
+divides a finite extent among its children has nothing to divide there and overrides it to name what it
+wants instead.
+
+## Hosting a layout manager you did not write
+
+`Panel` takes its layout manager from the closed set `PanelLayout` names, so a manager outside that
+set - one of Swing's that the library does not model, or a third party's - is hosted by a container of
+your own.
+
+Use the `content` overload and create a `Container` under that manager in the factory; children emitted
+by `content` are added by the framework's applier:
+
+<!--- INCLUDE .*custom-container-02.*
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.annotations.SwingComposable
@@ -36,26 +151,25 @@ fun TitledGroup(
 }
 ```
 
-<!--- KNIT example-custom-container-01.kt -->
+<!--- KNIT example-custom-container-02.kt -->
 
-A container takes a `modifier` and applies it for the same reason a leaf does, and for one more: a
-container is itself a child of whatever holds it, so the group above is placed in a `BorderPanel`
-region or a `GridBagPanel` cell only because its `update` block ends where it does.
+A container takes a `modifier` because it is also a child. That modifier places the group above in a
+`PanelLayout.Border` region or a `PanelLayout.GridBag` cell in its parent.
 
 ## Placing children under constraints
 
 A child declares where it sits inside its parent on its own `SwingModifier`, with `layoutConstraint`.
-The value is whatever the enclosing container's layout manager understands - a `BorderLayout` region, a
-`GridBagConstraints`, a cell in a manager of your own - and it is handed over the way
-`Container.add(Component, Object)` hands it over, so a `LayoutManager2` receives it as-is and a manager
-that takes no constraints places the child by index.
+The value is whatever the enclosing container understands - a `BorderLayout` region, a
+`GridBagConstraints`, a cell in a manager of your own, the value a policy of your own reads back - and
+it is handed over the way `Container.add(Component, Object)` hands it over, so a `LayoutManager2`
+receives it as-is and a manager that takes no constraints places the child by index.
 
-What a container supplies is the layout manager, and a scope whose modifier builders name the
-placements that manager understands. The scope is a public sealed interface whose builders are declared
-as extensions on `SwingModifier`, so each one is callable only where that scope is in receiver
-position - inside the container's own content - and an internal object or class implements them.
-`RowScope.weight` is the worked precedent for that shape; over a manager of your own, each builder
-appends the value the manager understands with `layoutConstraint`:
+What a container supplies is the rules its children are placed by - a layout manager or a measure
+policy - and a scope whose modifier builders name the placements those rules understand. The scope is a
+public sealed interface whose builders are declared as extensions on `SwingModifier`, so each one is
+callable only where that scope is in receiver position - inside the container's own content - and an
+internal object or class implements them. `RowScope.weight` is the worked precedent for that shape;
+each builder appends the value those rules understand with `layoutConstraint`:
 
 ```kotlin
 import androidx.compose.runtime.Composable
@@ -106,7 +220,7 @@ that costs is the manager's, not the framework's: a `LayoutManager2` that keeps 
 the placements it has been handed - a grid, a set of measured column widths, a row cache - discards and
 rebuilds it each time, because a re-registration reaches it as the same
 `removeLayoutComponent`/`addLayoutComponent` pair a real structural change does. Give a placement of
-your own a value `equals`, as `GridBagPanel` does for the constraints its items declare.
+your own a value `equals`, as `GridBagPanelScope.item` does for the constraints it declares.
 
 Derive that value from the declaration rather than from a running count of the children before it,
 too: a placement computed from how many siblings came first changes for every later child the moment
@@ -115,13 +229,22 @@ The `key` a child is declared under is a separate question, answered in *What th
 in [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
 
 A scope like this keeps the constraint's type inside your container - `MosaicScope` is the whole
-placement API your callers see, and `BorderPanel`'s regions and `GridBagPanel`'s items are the same
-shape over a fixed, nameable set of placements.
+placement API your callers see, and `BorderPanelScope`'s regions and `GridBagPanelScope`'s items are
+the same shape over a fixed, nameable set of placements.
+
+A fill is the one placement you do not write yourself. A container whose children may take its whole
+extent along an axis implements `FillWidthScope` or `FillHeightScope`, inheriting `fillWidth` /
+`fillHeight` from it, and reads what a child declared off that child's constraint through
+`ParentFill`. Both the builder and the constraint behind it belong to `swing-ui`, so a fill
+means the same thing in your container as it does in a `Row` or a `Column`, and your container declares
+no constraint type for it. One that also names placements of its own overrides the builder and folds
+the fill into that constraint instead, as `RowScope` does.
 
 A scope is worth writing only where the placements are worth naming. Where a layout manager answers
 for a child that declares nothing - `BorderLayout` places one at `CENTER`, `JLayeredPane` on
 `DEFAULT_LAYER`, `CardLayout` under the empty name - a container over it takes a plain
-`@Composable () -> Unit` content and lets the manager do the placing. That is the usual case: no
+`@Composable () -> Unit` content and lets the manager do the placing, and a container over a policy
+that reads no constraint takes `@Composable ConstrainedScope.() -> Unit`. That is the usual case: no
 scope, no constraint. `layoutConstraint` stays available to a caller who does need to name a
 placement.
 
@@ -129,9 +252,9 @@ Three rules shape a container of this kind, and every container that places chil
 follows all three:
 
 - **The content block is `@Composable`, and the children written in it compose where the container's
-  own children belong.** Declare it `content: @Composable XScope.() -> Unit` and hand it to `SwingNode`
-  as `content = { XScopeImpl.content() }`. Beyond making every child a node the applier places, this is
-  what gives each child the identity described in *What the composition owns* in
+  own children belong.** Declare it `content: @Composable XScope.() -> Unit` and hand it to `Layout` or
+  `SwingNode` as `content = { XScopeImpl.content() }`. Beyond making every child a node the applier
+  places, this is what gives each child the identity described in *What the composition owns* in
   [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md): a child composed where the caller wrote it is told
   from its siblings by that place. An ordinary block that records composable lambdas for the container
   to invoke afterwards hands every one of them to the single place the container invokes them from, so
@@ -155,9 +278,9 @@ follows all three:
   framework, which holds a `ChildPlacement.Slots` host to one child per region once the pass settles, as
   `SplitPane` does for its two sides; one placing them under constraints runs its own check on the
   event-dispatch turn after the change pass, once a parked node's deactivation has run too, as
-  `CardPanel` does over the cards its deck holds. Either way the set a check runs against is what the
-  container actually holds - its own children, its layout's own records - rather than a list a block
-  gathered.
+  a `PanelLayout.Card` panel does over the cards its deck holds. Either way the set a check runs
+  against is what the container actually holds - its own children, its layout's own records - rather
+  than a list a block gathered.
 
 A scope's members are `SwingModifier` builders wherever the child is the caller's own component. Where
 the container is what realizes the child instead - `DesktopPane`, whose every child is a
@@ -180,6 +303,8 @@ A placement travels no further than the node whose chain declares it, which is w
 builders name placements only their own container understands.
 
 ## When the placement is not something the caller states
+
+This is a question for a layout manager only; a `MeasurePolicy` is handed every child at once.
 
 The placements above are values the caller writes: a region name, a cell, a pair of grid coordinates.
 A manager of your own may instead derive a child's placement from the children around it - a form whose
@@ -210,8 +335,9 @@ every pass.
 
 A composite several screens reuse - a titled card, a labeled form, a frame with a fixed header and
 footer - is a composable that emits the containers it needs and offers its placements as a scope
-receiver. Everything the pattern needs is public: the built-in containers, the container `SwingNode`
-overload for a Swing container of your own, and `layoutConstraint` for the placements a scope names.
+receiver. Everything the pattern needs is public: the built-in containers, `Layout` for placement rules
+of your own, the container `SwingNode` overload for a Swing container of your own, and
+`layoutConstraint` for the placements a scope names.
 
 The scope interface is the whole API callers see. Each of its builders names one region of the
 composite, over the constraint the container underneath understands:
@@ -243,7 +369,7 @@ fun Framed(
     content: @Composable FramedScope.() -> Unit,
 ) {
     val border = remember(title) { TitledBorder(title) }
-    BorderPanel(modifier = modifier.border(border)) {
+    Panel(PanelLayout.Border(), modifier = modifier.border(border)) {
         FramedScopeImpl.content()
     }
 }
@@ -257,9 +383,9 @@ Framed(title = "Payment") {
 
 The composite owns no node of its own, and it does not have to. A placement rides the child's chain
 until the container actually holding that child reads it, so the `BorderLayout` constraint
-`FramedScopeImpl` builds is honored by the `BorderPanel` inside `Framed` although the caller never sees
-that panel. That is what makes a composite of built-in containers a plain composable function rather
-than a wrapper that has to forward anything.
+`FramedScopeImpl` builds is honored by the `Panel` inside `Framed` although the caller never sees that
+panel. That is what makes a composite of built-in containers a plain composable function rather than a
+wrapper that has to forward anything.
 
 Four things make a composite of this shape behave:
 
@@ -277,8 +403,8 @@ Four things make a composite of this shape behave:
   a no-op. A value with structural equality - a `Font`, `Color`, `Insets` - needs no `remember`: an
   equal instance already compares equal to the chain element applied last time and the write is skipped.
 - **Let each container place its own children.** Nothing carries a placement past the node that
-  declared it, so a composite nests inside another - a `GridBagPanel` in the `body` region above - with
-  neither knowing about the other.
+  declared it, so a composite nests inside another - a `PanelLayout.GridBag` panel in the `body`
+  region above - with neither knowing about the other.
 
 Reach for `SwingNode` here only when the Swing container itself is yours; a composite assembled from
 built-in containers is an ordinary composable function.
@@ -318,7 +444,7 @@ A component that shows a list of items asks a `ListCellRenderer` for one row at 
 component it composes is painted and measured as the row.
 
 <!--- CLEAR -->
-<!--- INCLUDE .*custom-container-02.*
+<!--- INCLUDE .*custom-container-03.*
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.listItemRenderer
@@ -355,7 +481,7 @@ fun <T : Any> CustomComboBox(
 }
 ```
 
-<!--- KNIT example-custom-container-02.kt -->
+<!--- KNIT example-custom-container-03.kt -->
 
 The component is the caller's own, so a subclass with rendering or sizing behavior the built-in
 `ComboBox` does not have is a wrapper of your own rather than a parameter on the library's.

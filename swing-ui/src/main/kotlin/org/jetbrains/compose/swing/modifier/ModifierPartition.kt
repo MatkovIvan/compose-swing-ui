@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.modifier
 
 import org.jetbrains.compose.swing.modifier.layout.ConstraintElement
+import org.jetbrains.compose.swing.modifier.layout.LayoutElement
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
 import org.jetbrains.compose.swing.modifier.layout.twoKindsOfConstraint
 
@@ -30,6 +31,17 @@ internal class ModifierPartition {
      */
     var constraint: Any? = null
         private set
+
+    private var mutableLayoutChain: MutableLayoutChain? = null
+
+    /**
+     * The layout elements the modifier being applied declares, in declaration order - a chain the child's
+     * container measures it through, outermost first. Empty where it declares none.
+     *
+     * Separate from [constraint] because the two fold differently and neither can stand for the other: a
+     * constraint names a place in one parent and is resolved last-of-its-kind, while these compose.
+     */
+    val layoutChain: List<LayoutElement> get() = mutableLayoutChain.orEmpty()
 
     /**
      * Whether the constraint reached so far was stated whole rather than in parts, or `null` where the
@@ -62,6 +74,11 @@ internal class ModifierPartition {
 
             is ConstraintElement -> {
                 takeConstraint(element)
+            }
+
+            // Ordered rather than resolved: a chain of these is applied in the order it was declared.
+            is LayoutElement -> {
+                mutableLayoutChain?.add(element) ?: MutableLayoutChain(element).also { mutableLayoutChain = it }
             }
 
             is KeyElement -> {
@@ -111,5 +128,13 @@ internal class ModifierPartition {
         // Last wins the place as well as the value, the way a property key does: a declaration repeated
         // stands where it was declared last, and counts once.
         keyElements = keyElements.filterNot { it == element } + element
+    }
+
+    private class MutableLayoutChain(
+        first: LayoutElement,
+    ) : ArrayList<LayoutElement>(1) {
+        init {
+            add(first)
+        }
     }
 }

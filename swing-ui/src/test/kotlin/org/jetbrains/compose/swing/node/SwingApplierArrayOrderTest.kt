@@ -35,7 +35,7 @@ class SwingApplierArrayOrderTest {
     private fun constrainedHolder(
         component: Component,
         constraint: Any,
-    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.applyConstraint(constraint) }
+    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.declaration.applyConstraint(constraint) }
 
     private val owners = mutableListOf<TestCompositionOwner>()
 
@@ -106,7 +106,7 @@ class SwingApplierArrayOrderTest {
         val root = JPanel(BorderLayout())
         val applier = applierFor(root)
 
-        // Start with [center, south] (north slot absent), matching the BorderPanel slot order when
+        // Start with [center, south] (north slot absent), matching the border panel slot order when
         // the conditional north is off - north occupies no composition index.
         applier.onBeginChanges()
         applier.onContainer(applier.root) {

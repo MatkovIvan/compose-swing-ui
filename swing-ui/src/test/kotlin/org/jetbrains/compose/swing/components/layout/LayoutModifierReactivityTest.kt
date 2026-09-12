@@ -5,6 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.foundation.layout.Column
+import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -51,15 +54,22 @@ class LayoutModifierReactivityTest {
 
     @Test
     fun aBorderPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("BorderPanel") { modifier ->
-            BorderPanel(modifier = modifier) { Label("child", SwingModifier.center()) }
+        assertTheModifierIsFollowed("PanelLayout.Border") { modifier ->
+            Panel(PanelLayout.Border(), modifier = modifier) { Label("child", SwingModifier.center()) }
+        }
+    }
+
+    @Test
+    fun aBoxFollowsItsModifier() = runComposeSwingTest {
+        assertTheModifierIsFollowed("Box") { modifier ->
+            Box(modifier = modifier) { Label("child") }
         }
     }
 
     @Test
     fun aBoxPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("BoxPanel") { modifier ->
-            BoxPanel(modifier = modifier) { Label("child") }
+        assertTheModifierIsFollowed("PanelLayout.Box") { modifier ->
+            Panel(PanelLayout.Box(), modifier = modifier) { Label("child") }
         }
     }
 
@@ -79,29 +89,31 @@ class LayoutModifierReactivityTest {
 
     @Test
     fun aCardPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("CardPanel") { modifier ->
-            CardPanel(selectedCard = "only", modifier = modifier) { Label("child", SwingModifier.card("only")) }
+        assertTheModifierIsFollowed("PanelLayout.Card") { modifier ->
+            Panel(PanelLayout.Card(selectedCard = "only"), modifier = modifier) {
+                Label("child", SwingModifier.card("only"))
+            }
         }
     }
 
     @Test
     fun aFlowPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("FlowPanel") { modifier ->
-            FlowPanel(modifier = modifier) { Label("child") }
+        assertTheModifierIsFollowed("PanelLayout.Flow") { modifier ->
+            Panel(PanelLayout.Flow(), modifier = modifier) { Label("child") }
         }
     }
 
     @Test
     fun aGridBagPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("GridBagPanel") { modifier ->
-            GridBagPanel(modifier = modifier) { Label("child", SwingModifier.item()) }
+        assertTheModifierIsFollowed("PanelLayout.GridBag") { modifier ->
+            Panel(PanelLayout.GridBag, modifier = modifier) { Label("child", SwingModifier.item()) }
         }
     }
 
     @Test
     fun aGridPanelFollowsItsModifier() = runComposeSwingTest {
-        assertTheModifierIsFollowed("GridPanel") { modifier ->
-            GridPanel(modifier = modifier) { Label("child") }
+        assertTheModifierIsFollowed("PanelLayout.Grid") { modifier ->
+            Panel(PanelLayout.Grid(), modifier = modifier) { Label("child") }
         }
     }
 

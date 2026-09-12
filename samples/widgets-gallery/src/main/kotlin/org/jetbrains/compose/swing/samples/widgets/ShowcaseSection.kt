@@ -3,10 +3,11 @@ package org.jetbrains.compose.swing.samples.widgets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.Column
-import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.foundation.layout.Column
+import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.font
@@ -17,7 +18,11 @@ import org.jetbrains.compose.swing.samples.widgets.components.FormInputsSection
 import org.jetbrains.compose.swing.samples.widgets.components.RadioGroupSection
 import org.jetbrains.compose.swing.samples.widgets.custom.CanvasSection
 import org.jetbrains.compose.swing.samples.widgets.custom.CustomComponentSection
-import org.jetbrains.compose.swing.samples.widgets.layout.LayoutsSection
+import org.jetbrains.compose.swing.samples.widgets.custom.LayerSection
+import org.jetbrains.compose.swing.samples.widgets.layout.BoxSection
+import org.jetbrains.compose.swing.samples.widgets.layout.LayoutMechanicsSection
+import org.jetbrains.compose.swing.samples.widgets.layout.LinearLayoutsSection
+import org.jetbrains.compose.swing.samples.widgets.layout.PanelLayoutsSection
 import org.jetbrains.compose.swing.samples.widgets.layout.ScrollPaneSection
 import org.jetbrains.compose.swing.samples.widgets.layout.SplitToolBarSection
 import org.jetbrains.compose.swing.samples.widgets.layout.TabsSection
@@ -60,12 +65,16 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Accessibility") { AccessibilitySection() },
         ShowcaseSection("Table") { TableSection() },
         ShowcaseSection("Tree") { TreeSection() },
-        ShowcaseSection("Layouts") { LayoutsSection() },
+        ShowcaseSection("Linear layouts") { LinearLayoutsSection() },
+        ShowcaseSection("Box") { BoxSection() },
+        ShowcaseSection("Layout mechanics") { LayoutMechanicsSection() },
+        ShowcaseSection("Panel layouts") { PanelLayoutsSection() },
         ShowcaseSection("Split & ToolBar") { SplitToolBarSection() },
         ShowcaseSection("ScrollPane") { ScrollPaneSection() },
         ShowcaseSection("Tabs") { TabsSection() },
         ShowcaseSection("Canvas") { CanvasSection() },
         ShowcaseSection("Custom component") { CustomComponentSection() },
+        ShowcaseSection("Layer") { LayerSection() },
         ShowcaseSection("Context menu") { ContextMenuSection() },
         ShowcaseSection("Data transfer") { DataTransferSection() },
         ShowcaseSection("Top-level windows") { WindowsSection() },
@@ -116,7 +125,7 @@ internal fun SectionColumn(cards: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 internal fun SectionHeading(text: String) {
-    FlowPanel(alignment = FlowLayout.LEADING) {
+    Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING)) {
         Label(
             text = text,
             modifier =

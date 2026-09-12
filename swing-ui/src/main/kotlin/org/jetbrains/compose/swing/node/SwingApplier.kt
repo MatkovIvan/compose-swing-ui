@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.AbstractApplier
 import org.jetbrains.compose.swing.core.trace
+import org.jetbrains.compose.swing.foundation.layout.MeasurePolicyLayout
 import org.jetbrains.compose.swing.util.DeferredAction
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIndexed
@@ -30,7 +31,7 @@ import javax.swing.RootPaneContainer
  *   host before its own modifier chain has run there, so it is taken into that host's children as it
  *   arrives and attached once the change pass has settled, under the placement its modifier names at the
  *   host it is at now. That is also where such a child is held to the host's declaration.
- * - An indexed child is added with its declared [SwingNodeHolder.constraint] when non-null (e.g. a
+ * - An indexed child is added with its declared [ParentDeclaration.constraint] when non-null (e.g. a
  *   `BorderLayout` region), otherwise by index alone. The constraint is the one the child's own modifier
  *   chain declares.
  * - A child naming a region carries the [SwingNodeHolder.declaredSlot] that fills it. The child
@@ -576,12 +577,13 @@ private fun SwingNodeHolder<*>.addToHost(
         } else {
             standingSiblingsBefore(childHost, index)
         }
-    val constraint = child.constraint
+    val constraint = child.declaration.constraint
     if (constraint != null) {
         childHost.add(child.component, constraint, position)
     } else {
         childHost.add(child.component, position)
     }
+    child.declaration.attachedUnder(childHost)
 }
 
 /**
@@ -617,7 +619,8 @@ private fun SwingNodeHolder<*>.standingSiblingsOnDepthBefore(
     return standing
 }
 
-private fun SwingNodeHolder<*>.depthOn(pane: JLayeredPane): Int = constraint as? Int ?: pane.getLayer(component)
+private fun SwingNodeHolder<*>.depthOn(pane: JLayeredPane): Int =
+    declaration.constraint as? Int ?: pane.getLayer(component)
 
 /**
  * The index a region's attachment is handed for the child composed at [index]: `0` where the host's regions
@@ -681,10 +684,15 @@ private fun SwingNodeHolder<*>.checkChildKind(
     fillsRegion: Boolean,
 ) {
     val placement = childPlacement
+    // The kind answers first: a child of the wrong kind for this host is held by nothing, and telling it
+    // instead to put itself in a Box here would name a container it cannot be a child of either.
     if (placement.holdsRegions) {
         check(fillsRegion) { childNamesNoRegion(host, child.component, placement) }
     } else {
         check(!fillsRegion) { hostHasNoRegions(host, child) }
+    }
+    check(child.declaration.layoutChain.isEmpty() || host.layout is MeasurePolicyLayout) {
+        hostCannotMeasureChild(host, child)
     }
 }
 

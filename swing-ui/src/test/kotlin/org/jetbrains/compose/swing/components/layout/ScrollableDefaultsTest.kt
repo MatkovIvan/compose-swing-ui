@@ -1,8 +1,10 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.components.Canvas
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.foundation.Canvas
+import org.jetbrains.compose.swing.foundation.layout.Column
+import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.interaction.performMouseWheel
@@ -37,23 +39,25 @@ class ScrollableDefaultsTest {
     fun aColumnScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Column(it) {} }
 
     @Test
-    fun aBoxPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { BoxPanel(it) {} }
+    fun aBoxPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Box(), it) {} }
 
     @Test
-    fun aFlowPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { FlowPanel(it) {} }
+    fun aFlowPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Flow(), it) {} }
 
     @Test
-    fun aGridPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { GridPanel(it) {} }
+    fun aGridPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Grid(), it) {} }
 
     @Test
-    fun aGridBagPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { GridBagPanel(it) {} }
+    fun aGridBagPanelScrollsByALineOfItsOwnFont() =
+        assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.GridBag, it) {} }
 
     @Test
-    fun aBorderPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { BorderPanel(it) {} }
+    fun aBorderPanelScrollsByALineOfItsOwnFont() =
+        assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Border(), it) {} }
 
     @Test
     fun aCardPanelScrollsByALineOfItsOwnFont() =
-        assertScrollsByALineOfItsOwnFont { CardPanel(selectedCard = "only", modifier = it) {} }
+        assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Card(selectedCard = "only"), modifier = it) {} }
 
     @Test
     fun aCanvasScrollsByALineOfItsOwnFont() =

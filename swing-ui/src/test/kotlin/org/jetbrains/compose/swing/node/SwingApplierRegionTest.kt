@@ -529,7 +529,10 @@ class SwingApplierRegionTest {
             "the failure should name the two placements the modifier declares: $message",
         )
         assertNull(child.declaredSlot, "a refused modifier should leave no region recorded on the node")
-        assertNull(child.constraint, "a refused modifier should leave no layout constraint recorded on the node")
+        assertNull(
+            child.declaration.constraint,
+            "a refused modifier should leave no layout constraint recorded on the node",
+        )
     }
 }
 

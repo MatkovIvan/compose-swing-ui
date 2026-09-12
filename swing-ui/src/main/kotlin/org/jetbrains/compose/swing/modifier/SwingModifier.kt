@@ -664,10 +664,12 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     // into a region, and it moves one whose modifier declares a region other than the one it is in.
     val slot = incoming.slot
     val constraint = incoming.constraint
+    val layoutChain = incoming.layoutChain
     val declaredKeys = incoming.keys
-    checkOnePlacement(slot, constraint)
+    checkOnePlacement(slot, constraint, layoutChain)
     declaredSlot = slot?.let { DeclaredSlot(it.attachment, it.regionName) }
-    applyConstraint(constraint)
+    declaration.applyConstraint(constraint)
+    declaration.applyLayoutChain(layoutChain)
 
     // A modifier tied to other keys than the ones applied last is applied from scratch rather than
     // diffed: every standing slot comes apart, putting back what it captured, and the diff below finds
