@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import org.jetbrains.compose.swing.components.*
 import org.jetbrains.compose.swing.components.button.*
 import org.jetbrains.compose.swing.components.layout.*
+import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.components.menu.*
 import org.jetbrains.compose.swing.modifier.*
 import org.jetbrains.compose.swing.modifier.appearance.*

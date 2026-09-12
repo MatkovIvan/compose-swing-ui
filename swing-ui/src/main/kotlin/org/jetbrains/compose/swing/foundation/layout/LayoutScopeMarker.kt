@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.components.layout
+package org.jetbrains.compose.swing.foundation.layout
 
 /**
  * Marks the scope a layout hands its content, so that only the innermost one is in reach.

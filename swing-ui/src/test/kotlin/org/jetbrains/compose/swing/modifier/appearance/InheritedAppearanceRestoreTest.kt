@@ -3,8 +3,8 @@ package org.jetbrains.compose.swing.modifier.appearance
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.Canvas
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.foundation.Canvas
+import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color

@@ -6,6 +6,9 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
 import org.jetbrains.compose.swing.constants.Orientation
+import org.jetbrains.compose.swing.foundation.layout.Arrangement
+import org.jetbrains.compose.swing.foundation.layout.Column
+import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Dimension

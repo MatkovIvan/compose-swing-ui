@@ -1,9 +1,11 @@
 @file:JvmMultifileClass
-@file:JvmName("LayoutComponentsKt")
+@file:JvmName("FoundationLayoutKt")
 
-package org.jetbrains.compose.swing.components.layout
+package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.layout.ScrollablePanel
+import org.jetbrains.compose.swing.components.layout.updateLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 

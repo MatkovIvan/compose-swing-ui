@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.components.layout
+package org.jetbrains.compose.swing.foundation.layout
 
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Dimension

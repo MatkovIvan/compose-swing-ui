@@ -1,10 +1,13 @@
 @file:JvmMultifileClass
-@file:JvmName("ComponentsKt")
+@file:JvmName("FoundationKt")
 
-package org.jetbrains.compose.swing.components
+package org.jetbrains.compose.swing.foundation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.components.fillsViewport
+import org.jetbrains.compose.swing.components.scrollableLine
+import org.jetbrains.compose.swing.components.scrollablePage
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Dimension
