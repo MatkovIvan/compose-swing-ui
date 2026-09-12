@@ -8,7 +8,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sign
 
 /**
- * The measure policy behind [Row] and [Column]: it stacks the visible children along [axis] at their
+ * The measure policy behind [Row] and [Column]: it stacks the children along [axis] at their
  * preferred extent, and hands any leftover room to [arrangement] to place instead of the children absorbing it.
  *
  * Weighted children are the exception: they share the leftover extent along the axis in proportion to
@@ -100,7 +100,7 @@ internal class LinearLayout(
                         crossMax,
                         hasBoundedCross,
                         mainMin = 0,
-                        mainMax = unclaimed,
+                        mainMax = cappedMainSize(child, unclaimed),
                     ),
                 )
             val size = axis.main(placeable)
@@ -137,20 +137,23 @@ internal class LinearLayout(
     override fun MeasureScope.intrinsicSize(measurables: List<Measurable>): MeasureResult {
         var main = 0L
         var cross = 0
-        var totalWeight = 0f
+        // A pair of weights clamped from positive infinity would overflow a Float total, making a
+        // zero rounded unit space multiply infinity into NaN. Keep the AndroidX order (round one unit,
+        // then scale it), but accumulate the finite declarations in a type that can hold their sum.
+        var totalWeight = 0.0
         var weightUnitSpace = 0
         var aboveBaseline = 0
         var belowBaseline = 0
         measurables.fastForEach { child ->
-            val placeable = child.measure(Constraints.Unbounded)
+            val placeable = child.measure(intrinsicConstraintsOf(child))
             val mainExtent = axis.main(placeable)
             val crossExtent = axis.cross(placeable)
             val weight = weightOf(child)?.weight
             if (weight == null) {
                 main += mainExtent
             } else {
-                totalWeight += weight
-                weightUnitSpace = maxOf(weightUnitSpace, (cappedMainSize(child, mainExtent) / weight).roundToInt())
+                totalWeight += weight.toDouble()
+                weightUnitSpace = maxOf(weightUnitSpace, (mainExtent / weight).roundToInt())
             }
             val baseline = baselineOf(child, mainExtent, crossExtent)
             if (baseline >= 0) {
@@ -264,9 +267,9 @@ private fun weightOf(child: Measurable): WeightPlacement? = linearConstraintOf(c
 /**
  * The constraints [child] is measured under: [mainMin] to [mainMax] along the axis, and across it the
  * whole of [crossMax] where the child declared a cross-axis fill, otherwise as much of it as the child
- * prefers - in either case no more than an explicit `maximumSize`, the same ceiling a weighted child's
- * main-axis share is held to. A maximum below zero, which a component may carry as readily as any other,
- * holds the child to nothing on that axis.
+ * prefers - in either case no more than an explicit `maximumSize`. Along the main axis, every child is
+ * held to that same ceiling before it is measured. A maximum below zero, which a component may carry as
+ * readily as any other, holds the child to nothing on that axis.
  *
  * A fill has nothing to fill where the cross axis is unbounded, so there the child keeps what it prefers.
  */
@@ -378,6 +381,22 @@ private fun LinearLayout.cappedMainSize(
     val component = child.component
     if (!component.isMaximumSizeSet) return wanted
     return minOf(wanted, axis.main(component.maximumSize).coerceAtLeast(0))
+}
+
+/**
+ * The constraints intrinsic measurement offers [child]: unbounded unless it declares an explicit
+ * `maximumSize`, which bounds both axes. A layout modifier may return an extent outside an impossible
+ * offer as its own contract allows, so intrinsic sizing uses that measured result rather than capping
+ * it after the modifier chain has run.
+ */
+private fun intrinsicConstraintsOf(child: Measurable): Constraints {
+    val component = child.component
+    if (!component.isMaximumSizeSet) return Constraints.Unbounded
+    val maximum = component.maximumSize
+    return Constraints(
+        maxWidth = maximum.width.coerceAtLeast(0),
+        maxHeight = maximum.height.coerceAtLeast(0),
+    )
 }
 
 /** [value] as an extent accumulator: it saturates rather than wrapping into the other side of zero. */

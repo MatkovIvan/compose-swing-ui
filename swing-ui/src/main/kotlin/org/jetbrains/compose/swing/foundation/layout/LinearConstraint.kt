@@ -71,7 +71,7 @@ internal fun weightPlacement(
  */
 private fun linearConstraintCarried(carried: Any?): LinearConstraint {
     require(carried == null || carried is LinearConstraint) { twoScopesOfConstraint() }
-    return carried as? LinearConstraint ?: LinearConstraint()
+    return carried ?: LinearConstraint()
 }
 
 /** The share of the leftover space a child claims, as a row's or a column's `weight` declares it. */

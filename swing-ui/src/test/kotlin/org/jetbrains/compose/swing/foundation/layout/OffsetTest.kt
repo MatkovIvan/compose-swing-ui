@@ -64,6 +64,78 @@ class OffsetTest {
     }
 
     @Test
+    fun offsetWithAnIntMinimumHorizontalMoveSaturatesWhenMirroredRightToLeft() = runComposeSwingTest {
+        setContent {
+            Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT, ComponentOrientation.RIGHT_TO_LEFT)) {
+                SizedChild(0, SwingModifier.offset(Int.MIN_VALUE, 0))
+            }
+        }
+
+        assertEquals(
+            listOf(Rectangle(Int.MAX_VALUE, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+            childBounds(),
+            "mirroring Int.MIN_VALUE must reach the greatest rightward coordinate instead of overflowing negative",
+        )
+    }
+
+    @Test
+    fun chainedOffsetsSaturateTheirAccumulatedDisplacement() = runComposeSwingTest {
+        setContent {
+            Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(
+                    0,
+                    SwingModifier.absoluteOffset(Int.MAX_VALUE, Int.MAX_VALUE).absoluteOffset(1, 1),
+                )
+            }
+        }
+
+        assertEquals(
+            listOf(Rectangle(Int.MAX_VALUE, Int.MAX_VALUE, CHILD_WIDTH, CHILD_HEIGHT)),
+            childBounds(),
+            "two offsets beyond the greatest coordinate must stay there instead of wrapping to the opposite edge",
+        )
+    }
+
+    @Test
+    fun chainedNegativeOffsetsSaturateTheirAccumulatedDisplacement() = runComposeSwingTest {
+        setContent {
+            Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(
+                    0,
+                    SwingModifier.absoluteOffset(Int.MIN_VALUE, Int.MIN_VALUE).absoluteOffset(-1, -1),
+                )
+            }
+        }
+
+        assertEquals(
+            listOf(Rectangle(Int.MIN_VALUE, Int.MIN_VALUE, CHILD_WIDTH, CHILD_HEIGHT)),
+            childBounds(),
+            "two offsets beyond the least coordinate must stay there instead of wrapping to the opposite edge",
+        )
+    }
+
+    @Test
+    fun chainedOffsetsPreserveCancellationBeforeTheirFinalSaturation() = runComposeSwingTest {
+        setContent {
+            Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(
+                    0,
+                    SwingModifier
+                        .absoluteOffset(Int.MIN_VALUE, Int.MIN_VALUE)
+                        .absoluteOffset(1, 1)
+                        .absoluteOffset(Int.MAX_VALUE, Int.MAX_VALUE),
+                )
+            }
+        }
+
+        assertEquals(
+            listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+            childBounds(),
+            "offsets whose full-precision sum is zero must not inherit an intermediate saturation",
+        )
+    }
+
+    @Test
     fun absoluteOffset_positionModified() = runComposeSwingTest {
         setContent {
             Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {

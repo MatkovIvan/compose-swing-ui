@@ -1,11 +1,13 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.BoxScopeImpl
 import org.jetbrains.compose.swing.foundation.layout.Constraints
 import org.jetbrains.compose.swing.foundation.layout.Measurable
 import org.jetbrains.compose.swing.foundation.layout.MeasurePolicy
 import org.jetbrains.compose.swing.foundation.layout.MeasureResult
 import org.jetbrains.compose.swing.foundation.layout.MeasureScope
+import org.jetbrains.compose.swing.foundation.layout.OverlapLayout
 import org.jetbrains.compose.swing.foundation.layout.Placeable
 import org.jetbrains.compose.swing.foundation.layout.PlacementScope
 import org.jetbrains.compose.swing.foundation.layout.TestPolicyLayout
@@ -20,6 +22,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -48,6 +51,45 @@ class ParentDeclarationTest {
             child.declaration.applyConstraint(BorderLayout.SOUTH)
 
             assertFalse(root.isValid, "a child taking a new region must leave its parent to be laid out again")
+        }
+    }
+
+    @Test
+    fun aConstraintRedeclarationKeepsAMeasuredChildAndItsModifierChain() {
+        val layout = TestPolicyLayout(SingleChildPolicy())
+        val root = JPanel(layout)
+
+        laidOut(root) { child ->
+            val chain = paddingChain()
+            child.declaration.applyLayoutChain(chain)
+            root.validate()
+            val measurable = layout.measurables.of(child.component)
+
+            child.declaration.applyConstraint("replacement")
+
+            assertSame(
+                measurable,
+                layout.measurables.of(child.component),
+                "a MeasurePolicyLayout constraint redeclaration must not rebuild the child measurable",
+            )
+            assertSame(
+                chain,
+                measurable.layoutChain,
+                "the child must keep the modifier chain it is measured through",
+            )
+        }
+    }
+
+    @Test
+    fun aConstraintRedeclarationStillUsesAMeasurePolicyLayoutsConstraintValidation() {
+        val root = JPanel(OverlapLayout(Alignment.TopStart))
+
+        laidOut(root) { child ->
+            assertFailsWith<IllegalArgumentException>(
+                "a box must reject a redeclared constraint that belongs to another layout",
+            ) {
+                child.declaration.applyConstraint("not a BoxConstraint")
+            }
         }
     }
 
@@ -146,7 +188,7 @@ class ParentDeclarationTest {
     /** The layout modifiers a padded child is measured through, as its container reads them. */
     private fun paddingChain(): List<LayoutElement> {
         val padded = with(BoxScopeImpl) { SwingModifier.padding(PADDING) }
-        return padded.foldIn(mutableListOf<LayoutElement>()) { chain, element ->
+        return padded.foldIn(mutableListOf()) { chain, element ->
             chain.also { if (element is LayoutElement) it.add(element) }
         }
     }

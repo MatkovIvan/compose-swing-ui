@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.modifier.layout
 
 import org.jetbrains.compose.swing.foundation.layout.Constraints
+import org.jetbrains.compose.swing.foundation.layout.saturateLayoutCoordinate
 import org.jetbrains.compose.swing.foundation.layout.shrunkBy
 import java.awt.Dimension
 import java.awt.Point
@@ -130,7 +131,13 @@ internal data class OffsetElement(
         inner: Dimension,
         outer: Dimension,
         leftToRight: Boolean,
-    ): Point = if (leftToRight) Point(x, y) else Point(-x, y)
+    ): Point = if (leftToRight) Point(x, y) else Point(saturateLayoutCoordinate(-x.toLong()), y)
+
+    override fun placeWithinCoordinate(
+        inner: Dimension,
+        outer: Dimension,
+        leftToRight: Boolean,
+    ): PlacementCoordinate = PlacementCoordinate(if (leftToRight) x.toLong() else -x.toLong(), y.toLong())
 }
 
 /**

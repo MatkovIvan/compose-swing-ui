@@ -5,7 +5,7 @@ import java.awt.Component
 import java.awt.Dimension
 
 /**
- * The measure policy behind [Box]: it stacks every visible child in the same place, each at the extent it
+ * The measure policy behind [Box]: it stacks every child in the same place, each at the extent it
  * prefers, capped at the container's, and sitting where the alignment it declares puts it, or where
  * [alignment] puts it when it declares none. Which of the stacked children is on top is [OverlapPanel]'s
  * to arrange; this manager only tells it that a child's constraint has been written again.
@@ -33,9 +33,8 @@ internal class OverlapLayout(
      * refuse one they cannot read, and stacks the children again.
      *
      * A child registered again is one whose modifier ran again, which is how a changed zIndex arrives:
-     * the component keeps its parent, and only what it is registered under changes. The removal that
-     * precedes such a write has given up the value to compare against, so the panel stacks its children
-     * again either way; the reordering is what is held to whatever moved.
+     * the component keeps its parent, and only what it is registered under changes. The panel stacks
+     * its children again either way; the reordering is what is held to whatever moved.
      */
     override fun addLayoutComponent(
         component: Component,
@@ -87,14 +86,15 @@ internal class OverlapLayout(
 
     /**
      * The extent the container asks for: the largest extent along either axis among the children that do
-     * not match the container's own. A container whose children all match it asks for nothing.
+     * not match the container's own, each held to an explicit `maximumSize`. A container whose children
+     * all match it asks for nothing.
      */
     override fun MeasureScope.intrinsicSize(measurables: List<Measurable>): MeasureResult {
         var width = 0
         var height = 0
         measurables.fastForEach { child ->
             if (boxConstraintOf(child)?.matchesParentSize == true) return@fastForEach
-            val placeable = child.measure(Constraints.Unbounded)
+            val placeable = child.measure(offerTo(child, Constraints.Unbounded))
             width = maxOf(width, placeable.width)
             height = maxOf(height, placeable.height)
         }
@@ -148,7 +148,7 @@ private fun boxConstraintOf(child: Measurable): BoxConstraint? = child.layoutCon
  *
  * A fill has nothing to fill where the axis is unbounded, so there the child keeps what it prefers.
  */
-private fun OverlapLayout.offerTo(
+private fun offerTo(
     child: Measurable,
     constraints: Constraints,
 ): Constraints {

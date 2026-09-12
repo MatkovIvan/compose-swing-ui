@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.modifier.layout.PaddingElement
  * [Row], [Column] and [Box] inherit this, so a child of any of them declares these alongside what
  * that container's own scope offers.
  */
+@LayoutScopeMarker
 public interface ConstrainedScope {
     /**
      * Sizes the child to [ratio] width per unit height, taking the size from the greatest width its

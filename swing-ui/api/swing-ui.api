@@ -764,6 +764,7 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/Fi
 public final class org/jetbrains/compose/swing/foundation/layout/FoundationLayoutKt {
 	public static final fun Box (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Column (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Layout (Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Row (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 

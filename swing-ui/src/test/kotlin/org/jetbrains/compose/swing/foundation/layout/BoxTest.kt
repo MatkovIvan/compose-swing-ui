@@ -551,7 +551,7 @@ class BoxTest {
     }
 
     @Test
-    fun anInvisibleChildIsNeitherMeasuredNorPlaced() = runComposeSwingTest {
+    fun anInvisibleChildIsMeasuredAndPlacedLikeAnyOther() = runComposeSwingTest {
         setContent {
             Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                 Child(0, CHILD_WIDTH, CHILD_HEIGHT)
@@ -560,14 +560,17 @@ class BoxTest {
         }
 
         assertEquals(
-            Dimension(CHILD_WIDTH, CHILD_HEIGHT),
+            Dimension(BOX_WIDTH, BOX_HEIGHT),
             containerPreferredSize(),
-            "the box must ask for nothing on behalf of a child it hides",
+            "the box asks for what the child it hides prefers, the largest of the two",
         )
         assertEquals(
-            listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-            box().components.filter { it.isVisible }.map { it.bounds },
-            "and must place the children it does show as though the hidden one were not there",
+            listOf(
+                Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT),
+            ),
+            stackedChildBounds(),
+            "and places the hidden one at the extent it asked for, alongside the child it shows",
         )
     }
 

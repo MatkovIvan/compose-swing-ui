@@ -7,20 +7,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.layout.AbsoluteAlignment
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Arrangement
-import org.jetbrains.compose.swing.foundation.layout.BiasAlignment
-import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.font
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.componentListener
@@ -28,25 +24,23 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.tooling.Preview
-import java.awt.Color
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Font
 
-// What RowColumnLayoutCards leaves out: how a weighted child's share is granted, capped and filled, the
-// relative arrangements and alignments against their orientation-blind Absolute counterparts, a bias slid
-// continuously instead of picked from the nine named constants, and the shared baseline a label and a
-// differently-sized field sit on. Each card prints the coordinate its control moves, so a placement that
-// mirrors can be told from one that holds without measuring against the border.
 @Preview
 @Composable
-internal fun WeightAndAlignmentSection() {
+internal fun LinearLayoutsSection() {
     SectionColumn {
-        SectionHeading("Weight & alignment")
+        SectionHeading("Linear layouts")
+        RowCard()
+        RowArrangementCard()
+        ColumnCard()
+        ColumnArrangementCard()
+        CrossAxisFillCard()
         WeightCards()
         ArrangementAbsoluteCard()
         AbsoluteAlignmentCard()
-        BiasAlignmentCard()
         AlignByBaselineCard()
     }
 }
@@ -68,19 +62,31 @@ internal fun ColumnScope.ArrangementAbsoluteCard() {
         val orientation = if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT
         Label("End: leading child at x = $endX px")
         Row(
-            modifier = SwingModifier.fillWidth().lineBorder(Color.GRAY).componentOrientation(orientation),
+            modifier = layoutTrack.fillWidth().componentOrientation(orientation),
             horizontalArrangement = Arrangement.End,
         ) {
-            Label("One", modifier = SwingModifier.componentListener(onComponentMoved = { endX = it.component.x }))
-            Label("Two")
+            LayoutSwatch(
+                "One",
+                LayoutSampleColors.Blue,
+                SwingModifier
+                    .preferredSize(72, 28)
+                    .componentListener(onComponentMoved = { endX = it.component.x }),
+            )
+            LayoutSwatch("Two", LayoutSampleColors.Orange, SwingModifier.preferredSize(72, 28))
         }
         Label("Absolute.Right: leading child at x = $absoluteX px")
         Row(
-            modifier = SwingModifier.fillWidth().lineBorder(Color.GRAY).componentOrientation(orientation),
+            modifier = layoutTrack.fillWidth().componentOrientation(orientation),
             horizontalArrangement = Arrangement.Absolute.Right,
         ) {
-            Label("One", modifier = SwingModifier.componentListener(onComponentMoved = { absoluteX = it.component.x }))
-            Label("Two")
+            LayoutSwatch(
+                "One",
+                LayoutSampleColors.Blue,
+                SwingModifier
+                    .preferredSize(72, 28)
+                    .componentListener(onComponentMoved = { absoluteX = it.component.x }),
+            )
+            LayoutSwatch("Two", LayoutSampleColors.Orange, SwingModifier.preferredSize(72, 28))
         }
     }
 }
@@ -104,13 +110,16 @@ internal fun ColumnScope.AbsoluteAlignmentCard() {
             modifier =
                 SwingModifier
                     .preferredSize(Dimension(220, 28))
-                    .lineBorder(Color.GRAY)
+                    .then(layoutTrack)
                     .componentOrientation(orientation),
             horizontalAlignment = Alignment.Start,
         ) {
-            Label(
+            LayoutSwatch(
                 "Start child",
-                modifier = SwingModifier.componentListener(onComponentMoved = { startX = it.component.x }),
+                LayoutSampleColors.Blue,
+                SwingModifier
+                    .preferredSize(96, 28)
+                    .componentListener(onComponentMoved = { startX = it.component.x }),
             )
         }
         Label("AbsoluteAlignment.Left: child at x = $leftX px")
@@ -118,35 +127,16 @@ internal fun ColumnScope.AbsoluteAlignmentCard() {
             modifier =
                 SwingModifier
                     .preferredSize(Dimension(220, 28))
-                    .lineBorder(Color.GRAY)
+                    .then(layoutTrack)
                     .componentOrientation(orientation),
             horizontalAlignment = AbsoluteAlignment.Left,
         ) {
-            Label(
+            LayoutSwatch(
                 "Left child",
-                modifier = SwingModifier.componentListener(onComponentMoved = { leftX = it.component.x }),
-            )
-        }
-    }
-}
-
-// A BiasAlignment built from an arbitrary float, not one of the nine named constants: the slider moves
-// the child continuously through the box rather than snapping between fixed positions, and the child's
-// own x follows it a pixel at a time.
-@Composable
-internal fun ColumnScope.BiasAlignmentCard() {
-    ExampleCard("BiasAlignment (arbitrary bias)") {
-        var bias by remember { mutableIntStateOf(0) }
-        var childX by remember { mutableIntStateOf(0) }
-        Label("Horizontal bias: ${bias / 100f}, child at x = $childX px")
-        Slider(value = bias, onValueChange = { bias = it }, min = -100, max = 100)
-        Box(
-            modifier = SwingModifier.preferredSize(Dimension(300, 40)).lineBorder(Color.GRAY),
-            contentAlignment = BiasAlignment(bias / 100f, 0f),
-        ) {
-            Label(
-                "Slides with the bias",
-                modifier = SwingModifier.componentListener(onComponentMoved = { childX = it.component.x }),
+                LayoutSampleColors.Orange,
+                SwingModifier
+                    .preferredSize(96, 28)
+                    .componentListener(onComponentMoved = { leftX = it.component.x }),
             )
         }
     }
@@ -164,7 +154,7 @@ internal fun ColumnScope.AlignByBaselineCard() {
         Label("Align by baseline: ${if (baseline) "on" else "off"}, label sits at y = $labelY px")
         var text by remember { mutableStateOf("Text field") }
         Row(
-            modifier = SwingModifier.fillWidth(),
+            modifier = layoutTrack.fillWidth(),
             horizontalArrangement = Arrangement.spacedBy(8),
             verticalAlignment = Alignment.Bottom,
         ) {

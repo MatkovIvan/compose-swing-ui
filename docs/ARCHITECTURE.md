@@ -522,5 +522,6 @@ its drawing, while here all three belong to Swing.
 
 ---
 
-For a step-by-step guide to building your own component on top of `SwingNode`, see
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+For layout, see
+[`FOUNDATION-LAYOUT.md`](FOUNDATION-LAYOUT.md). For a step-by-step guide to building your own component on top
+of `SwingNode`, see [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).

@@ -87,11 +87,10 @@ internal abstract class MeasurePolicyLayout : LayoutManager2 {
     /** A policy-driven container takes any extent it is offered and places its children inside it. */
     override fun maximumLayoutSize(target: Container): Dimension = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
 
-    /** What the container's first visible child reports; see [firstVisibleChildAlignment]. */
-    override fun getLayoutAlignmentX(target: Container): Float = firstVisibleChildAlignment(target) { it.alignmentX }
+    /** What the container's first child reports; see [firstChildAlignment]. */
+    override fun getLayoutAlignmentX(target: Container): Float = firstChildAlignment(target) { it.alignmentX }
 
-    /** What the container's first visible child reports; see [firstVisibleChildAlignment]. */
-    override fun getLayoutAlignmentY(target: Container): Float = firstVisibleChildAlignment(target) { it.alignmentY }
+    override fun getLayoutAlignmentY(target: Container): Float = firstChildAlignment(target) { it.alignmentY }
 
     override fun layoutContainer(parent: Container) {
         val insets = parent.insets
@@ -101,6 +100,19 @@ internal abstract class MeasurePolicyLayout : LayoutManager2 {
         placement.begin(insets.left, insets.top, width, parent.componentOrientation)
         with(result) { placement.placeChildren() }
     }
+}
+
+/**
+ * Replaces the constraint this container already holds [component] under without removing its
+ * measurable. [MeasurePolicyLayout.addLayoutComponent] dispatches to the manager's own validation
+ * and side effects, while any result settled under the old constraint must not be reused.
+ */
+internal fun MeasurePolicyLayout.replaceLayoutConstraint(
+    component: Component,
+    constraint: Any?,
+) {
+    addLayoutComponent(component, constraint)
+    measurables.clearSettledResult()
 }
 
 /** The non-negative extent left after the insets on its two edges have taken their room. */
@@ -173,6 +185,11 @@ internal class ChildMeasurables(
     /** Gives up the measurable for [child], for a child leaving the container. */
     fun forget(child: Component) {
         measurables.remove(child)
+        measured = null
+    }
+
+    /** Gives up the result a constrained parent settled on without invalidating any child. */
+    fun clearSettledResult() {
         measured = null
     }
 
@@ -283,8 +300,7 @@ internal class ChildMeasurables(
     ): List<Measurable> {
         into.clear()
         for (index in 0 until parent.componentCount) {
-            val child = parent.getComponent(index)
-            if (child.isVisible) into.add(of(child))
+            into.add(of(parent.getComponent(index)))
         }
         return into
     }
@@ -343,8 +359,8 @@ internal class ChildMeasurable(
     private var placedHeight: Int = 0
 
     /** Where within that stated extent the chain puts the component. */
-    private var offsetX: Int = 0
-    private var offsetY: Int = 0
+    private var offsetX: Long = 0L
+    private var offsetY: Long = 0L
 
     private var preferred: Dimension? = null
 
@@ -353,8 +369,8 @@ internal class ChildMeasurable(
             measureComponent(constraints)
             placedWidth = width
             placedHeight = height
-            offsetX = 0
-            offsetY = 0
+            offsetX = 0L
+            offsetY = 0L
             return this
         }
         return measureThroughChain(constraints)
@@ -380,12 +396,12 @@ internal class ChildMeasurable(
         placedHeight = height
         val leftToRight = component.parent?.componentOrientation?.isLeftToRight ?: true
         var extent = Dimension(width, height)
-        offsetX = 0
-        offsetY = 0
+        offsetX = 0L
+        offsetY = 0L
         for (index in layoutChain.indices.reversed()) {
             val element = layoutChain[index]
             val outer = element.around(extent, offered[index])
-            val within = element.placeWithin(extent, outer, leftToRight)
+            val within = element.placeWithinCoordinate(extent, outer, leftToRight)
             offsetX += within.x
             offsetY += within.y
             extent = outer
@@ -416,11 +432,16 @@ internal class ChildMeasurable(
 
     /** Lays the component out at the extent it was measured at, where the chain puts it within [x] and [y]. */
     fun placeAt(
-        x: Int,
-        y: Int,
+        x: Long,
+        y: Long,
     ) {
         if (component.width != placedWidth || component.height != placedHeight) invalidate()
-        component.setBounds(x + offsetX, y + offsetY, placedWidth, placedHeight)
+        component.setBounds(
+            saturateLayoutCoordinate(x + offsetX),
+            saturateLayoutCoordinate(y + offsetY),
+            placedWidth,
+            placedHeight,
+        )
     }
 
     /**
@@ -432,8 +453,39 @@ internal class ChildMeasurable(
         height: Int,
     ): Int {
         if (layoutChain.isEmpty()) return component.getBaseline(width, height)
-        val own = component.getBaseline(placedWidth, placedHeight)
-        return if (own < 0) own else own + offsetY
+        val placement = baselinePlacement(width, height)
+        val own = component.getBaseline(placement.componentSize.width, placement.componentSize.height)
+        return if (own < 0) own else saturateLayoutCoordinate(own.toLong() + placement.offsetY)
+    }
+
+    /**
+     * The component's extent and displacement inside a chained measurable whose outer extent is
+     * [width] by [height]. This mirrors [measureThroughChain] without consulting its last result:
+     * baseline alignment asks about the dimensions it supplies, not the dimensions a prior measure
+     * happened to leave behind.
+     */
+    private fun baselinePlacement(
+        width: Int,
+        height: Int,
+    ): BaselinePlacement {
+        val offered = ArrayList<Constraints>(layoutChain.size)
+        var constraints = Constraints(width, width, height, height)
+        for (element in layoutChain) {
+            offered.add(constraints)
+            constraints = element.narrow(constraints)
+        }
+        val componentSize = Dimension(constraints.minWidth, constraints.minHeight)
+        var extent = componentSize
+        var offsetY = 0L
+        val leftToRight = component.parent?.componentOrientation?.isLeftToRight ?: true
+        for (index in layoutChain.indices.reversed()) {
+            val element = layoutChain[index]
+            val outer = element.around(extent, offered[index])
+            val within = element.placeWithinCoordinate(extent, outer, leftToRight)
+            offsetY += within.y
+            extent = outer
+        }
+        return BaselinePlacement(componentSize, offsetY)
     }
 
     /** Gives up the extent measured, for a container whose layout has been invalidated. */
@@ -471,11 +523,17 @@ internal data class ChildMeasurement(
     val height: Int,
     val placedWidth: Int,
     val placedHeight: Int,
-    val offsetX: Int,
-    val offsetY: Int,
+    val offsetX: Long,
+    val offsetY: Long,
 )
 
-/** The component a policy of this library reads a property of - a maximum size, a baseline, a visibility. */
+/** The component size and vertical displacement a chained measurable derives for a baseline query. */
+private data class BaselinePlacement(
+    val componentSize: Dimension,
+    val offsetY: Long,
+)
+
+/** The component a policy of this library reads a property of - a maximum size, a baseline. */
 internal val Measurable.component: Component get() = (this as ChildMeasurable).component
 
 /**
@@ -524,6 +582,20 @@ internal class InnerPlacementScope : PlacementScope {
         x: Int,
         y: Int,
     ) {
-        (this as ChildMeasurable).placeAt(originX + x, originY + y)
+        (this as ChildMeasurable).placeAt(
+            originX.toLong() + x.toLong(),
+            originY.toLong() + y.toLong(),
+        )
+    }
+
+    override fun Placeable.placeRelative(
+        x: Int,
+        y: Int,
+    ) {
+        val relativeX = if (isLeftToRight) x.toLong() else parentWidth.toLong() - width.toLong() - x.toLong()
+        (this as ChildMeasurable).placeAt(
+            originX.toLong() + relativeX,
+            originY.toLong() + y.toLong(),
+        )
     }
 }

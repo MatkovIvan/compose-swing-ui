@@ -34,10 +34,9 @@ internal data class BoxConstraint(
  */
 private fun boxConstraintCarried(carried: Any?): BoxConstraint {
     require(carried == null || carried is BoxConstraint) { twoScopesOfConstraint() }
-    return carried as? BoxConstraint ?: BoxConstraint()
+    return carried ?: BoxConstraint()
 }
 
-/** Where in the box a child sits, as a box's `align` declares it. */
 internal data class BoxAlignElement(
     val alignment: Alignment,
 ) : ConstraintElement {
@@ -48,7 +47,6 @@ internal data class BoxAlignElement(
     override fun foldInto(carried: Any?): Any = boxConstraintCarried(carried).copy(alignment = alignment)
 }
 
-/** Where in the box's stack a child sits, as a box's `zIndex` declares it. */
 internal data class BoxZIndexElement(
     val zIndex: Float,
 ) : ConstraintElement {
@@ -59,21 +57,18 @@ internal data class BoxZIndexElement(
     override fun foldInto(carried: Any?): Any = boxConstraintCarried(carried).copy(zIndex = zIndex)
 }
 
-/** A child taking the box's whole extent, as a box's `matchParentSize` declares it. */
 internal data object BoxMatchParentSizeElement : ConstraintElement {
     override val name: String get() = "matchParentSize"
 
     override fun foldInto(carried: Any?): Any = boxConstraintCarried(carried).copy(matchesParentSize = true)
 }
 
-/** A child taking the box's whole width, as a box's `fillWidth` declares it. */
 internal data object BoxFillWidthElement : ConstraintElement {
     override val name: String get() = "fillWidth"
 
     override fun foldInto(carried: Any?): Any = boxConstraintCarried(carried).copy(fillsWidth = true)
 }
 
-/** A child taking the box's whole height, as a box's `fillHeight` declares it. */
 internal data object BoxFillHeightElement : ConstraintElement {
     override val name: String get() = "fillHeight"
 

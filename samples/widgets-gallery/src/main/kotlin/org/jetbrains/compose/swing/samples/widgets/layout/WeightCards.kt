@@ -9,21 +9,17 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.CheckBox
+import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.background
-import org.jetbrains.compose.swing.modifier.appearance.border
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
-import java.awt.Color
 import java.awt.Dimension
-import javax.swing.BorderFactory
-import javax.swing.SwingConstants
 
 // weight() cards: each one hands a share of a row's width to a colored swatch and prints the width the
 // layout granted it. A gray outline on the row makes the extent that share comes out of legible, and the
@@ -36,20 +32,6 @@ internal fun ColumnScope.WeightCards() {
     WeightMaximumSizeCard()
 }
 
-private val rowOutline = SwingModifier.border(BorderFactory.createLineBorder(Color.GRAY))
-
-@Composable
-private fun Swatch(
-    text: String,
-    color: Color,
-    modifier: SwingModifier = SwingModifier,
-) {
-    Label(
-        text = text,
-        modifier = modifier.opaque(true).background(color).horizontalAlignment(SwingConstants.CENTER),
-    )
-}
-
 // Every child of this row claims a share, so between them they divide the whole width the row is offered
 // and the row spans its parent. Sliding the second swatch's weight up moves the boundary between the two
 // swatches, not the row's own edge: what one swatch gains the other gives up. A swatch's preferred size
@@ -57,29 +39,70 @@ private fun Swatch(
 @Composable
 internal fun ColumnScope.WeightSharesCard() {
     ExampleCard("weight (shares divide the row's width)") {
-        var weight by remember { mutableIntStateOf(3) }
+        var weightStep by remember { mutableIntStateOf(30) }
+        val weight = weightStep / 10f
         var rowWidth by remember { mutableIntStateOf(0) }
         var lightWidth by remember { mutableIntStateOf(0) }
         var heavyWidth by remember { mutableIntStateOf(0) }
-        Label("Second swatch weight: ${weight}f")
-        Slider(value = weight, onValueChange = { weight = it }, min = 1, max = 5)
+        Label("Second swatch weight: ${weight.toString().removeSuffix(".0")}f")
+        Slider(
+            value = weightStep,
+            onValueChange = { weightStep = it },
+            modifier = SwingModifier.accessibleName("Second swatch weight"),
+            min = 1,
+            max = 50,
+        )
         Label("Shares granted: $lightWidth px and $heavyWidth px of the row's $rowWidth px")
-        Row(modifier = rowOutline.componentListener(onComponentResized = { rowWidth = it.component.width })) {
-            Swatch(
+        Row(modifier = layoutTrack.componentListener(onComponentResized = { rowWidth = it.component.width })) {
+            LayoutSwatch(
                 "1f",
-                Color(0xC8, 0xE6, 0xC9),
+                LayoutSampleColors.Green,
                 SwingModifier
                     .weight(1f)
                     .preferredSize(Dimension(50, 28))
                     .componentListener(onComponentResized = { lightWidth = it.component.width }),
             )
-            Swatch(
-                "${weight}f",
-                Color(0xFF, 0xE0, 0xB2),
+            LayoutSwatch(
+                "${weight.toString().removeSuffix(".0")}f",
+                LayoutSampleColors.Orange,
                 SwingModifier
-                    .weight(weight.toFloat())
+                    .weight(weight)
                     .preferredSize(Dimension(50, 28))
                     .componentListener(onComponentResized = { heavyWidth = it.component.width }),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun ColumnScope.CrossAxisFillCard() {
+    ExampleCard("fillWidth / fillHeight across layout scopes") {
+        var fill by remember { mutableStateOf(true) }
+        CheckBox("Fill the available cross axis", checked = fill, onCheckedChange = { fill = it })
+        Label("RowScope.fillHeight")
+        Row(modifier = layoutTrack.preferredSize(260, 52)) {
+            LayoutSwatch(
+                if (fill) "fills available height" else "keeps 28 px high",
+                LayoutSampleColors.Blue,
+                SwingModifier.preferredSize(128, 28).let { if (fill) it.fillHeight() else it },
+            )
+        }
+        Label("ColumnScope.fillWidth")
+        Column(modifier = layoutTrack.preferredSize(260, 52)) {
+            LayoutSwatch(
+                if (fill) "fills available width" else "keeps 128 px wide",
+                LayoutSampleColors.Green,
+                SwingModifier.preferredSize(128, 28).let { if (fill) it.fillWidth() else it },
+            )
+        }
+        Label("BoxScope.fillWidth + fillHeight")
+        Box(modifier = layoutTrack.preferredSize(260, 52)) {
+            LayoutSwatch(
+                if (fill) "fills the box" else "keeps 128 × 28 px",
+                LayoutSampleColors.Orange,
+                SwingModifier.preferredSize(128, 28).let {
+                    if (fill) it.fillWidth().fillHeight() else it
+                },
             )
         }
     }
@@ -99,21 +122,21 @@ internal fun ColumnScope.WeightFillCard() {
         Label("Shares: left swatch $leftWidth px, right swatch $rightWidth px of the row's $rowWidth px")
         Row(
             modifier =
-                rowOutline
+                layoutTrack
                     .preferredSize(Dimension(300, 32))
                     .componentListener(onComponentResized = { rowWidth = it.component.width }),
         ) {
-            Swatch(
+            LayoutSwatch(
                 if (fill) "fill" else "no fill",
-                Color(0xD1, 0xC4, 0xE9),
+                LayoutSampleColors.Purple,
                 SwingModifier
                     .weight(1f, fill = fill)
                     .preferredSize(Dimension(80, 28))
                     .componentListener(onComponentResized = { leftWidth = it.component.width }),
             )
-            Swatch(
+            LayoutSwatch(
                 "fill",
-                Color(0xB3, 0xE5, 0xFC),
+                LayoutSampleColors.Teal,
                 SwingModifier
                     .weight(1f)
                     .preferredSize(Dimension(80, 28))
@@ -136,7 +159,7 @@ internal fun ColumnScope.WeightMaximumSizeCard() {
         Label("Share taken: $swatchWidth px of the row's $rowWidth px")
         Row(
             modifier =
-                rowOutline
+                layoutTrack
                     .preferredSize(Dimension(300, 32))
                     .componentListener(onComponentResized = { rowWidth = it.component.width }),
         ) {
@@ -144,9 +167,9 @@ internal fun ColumnScope.WeightMaximumSizeCard() {
                 SwingModifier
                     .weight(1f)
                     .componentListener(onComponentResized = { swatchWidth = it.component.width })
-            Swatch(
+            LayoutSwatch(
                 if (capped) "capped" else "uncapped",
-                Color(0xFF, 0xCC, 0xBC),
+                LayoutSampleColors.Pink,
                 if (capped) share.maximumSize(Dimension(80, 28)) else share,
             )
         }

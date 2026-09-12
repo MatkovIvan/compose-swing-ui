@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.foundation.layout.MeasurePolicyLayout
+import org.jetbrains.compose.swing.foundation.layout.replaceLayoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.LayoutElement
 import java.awt.Component
 import java.awt.Container
@@ -117,8 +118,10 @@ internal class ParentDeclaration(
      * The component is never removed from its parent, so it keeps its position, its focus and its
      * native resources. Only the placement changes.
      *
-     * `removeLayoutComponent` runs first because some managers store the child under its old
-     * constraint. `BorderLayout` is one: without this it would hold the component twice.
+     * Most managers need `removeLayoutComponent` first because they store the child under its old
+     * constraint. `BorderLayout` is one: without this it would hold the component twice. A
+     * [MeasurePolicyLayout] retains its child measurable instead, because its constraint is metadata
+     * on that measurable and its modifier chain must survive the replacement.
      *
      * A node that is not attached yet is placed by the applier's own add instead, and a parent
      * with no layout manager has nothing to register.
@@ -131,14 +134,18 @@ internal class ParentDeclaration(
     fun reapply() {
         val parent = component.parent ?: return
         val manager = parent.layout ?: return
-        manager.removeLayoutComponent(component)
         val declared = constraint
-        if (manager is LayoutManager2) {
-            manager.addLayoutComponent(component, declared)
-        } else if (declared is String) {
-            manager.addLayoutComponent(declared, component)
+        if (manager is MeasurePolicyLayout) {
+            manager.replaceLayoutConstraint(component, declared)
+        } else {
+            manager.removeLayoutComponent(component)
+            if (manager is LayoutManager2) {
+                manager.addLayoutComponent(component, declared)
+            } else if (declared is String) {
+                manager.addLayoutComponent(declared, component)
+            }
+            declareLayoutChain()
         }
-        declareLayoutChain()
         parent.revalidate()
     }
 }

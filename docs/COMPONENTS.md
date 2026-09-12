@@ -593,8 +593,12 @@ Panel(PanelLayout.Border()) {
 
 <!--- CLEAR -->
 
-`Row` and `Column` are the two single-axis stacks you reach for most. Along its axis, a child keeps
-the size it prefers, and the space the container has left over is placed by an `Arrangement`
+`Row` and `Column` are the two single-axis stacks you reach for most. An explicit `maximumSize` caps
+the offer and normally the extent a weighted or unweighted child takes on either axis, which in turn
+bounds the container's own preferred size. A layout modifier whose own contract permits escape from an
+impossible offer - `aspectRatio`, for example - may report an extent outside that maximum; the
+container asks for that returned extent. The space the container has left over is placed by an
+`Arrangement`
 (`Top`, `Bottom`, `Start`, `End`, `Center`, `SpaceBetween`, `SpaceAround`, `SpaceEvenly`,
 `spacedBy(gap)`, `aligned(...)`); `Arrangement.Absolute` holds the same set for a row that should
 read left to right whatever the container's `ComponentOrientation` says. Across the axis, a child
@@ -626,7 +630,7 @@ Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alig
 
 A weighted child takes its share of what is left after every child that claims none has taken the
 size it prefers, in proportion to the weights; `weight(w, fill = false)` lets it settle for the size
-it prefers and leaves the rest to the arrangement. An explicit `maximumSize` caps that share.
+it prefers and leaves the rest to the arrangement.
 
 Beside the placements, a child of a `Row`, a `Column` or a `Box` declares what stands between the
 extent its container offers and its own measure, through `ConstrainedScope`, which those three scopes

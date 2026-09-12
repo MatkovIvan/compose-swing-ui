@@ -2,13 +2,22 @@ package org.jetbrains.compose.swing.samples.widgets.layout
 
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.performClick
-import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import java.awt.Component
+import java.awt.Container
+import java.awt.Cursor
+import java.awt.Insets
+import java.awt.event.InputEvent
+import java.awt.event.MouseEvent
+import javax.swing.JButton
 import javax.swing.JLabel
-import javax.swing.JSlider
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
@@ -17,14 +26,33 @@ import kotlin.test.assertTrue
 // person looking at the card does - so a card whose readout stops following its control fails here.
 class BoxAndWeightSectionsTest {
     @Test
-    fun theContentAlignmentRadioGroupMovesTheChildTheBoxPlaces() =
+    fun interactiveSwatchesPaintTheirColorInsideTheButton() =
+        runComposeSwingTest {
+            openSection("Linear layouts")
+
+            val node = onNodeWithText("fixed · 88 px")
+            val button = node.fetch<JButton>()
+            val image = node.captureToImage()
+
+            assertFalse(button.isContentAreaFilled, "the look and feel does not paint over the swatch color")
+            assertTrue(button.isOpaque, "the interactive swatch paints its full bounds")
+            assertEquals(LayoutSampleColors.Text, button.foreground, "the shared dark text remains legible")
+            assertEquals(
+                LayoutSampleColors.Blue.rgb,
+                image.getRGB(4, 4),
+                "the button interior is the swatch color, not a colored gap around a LAF button",
+            )
+        }
+
+    @Test
+    fun theContentAlignmentSelectorMovesTheChildTheBoxPlaces() =
         runComposeSwingTest {
             openSection("Box")
 
             onNodeWithText("contentAlignment = Center,", substring = true).assertExists()
             val centered = readoutNumbers("contentAlignment = ")
 
-            onNodeWithText("BottomEnd").performClick()
+            layoutParameterSelector("contentAlignment").selectedItem = "BottomEnd"
             awaitIdle()
 
             onNodeWithText("contentAlignment = BottomEnd", substring = true).assertExists()
@@ -55,50 +83,104 @@ class BoxAndWeightSectionsTest {
         }
 
     @Test
-    fun theBackdropTakesTheBoxsExtentOnlyWhileItDeclaresMatchParentSize() =
+    fun theChildAlignmentExampleShowsEveryChildAsADistinctBoundedSwatch() =
         runComposeSwingTest {
             openSection("Box")
 
-            val matched = readoutNumbers("Backdrop: ")
+            val names =
+                listOf("align(TopStart)", "align(TopEnd)", "align(BottomStart)", "align(BottomEnd)", "Plain child")
+            val children = names.map { onNodeWithText(it).fetch<JLabel>() }
 
-            onNodeWithText("Backdrop declares matchParentSize").performClick()
-            awaitIdle()
-
-            val unmatched = readoutNumbers("Backdrop: ")
+            assertEquals(1, children.map(JLabel::getSize).toSet().size, "all aligned children use one swatch size")
+            assertTrue(children.all(JLabel::isOpaque), "every aligned child exposes its colored bounds")
             assertTrue(
-                unmatched[0] < matched[0] && unmatched[1] < matched[1],
-                "without matchParentSize the backdrop falls back to the extent it asks for on its own",
+                children.all { it.foreground == LayoutSampleColors.Text },
+                "every swatch uses the shared dark foreground",
+            )
+            names.forEach { name ->
+                val node = onNodeWithText(name)
+                val child = node.fetch<JLabel>()
+                val image = node.captureToImage()
+                assertEquals(Insets(1, 1, 1, 1), child.border.getBorderInsets(child), "$name has a one-pixel border")
+                assertEquals(
+                    LayoutSampleColors.Border.rgb,
+                    image.getRGB(0, image.height / 2),
+                    "$name paints the shared boundary color at its outer edge",
+                )
+            }
+            assertEquals(
+                children.size,
+                children.map(JLabel::getBackground).toSet().size,
+                "each child has its own color",
             )
         }
 
     @Test
-    fun theZIndexToggleBringsTheRaisedChildToTheFront() =
+    fun theBackdropTakesTheBoxsExtentOnlyWhileItDeclaresMatchParentSize() =
         runComposeSwingTest {
             openSection("Box")
 
-            onNodeWithText("Front child: A").assertExists()
-            // AWT paints the highest z-order index first, so the child in front is the one at index 0.
-            assertTrue(zOrderOf("A") < zOrderOf("B"), "A starts in front of B")
+            val box = onNode(SwingMatcher.hasAccessibleName("matchParentSize box"))
+            val matched = readoutNumbers("Blue backdrop: ")
+            val matchedImage = box.captureToImage()
+            assertTrue(matched[0] > 140 && matched[1] > 50, "the blue backdrop extends beyond the orange child")
+            assertEquals(
+                LayoutSampleColors.Blue.rgb,
+                matchedImage.getRGB(4, 4),
+                "matchParentSize leaves the blue backdrop visible around the smaller child",
+            )
 
-            onNodeWithText("Raise B above A").performClick()
+            onNodeWithText("Backdrop declares matchParentSize").performClick()
+            awaitIdle()
+
+            val unmatched = readoutNumbers("Blue backdrop: ")
+            val unmatchedImage = box.captureToImage()
+            assertTrue(
+                unmatched[0] < matched[0] && unmatched[1] < matched[1],
+                "without matchParentSize the backdrop falls back to the extent it asks for on its own",
+            )
+            assertEquals(
+                LayoutSampleColors.Track.rgb,
+                unmatchedImage.getRGB(4, 4),
+                "without matchParentSize the box's neutral track is visible around the orange child",
+            )
+        }
+
+    @Test
+    fun clickingALayerMakesItTheHitTargetAtTheOverlap() =
+        runComposeSwingTest {
+            openSection("Box")
+
+            val a = onNodeWithText("A - hand").fetch<JButton>()
+            val b = onNodeWithText("B - crosshair").fetch<JButton>()
+            onNodeWithText("Front child: A").assertExists()
+            assertEquals(Cursor.HAND_CURSOR, a.cursor.type, "A advertises its hit area with a hand cursor")
+            assertEquals(Cursor.CROSSHAIR_CURSOR, b.cursor.type, "B advertises its hit area with a crosshair")
+            assertEquals(a, componentAtOverlap(a, b), "A starts as the overlap's pointer target")
+
+            assertEquals(
+                b,
+                clickAt(b.parent, b.x + b.width / 2, b.y + 1),
+                "the exposed top of layer B receives the pointer click",
+            )
             awaitIdle()
 
             onNodeWithText("Front child: B").assertExists()
-            assertTrue(zOrderOf("B") < zOrderOf("A"), "the raised child is painted over the one it ties with")
+            assertEquals(b, componentAtOverlap(a, b), "clicking B makes it the overlap's pointer target")
         }
 
     @Test
     fun aHeavierShareTakesWidthFromItsNeighborRatherThanFromTheRow() =
         runComposeSwingTest {
-            openSection("Weight & alignment")
+            openSection("Linear layouts")
 
             onNodeWithText("Second swatch weight: 3f").assertExists()
             val (lightBefore, heavyBefore, rowBefore) = readoutNumbers("Shares granted: ")
 
-            sliders()[0].value = 5
+            sliderNamed("Second swatch weight").value = 31
             awaitIdle()
 
-            onNodeWithText("Second swatch weight: 5f").assertExists()
+            onNodeWithText("Second swatch weight: 3.1f").assertExists()
             val (lightAfter, heavyAfter, rowAfter) = readoutNumbers("Shares granted: ")
             assertTrue(
                 heavyAfter > heavyBefore,
@@ -118,7 +200,7 @@ class BoxAndWeightSectionsTest {
     @Test
     fun aSwatchTakesItsWholeShareOnlyOnceItFills() =
         runComposeSwingTest {
-            openSection("Weight & alignment")
+            openSection("Linear layouts")
 
             val (leftBefore, rightBefore) = readoutNumbers("Shares: left swatch ")
             assertTrue(leftBefore < rightBefore, "without fill the left swatch keeps only the width it prefers")
@@ -134,7 +216,7 @@ class BoxAndWeightSectionsTest {
     @Test
     fun aMaximumSizeCapsHowMuchOfItsShareAChildOccupies() =
         runComposeSwingTest {
-            openSection("Weight & alignment")
+            openSection("Linear layouts")
 
             onNodeWithText("Share taken: 80 px", substring = true).assertExists()
 
@@ -149,7 +231,7 @@ class BoxAndWeightSectionsTest {
     @Test
     fun aRelativeArrangementMirrorsWhereAnAbsoluteOneHolds() =
         runComposeSwingTest {
-            openSection("Weight & alignment")
+            openSection("Linear layouts")
 
             val endBefore = readoutNumbers("End: leading child at x = ").first()
             val absoluteBefore = readoutNumbers("Absolute.Right: leading child at x = ").first()
@@ -172,7 +254,7 @@ class BoxAndWeightSectionsTest {
     @Test
     fun aRelativeAlignmentMirrorsWhereAnAbsoluteOneHolds() =
         runComposeSwingTest {
-            openSection("Weight & alignment")
+            openSection("Linear layouts")
 
             val startBefore = readoutNumbers("Start: child at x = ").first()
             val leftBefore = readoutNumbers("AbsoluteAlignment.Left: child at x = ").first()
@@ -195,11 +277,11 @@ class BoxAndWeightSectionsTest {
     @Test
     fun theBiasSliderSlidesTheChildAcrossTheBox() =
         runComposeSwingTest {
-            openSection("Weight & alignment")
+            openSection("Box")
 
             val centered = readoutNumbers("Horizontal bias: ").last()
 
-            sliders()[1].value = 100
+            sliderNamed("Horizontal bias").value = 100
             awaitIdle()
 
             onNodeWithText("Horizontal bias: 1.0", substring = true).assertExists()
@@ -213,7 +295,7 @@ class BoxAndWeightSectionsTest {
     @Test
     fun droppingTheSharedBaselineMovesTheLabelOntoTheRowsOwnAlignment() =
         runComposeSwingTest {
-            openSection("Weight & alignment")
+            openSection("Linear layouts")
 
             val onBaseline = readoutNumbers("Align by baseline: ").first()
 
@@ -244,14 +326,52 @@ private suspend fun ComposeSwingTest.readoutNumbers(prefix: String): List<Int> {
     return integers.findAll(readout).map { it.value.toInt() }.toList()
 }
 
-private fun ComposeSwingTest.zOrderOf(text: String): Int {
-    val child = onNodeWithText(text).fetch<JLabel>()
-    return child.parent.getComponentZOrder(child)
+private fun componentAtOverlap(
+    first: JButton,
+    second: JButton,
+): Component? {
+    require(first.parent === second.parent)
+    val left = maxOf(first.x, second.x)
+    val right = minOf(first.x + first.width, second.x + second.width)
+    val top = maxOf(first.y, second.y)
+    val bottom = minOf(first.y + first.height, second.y + second.height)
+    require(left < right && top < bottom)
+    return SwingUtilities.getDeepestComponentAt(first.parent, (left + right) / 2, (top + bottom) / 2)
 }
 
-// The section holds the weight slider first and the bias slider second, in the order the cards compose.
-private fun ComposeSwingTest.sliders(): List<JSlider> {
-    val sliders = onAllNodesOfType<JSlider>().fetchAll<JSlider>()
-    assertEquals(2, sliders.size, "the section exposes a weight slider and a bias slider")
-    return sliders
+private fun clickAt(
+    parent: Container,
+    x: Int,
+    y: Int,
+): Component? {
+    val target = SwingUtilities.getDeepestComponentAt(parent, x, y) ?: return null
+    val point = SwingUtilities.convertPoint(parent, x, y, target)
+    val whenMillis = System.currentTimeMillis()
+    target.dispatchEvent(
+        MouseEvent(
+            target,
+            MouseEvent.MOUSE_PRESSED,
+            whenMillis,
+            InputEvent.BUTTON1_DOWN_MASK,
+            point.x,
+            point.y,
+            1,
+            false,
+            MouseEvent.BUTTON1,
+        ),
+    )
+    target.dispatchEvent(
+        MouseEvent(
+            target,
+            MouseEvent.MOUSE_RELEASED,
+            whenMillis,
+            0,
+            point.x,
+            point.y,
+            1,
+            false,
+            MouseEvent.BUTTON1,
+        ),
+    )
+    return target
 }

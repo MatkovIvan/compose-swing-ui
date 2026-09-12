@@ -760,7 +760,7 @@ class RowColumnTest {
         }
 
         assertEquals(
-            rowCrossCells(0, (200 - 50) / 2, 200 - 50),
+            rowCrossCells(),
             childBounds(),
             "each child naming a vertical alignment of its own must be placed by that one in place of " +
                 "the row's, and the child naming none by the row's",
@@ -783,7 +783,7 @@ class RowColumnTest {
         }
 
         assertEquals(
-            rowCrossCells(0, (200 - 50) / 2, 200 - 50),
+            rowCrossCells(),
             childBounds(),
             "the top, the middle and the bottom of the row's height must each be reachable by a child " +
                 "naming that alignment for itself, and each child keeps the height it asked for",
@@ -826,7 +826,7 @@ class RowColumnTest {
         }
 
         assertEquals(
-            columnCrossCells(0, (200 - 50) / 2, 200 - 50),
+            columnCrossCells(),
             childBounds(),
             "the leading edge, the middle and the trailing edge of the column's width must each be " +
                 "reachable by a child naming that alignment for itself, and each child keeps the width " +
@@ -848,7 +848,7 @@ class RowColumnTest {
         }
 
         assertEquals(
-            columnCrossCells(0, (200 - 50) / 2, 200 - 50),
+            columnCrossCells(),
             childBounds(),
             "each child naming a horizontal alignment of its own must be placed by that one in place of " +
                 "the column's, and the child naming none by the column's",
@@ -1567,7 +1567,7 @@ class RowColumnTest {
             TightRow(
                 Arrangement.spacedBy(15),
                 children = 3,
-                orientation = ComponentOrientation.RIGHT_TO_LEFT,
+                rightToLeft = true,
             )
         }
 
@@ -1594,7 +1594,7 @@ class RowColumnTest {
         }
 
         assertEquals(
-            squareColumnCells(50, 0, 50, 100),
+            squareColumnCells(0, 50, 100),
             childBounds(),
             "a column declared with no arrangement of its own must stack its children edge to edge " +
                 "against its top and leave the height they did not ask for below them",
@@ -1606,7 +1606,7 @@ class RowColumnTest {
         setContent { ArrangedColumn(Arrangement.Bottom) }
 
         assertEquals(
-            squareColumnCells(50, 300, 350, 400),
+            squareColumnCells(300, 350, 400),
             childBounds(),
             "Arrangement.Bottom must stack the children edge to edge against the column's bottom, so " +
                 "the height they did not ask for falls above them",
@@ -1618,7 +1618,7 @@ class RowColumnTest {
         setContent { ArrangedColumn(Arrangement.Center) }
 
         assertEquals(
-            squareColumnCells(50, 150, 200, 250),
+            squareColumnCells(150, 200, 250),
             childBounds(),
             "Arrangement.Center must keep the children edge to edge and give the height they did not " +
                 "ask for to either side of them in equal halves",
@@ -1630,7 +1630,7 @@ class RowColumnTest {
         setContent { ArrangedColumn(Arrangement.SpaceEvenly) }
 
         assertEquals(
-            squareColumnCells(50, 75, 200, 325),
+            squareColumnCells(75, 200, 325),
             childBounds(),
             "Arrangement.SpaceEvenly must split the height the children did not ask for into gaps of " +
                 "one size, counting the two at the column's edges alongside those between the children",
@@ -1642,7 +1642,7 @@ class RowColumnTest {
         setContent { ArrangedColumn(Arrangement.SpaceBetween) }
 
         assertEquals(
-            squareColumnCells(50, 0, 200, 400),
+            squareColumnCells(0, 200, 400),
             childBounds(),
             "Arrangement.SpaceBetween must put the whole of the height the children did not ask for " +
                 "into the gaps between them and none of it at either edge",
@@ -1654,7 +1654,7 @@ class RowColumnTest {
         setContent { ArrangedColumn(Arrangement.SpaceAround) }
 
         assertEquals(
-            squareColumnCells(50, 50, 200, 350),
+            squareColumnCells(50, 200, 350),
             childBounds(),
             "Arrangement.SpaceAround must give every child a gap of its own size, halved where that " +
                 "gap meets one of the column's edges",
@@ -2210,7 +2210,7 @@ class RowColumnTest {
 
     @Test
     fun testRow_Rtl_absoluteArrangementLeft() = runComposeSwingTest {
-        setContent { AbsoluteArrangementRow(Arrangement.Absolute.Left, ComponentOrientation.RIGHT_TO_LEFT) }
+        setContent { AbsoluteArrangementRow(Arrangement.Absolute.Left, rightToLeft = true) }
 
         assertEquals(
             squareRowCells(100, 0, 100, 200),
@@ -2234,7 +2234,7 @@ class RowColumnTest {
 
     @Test
     fun testRow_Rtl_absoluteArrangementRight() = runComposeSwingTest {
-        setContent { AbsoluteArrangementRow(Arrangement.Absolute.Right, ComponentOrientation.RIGHT_TO_LEFT) }
+        setContent { AbsoluteArrangementRow(Arrangement.Absolute.Right, rightToLeft = true) }
 
         assertEquals(
             squareRowCells(100, 300, 400, 500),
@@ -2258,7 +2258,7 @@ class RowColumnTest {
 
     @Test
     fun testRow_Rtl_absoluteArrangementCenter() = runComposeSwingTest {
-        setContent { AbsoluteArrangementRow(Arrangement.Absolute.Center, ComponentOrientation.RIGHT_TO_LEFT) }
+        setContent { AbsoluteArrangementRow(Arrangement.Absolute.Center, rightToLeft = true) }
 
         assertEquals(
             squareRowCells(100, 150, 250, 350),
@@ -2282,7 +2282,7 @@ class RowColumnTest {
 
     @Test
     fun testRow_Row_absoluteArrangementSpaceEvenly() = runComposeSwingTest {
-        setContent { AbsoluteArrangementRow(Arrangement.Absolute.SpaceEvenly, ComponentOrientation.RIGHT_TO_LEFT) }
+        setContent { AbsoluteArrangementRow(Arrangement.Absolute.SpaceEvenly, rightToLeft = true) }
 
         assertEquals(
             squareRowCells(100, 75, 250, 425),
@@ -2306,7 +2306,7 @@ class RowColumnTest {
 
     @Test
     fun testRow_Row_absoluteArrangementSpaceBetween() = runComposeSwingTest {
-        setContent { AbsoluteArrangementRow(Arrangement.Absolute.SpaceBetween, ComponentOrientation.RIGHT_TO_LEFT) }
+        setContent { AbsoluteArrangementRow(Arrangement.Absolute.SpaceBetween, rightToLeft = true) }
 
         assertEquals(
             squareRowCells(100, 0, 250, 500),
@@ -2331,7 +2331,7 @@ class RowColumnTest {
 
     @Test
     fun testRow_Rtl_absoluteArrangementSpaceAround() = runComposeSwingTest {
-        setContent { AbsoluteArrangementRow(Arrangement.Absolute.SpaceAround, ComponentOrientation.RIGHT_TO_LEFT) }
+        setContent { AbsoluteArrangementRow(Arrangement.Absolute.SpaceAround, rightToLeft = true) }
 
         assertEquals(
             squareRowCells(100, 50, 250, 450),
@@ -2502,13 +2502,13 @@ private class RecordingHorizontalAlignment : Alignment.Horizontal {
     }
 }
 
-/** The bounds a row assigns three children of [50] placed at [tops] across its height. */
-private fun rowCrossCells(vararg tops: Int): List<Rectangle> = tops.mapIndexed { index, top ->
+/** The bounds a row assigns three 50-pixel children placed 0, 75 and 150 pixels down its height. */
+private fun rowCrossCells(): List<Rectangle> = listOf(0, 75, 150).mapIndexed { index, top ->
     Rectangle(index * 50, top, 50, 50)
 }
 
-/** The bounds a column assigns three children of [50] placed at [lefts] across its width. */
-private fun columnCrossCells(vararg lefts: Int): List<Rectangle> = lefts.mapIndexed { index, left ->
+/** The bounds a column assigns three 50-pixel children placed 0, 75 and 150 pixels across its width. */
+private fun columnCrossCells(): List<Rectangle> = listOf(0, 75, 150).mapIndexed { index, left ->
     Rectangle(left, index * 50, 50, 50)
 }
 
@@ -2542,10 +2542,15 @@ private fun ArrangedColumn(arrangement: Arrangement.Vertical) {
 private fun TightRow(
     arrangement: Arrangement.Horizontal,
     children: Int,
-    orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT,
+    rightToLeft: Boolean = false,
 ) {
     Row(
-        modifier = containerModifier(50, 50, orientation),
+        modifier =
+            containerModifier(
+                50,
+                50,
+                if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+            ),
         horizontalArrangement = arrangement,
     ) {
         repeat(children) { Child(it, 20, 20) }
@@ -2572,11 +2577,8 @@ private fun squareRowCells(
     vararg lefts: Int,
 ): List<Rectangle> = lefts.map { Rectangle(it, 0, extent, extent) }
 
-/** The bounds a column assigns square children of [extent] stacked at [tops]. */
-private fun squareColumnCells(
-    extent: Int,
-    vararg tops: Int,
-): List<Rectangle> = tops.map { Rectangle(0, it, extent, extent) }
+/** The bounds a column assigns 50-pixel square children stacked at the requested vertical positions. */
+private fun squareColumnCells(vararg tops: Int): List<Rectangle> = tops.map { Rectangle(0, it, 50, 50) }
 
 /**
  * A child of one fixed extent: it asks for [width] by [height] and declares it can shrink to no less,
@@ -2634,16 +2636,21 @@ private fun UnevenRightToLeftRow(arrangement: Arrangement.Horizontal) {
 
 /**
  * A row wider than its three children ask for, so every absolute arrangement has surplus to place,
- * laid out under [orientation] so an arrangement naming an edge of the row can be told from one
- * naming a side of it.
+ * laid out either left-to-right or right-to-left so an arrangement naming an edge of the row can be
+ * told from one naming a side of it.
  */
 @Composable
 private fun AbsoluteArrangementRow(
     arrangement: Arrangement.Horizontal,
-    orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT,
+    rightToLeft: Boolean = false,
 ) {
     Row(
-        modifier = containerModifier(600, 100, orientation),
+        modifier =
+            containerModifier(
+                600,
+                100,
+                if (rightToLeft) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+            ),
         horizontalArrangement = arrangement,
     ) {
         repeat(CHILD_COUNT) { Child(it, 100, 100) }

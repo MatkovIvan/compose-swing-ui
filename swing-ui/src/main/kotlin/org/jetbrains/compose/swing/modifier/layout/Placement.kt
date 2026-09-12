@@ -139,9 +139,26 @@ internal interface LayoutElement : PlacementElement {
         outer: Dimension,
         leftToRight: Boolean,
     ): Point = ORIGIN
+
+    /**
+     * Where the child sits within [outer] in a precision that can compose with the surrounding layout
+     * pass before AWT receives its final [Point]. An element whose displacement already fits a [Point]
+     * uses its [placeWithin] result; one with a wider intermediate coordinate overrides this.
+     */
+    fun placeWithinCoordinate(
+        inner: Dimension,
+        outer: Dimension,
+        leftToRight: Boolean,
+    ): PlacementCoordinate =
+        placeWithin(inner, outer, leftToRight).let { PlacementCoordinate(it.x.toLong(), it.y.toLong()) }
 }
 
-/** Where a layout element that moves its child nowhere places it. */
+/** A layout element's displacement in a precision that can compose with the surrounding layout pass. */
+internal data class PlacementCoordinate(
+    val x: Long,
+    val y: Long,
+)
+
 private val ORIGIN = Point(0, 0)
 
 /** The layout constraint a caller names outright, through [layoutConstraint]. */

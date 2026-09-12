@@ -107,6 +107,152 @@ class RowColumnWeightTest {
     }
 
     @Test
+    fun anUnweightedChildInARowNeverGrowsPastTheMaximumItDeclares() = runComposeSwingTest {
+        setContent {
+            Row(modifier = containerModifier(CAPPED_ROW_EXTENT, CROSS_EXTENT)) {
+                SizedChild(0, SwingModifier.maximumSize(MAXIMUM_EXTENT, CHILD_HEIGHT))
+            }
+        }
+
+        assertEquals(
+            listOf(Rectangle(0, 0, MAXIMUM_EXTENT, CHILD_HEIGHT)),
+            childBounds(),
+            "an unweighted child in a row must be measured no wider than the maximum it declares",
+        )
+    }
+
+    @Test
+    fun anUnweightedChildInAColumnNeverGrowsPastTheMaximumItDeclares() = runComposeSwingTest {
+        setContent {
+            Column(modifier = containerModifier(CROSS_EXTENT, CAPPED_COLUMN_EXTENT)) {
+                SizedChild(0, SwingModifier.maximumSize(CHILD_WIDTH, MAXIMUM_EXTENT))
+            }
+        }
+
+        assertEquals(
+            listOf(Rectangle(0, 0, CHILD_WIDTH, MAXIMUM_EXTENT)),
+            childBounds(),
+            "an unweighted child in a column must be measured no taller than the maximum it declares",
+        )
+    }
+
+    @Test
+    fun anUnweightedChildsMaximumBoundsItsRowsPreferredWidth() = runComposeSwingTest {
+        setContent {
+            Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(0, SwingModifier.maximumSize(MAXIMUM_EXTENT, CHILD_HEIGHT))
+            }
+        }
+
+        assertEquals(
+            Dimension(MAXIMUM_EXTENT, CHILD_HEIGHT),
+            containerPreferredSize(),
+            "a row must not ask for width its unweighted child explicitly refuses",
+        )
+    }
+
+    @Test
+    fun anUnweightedChildsMaximumBoundsItsColumnsPreferredHeight() = runComposeSwingTest {
+        setContent {
+            Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(0, SwingModifier.maximumSize(CHILD_WIDTH, MAXIMUM_EXTENT))
+            }
+        }
+
+        assertEquals(
+            Dimension(CHILD_WIDTH, MAXIMUM_EXTENT),
+            containerPreferredSize(),
+            "a column must not ask for height its unweighted child explicitly refuses",
+        )
+    }
+
+    @Test
+    fun anUnweightedChildsMaximumBoundsItsRowsPreferredHeight() = runComposeSwingTest {
+        setContent {
+            Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(0, SwingModifier.maximumSize(CHILD_WIDTH, MAXIMUM_EXTENT))
+            }
+        }
+
+        assertEquals(
+            Dimension(CHILD_WIDTH, MAXIMUM_EXTENT),
+            containerPreferredSize(),
+            "a row must not ask for height its unweighted child explicitly refuses",
+        )
+    }
+
+    @Test
+    fun anUnweightedChildsMaximumBoundsItsColumnsPreferredWidth() = runComposeSwingTest {
+        setContent {
+            Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(0, SwingModifier.maximumSize(MAXIMUM_EXTENT, CHILD_HEIGHT))
+            }
+        }
+
+        assertEquals(
+            Dimension(MAXIMUM_EXTENT, CHILD_HEIGHT),
+            containerPreferredSize(),
+            "a column must not ask for width its unweighted child explicitly refuses",
+        )
+    }
+
+    @Test
+    fun aWeightedCrossFilledAspectRatioUsesTheFeasibleSizeFromItsMaximumOffer() = runComposeSwingTest {
+        setContent {
+            Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                SizedChild(
+                    0,
+                    SwingModifier
+                        .maximumSize(RATIO_MAXIMUM_WIDTH, RATIO_MAXIMUM_HEIGHT)
+                        .weight(1f)
+                        .fillHeight()
+                        .aspectRatio(RATIO),
+                )
+            }
+        }
+
+        assertEquals(
+            Dimension(RATIO_FEASIBLE_WIDTH, RATIO_MAXIMUM_HEIGHT),
+            containerPreferredSize(),
+            "a row must ask for the feasible 3px by 30px ratio size its weighted, cross-filled child " +
+                "resolves from its 10px by 30px maximum offer",
+        )
+        assertEquals(
+            listOf(Rectangle(0, 0, RATIO_FEASIBLE_WIDTH, RATIO_MAXIMUM_HEIGHT)),
+            childBounds(),
+            "the row's actual preferred-size pass must agree with its intrinsic measurement",
+        )
+    }
+
+    @Test
+    fun aWeightedCrossFilledAspectRatioEscapesAnImpossibleExactOffer() = runComposeSwingTest {
+        setContent {
+            Row(modifier = containerModifier(RATIO_MAXIMUM_WIDTH, RATIO_MAXIMUM_HEIGHT)) {
+                SizedChild(
+                    0,
+                    SwingModifier
+                        .maximumSize(RATIO_MAXIMUM_WIDTH, RATIO_MAXIMUM_HEIGHT)
+                        .weight(1f)
+                        .fillHeight()
+                        .aspectRatio(RATIO),
+                )
+            }
+        }
+
+        assertEquals(
+            Dimension(RATIO_MAXIMUM_WIDTH, RATIO_MAXIMUM_HEIGHT),
+            containerSize(),
+            "the parent must keep the row at the exact 10px by 30px extent it imposed",
+        )
+        assertEquals(
+            listOf(Rectangle(0, 0, RATIO_MAXIMUM_WIDTH, RATIO_ESCAPED_HEIGHT)),
+            childBounds(),
+            "under an exact 10px by 30px offer no 0.1 ratio fits, so aspectRatio must escape to the " +
+                "10px by 100px size its documented fallback selects",
+        )
+    }
+
+    @Test
     fun twoWeightedChildrenSplitTheLeftoverWidthInProportion() = runComposeSwingTest {
         setContent {
             Row(modifier = containerModifier(SPLIT_ROW_EXTENT, CROSS_EXTENT)) {
@@ -124,6 +270,28 @@ class RowColumnWeightTest {
             ),
             childBounds(),
             "children weighted 1f and 2f must take a third and two thirds of the 300px left over",
+        )
+    }
+
+    @Test
+    fun fractionalWeightsSplitAnOddLeftoverWidthWithoutRoundingTheWeights() = runComposeSwingTest {
+        setContent {
+            Row(modifier = containerModifier(FRACTIONAL_ROW_EXTENT, CROSS_EXTENT)) {
+                SizedChild(0)
+                SizedChild(1, SwingModifier.weight(0.5f))
+                SizedChild(2, SwingModifier.weight(1.5f))
+            }
+        }
+
+        assertEquals(
+            listOf(
+                Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(CHILD_WIDTH, 0, 1, CHILD_HEIGHT),
+                Rectangle(CHILD_WIDTH + 1, 0, 4, CHILD_HEIGHT),
+            ),
+            childBounds(),
+            "weights 0.5f and 1.5f must divide all 5px in their one-to-three ratio; rounding the " +
+                "weights first would incorrectly grant 2px and 3px",
         )
     }
 
@@ -228,6 +396,29 @@ class RowColumnWeightTest {
     }
 
     @Test
+    fun aRowWithTwoInfiniteWeightsKeepsAndroidXsRoundedIntrinsicWidth() = runComposeSwingTest {
+        setContent {
+            Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                Label(
+                    "",
+                    modifier = SwingModifier.weight(Float.POSITIVE_INFINITY).preferredSize(Int.MAX_VALUE, CHILD_HEIGHT),
+                )
+                Label(
+                    "",
+                    modifier = SwingModifier.weight(Float.POSITIVE_INFINITY).preferredSize(Int.MAX_VALUE, CHILD_HEIGHT),
+                )
+            }
+        }
+
+        assertEquals(
+            Dimension(0, CHILD_HEIGHT),
+            containerPreferredSize(),
+            "two weights clamped from infinity each round their sub-pixel one-unit width to zero before " +
+                "the finite total scales it, as AndroidX's intrinsic rounding order requires",
+        )
+    }
+
+    @Test
     fun aChildKeepsTheLastWeightItDeclares() = runComposeSwingTest {
         setContent {
             Row(modifier = containerModifier(SPLIT_ROW_EXTENT, CROSS_EXTENT)) {
@@ -310,11 +501,24 @@ class RowColumnWeightTest {
         const val SPLIT_COLUMN_EXTENT = 340
         const val SPLIT_ROW_EXTENT = 350
 
+        // Leaves exactly 5px after the fixture child, exposing fractional-weight rounding.
+        const val FRACTIONAL_ROW_EXTENT = CHILD_WIDTH + 5
+
         // More height than the capped child could ever accept, so the cap is what decides its extent.
         const val CAPPED_COLUMN_EXTENT = 400
+
+        // Wider than a capped child, so the child's maximum rather than the row's offer decides its width.
+        const val CAPPED_ROW_EXTENT = 100
 
         // Below what a fixture child prefers along either axis, so a cap holds its child back from the
         // extent it prefers as well as from the share it was granted.
         const val MAXIMUM_EXTENT = 30
+
+        // A 0.1 width-to-height ratio resolves within a 10px by 30px maximum offer to 3px by 30px.
+        const val RATIO_MAXIMUM_WIDTH = 10
+        const val RATIO_MAXIMUM_HEIGHT = 30
+        const val RATIO = 0.1f
+        const val RATIO_FEASIBLE_WIDTH = 3
+        const val RATIO_ESCAPED_HEIGHT = 100
     }
 }

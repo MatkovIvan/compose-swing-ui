@@ -138,10 +138,10 @@ class RowColumnParentQueryTest {
     }
 
     @Test
-    fun aHiddenChildDoesNotDecideWhatItsContainerReports() = runComposeSwingTest {
+    fun aHiddenChildDecidesWhatItsContainerReportsLikeAnyOther() = runComposeSwingTest {
         setContent {
-            // In each container the hidden child is the one that would otherwise be asked: the first
-            // declared in a row, the last declared - the top of the stack - in a box.
+            // In each container the hidden child is the one that is asked: the first declared in a row,
+            // the last declared - the top of the stack - in a box.
             Row(modifier = SwingModifier.testTag(ROW_TAG)) {
                 SizedChild(0, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING).visible(false))
                 SizedChild(1, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
@@ -154,8 +154,8 @@ class RowColumnParentQueryTest {
 
         for (tag in listOf(ROW_TAG, BOX_TAG)) {
             val container = panel(tag)
-            assertEquals(LEADING, container.alignmentX, "$tag must pass over the hidden child on the x axis")
-            assertEquals(TRAILING, container.alignmentY, "and over it on the y axis")
+            assertEquals(TRAILING, container.alignmentX, "$tag reports the hidden child's x alignment")
+            assertEquals(LEADING, container.alignmentY, "and its y alignment on the other axis")
         }
     }
 

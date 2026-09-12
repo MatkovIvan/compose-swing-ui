@@ -132,5 +132,13 @@ public sealed interface PlacementScope {
     public fun Placeable.placeRelative(
         x: Int,
         y: Int,
-    ): Unit = place(if (isLeftToRight) x else parentWidth - width - x, y)
+    ): Unit =
+        place(
+            if (isLeftToRight) x else saturateLayoutCoordinate(parentWidth.toLong() - width.toLong() - x.toLong()),
+            y,
+        )
 }
+
+/** A signed coordinate held to the range AWT can represent rather than wrapped across the opposite edge. */
+internal fun saturateLayoutCoordinate(value: Long): Int =
+    value.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()

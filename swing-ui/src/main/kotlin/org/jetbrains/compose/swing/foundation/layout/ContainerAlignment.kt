@@ -4,8 +4,8 @@ import java.awt.Component
 import java.awt.Container
 
 /**
- * What [alignment] reads for the first child of [target] that is visible, or [Component.CENTER_ALIGNMENT]
- * where the container has no visible child to ask.
+ * What [alignment] reads for the first child of [target], or [Component.CENTER_ALIGNMENT] where the
+ * container has no child to ask.
  *
  * A container built from this package reports its content's alignment rather than a fixed value of its own,
  * so the layout above it places it where it would have placed that content directly. A parent that lines
@@ -13,16 +13,14 @@ import java.awt.Container
  * line for every sibling, so a container answering a constant would sit off the line its content belongs
  * on and squeeze whichever siblings can stretch.
  *
- * A hidden child is passed over because it takes no space and is placed nowhere; letting it decide the
- * alignment would move the container for content that is not on screen.
+ * A hidden child answers like any other, because these containers reserve its place as well: a container
+ * whose reserved layout and whose reported alignment disagreed about which children exist would sit off
+ * the line its own content was measured against.
  */
-internal inline fun firstVisibleChildAlignment(
+internal inline fun firstChildAlignment(
     target: Container,
     alignment: (Component) -> Float,
 ): Float {
-    for (index in 0 until target.componentCount) {
-        val child = target.getComponent(index)
-        if (child.isVisible) return alignment(child)
-    }
-    return Component.CENTER_ALIGNMENT
+    if (target.componentCount == 0) return Component.CENTER_ALIGNMENT
+    return alignment(target.getComponent(0))
 }
